@@ -1773,10 +1773,17 @@
         let _spClient = null;
         let _spClientKey = '';
 
+        // ค่าเชื่อมต่อ Cloud เริ่มต้น (ฝังไว้ในไฟล์ เพื่อให้ทุกเครื่องเชื่อม Cloud ได้ทันที
+        // โดยไม่ต้องตั้งค่าทีละเครื่อง — Anon Key ออกแบบมาให้เปิดเผยฝั่ง client ได้ ไม่ใช่รหัสลับ)
+        // ยังตั้งค่าทับได้ในเมนู "ตั้งค่า Cloud Database" ถ้าต้องการสลับไปโปรเจกต์อื่น
+        const DEFAULT_SUPABASE_URL = 'https://phfarhbqsvhwytbbvctf.supabase.co';
+        const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoZmFyaGJxc3Zod3l0YmJ2Y3RmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4ODg1MjYsImV4cCI6MjEwMDQ2NDUyNn0.VYqcXntkH69JdU4kQXn1m_ynKe6Fd42NtbP8mpKjLxA';
+        const DEFAULT_SUPABASE_BUCKET = 'buildtrack-photos';
+
         // HELPER TO GET SUPABASE CLIENT INSTANCE (cached)
         function getSupabaseClient() {
-            const url = localStorage.getItem('bt_sp_url');
-            const key = localStorage.getItem('bt_sp_key');
+            const url = localStorage.getItem('bt_sp_url') || DEFAULT_SUPABASE_URL;
+            const key = localStorage.getItem('bt_sp_key') || DEFAULT_SUPABASE_ANON_KEY;
             if (!url || !key || !window.supabase) return null;
 
             const cacheKey = url + '|' + key;
@@ -1794,7 +1801,7 @@
 
         // ชื่อ Bucket สำหรับเก็บรูปภาพบน Supabase Storage
         function getStorageBucket() {
-            return localStorage.getItem('bt_sp_bucket') || 'buildtrack-photos';
+            return localStorage.getItem('bt_sp_bucket') || DEFAULT_SUPABASE_BUCKET;
         }
 
         function isCloudStorageReady() {
@@ -2274,12 +2281,10 @@
         }
 
         function checkCloudConnectionOnLoad() {
-            const url = localStorage.getItem('bt_sp_url');
-            const key = localStorage.getItem('bt_sp_key');
             const statusEl = document.getElementById('db-connection-status');
-            
+
             if (statusEl) {
-                if (url && key) {
+                if (getSupabaseClient()) {
                     statusEl.textContent = 'เชื่อมต่อสำเร็จ! (กำลังใช้ Cloud Supabase)';
                     statusEl.className = 'font-semibold text-emerald-600';
                 } else {
