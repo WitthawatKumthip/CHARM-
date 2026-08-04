@@ -4952,7 +4952,7 @@
             const missing = [];
             for (const tbl of needTables) {
                 try {
-                    const { error } = await client.from(tbl).select('id', { head: true, count: 'exact' }).limit(1);
+                    const { error } = await client.from(tbl).select('*', { head: true, count: 'exact' }).limit(1);
                     if (error) throw error;
                 } catch (err) {
                     missing.push(tbl);
