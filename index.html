@@ -3215,6 +3215,7 @@
                                 <i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
                                 <span>สร้างเสร็จแล้ว ${metrics.completedUnits} / ${metrics.totalUnits} หลัง (${metrics.totalUnits > 0 ? Math.round((metrics.completedUnits/metrics.totalUnits)*100) : 0}%)</span>
                             </div>
+                            ${currentUser && currentUser.role === 'ADMIN' ? `
                             <button onclick="togglePinEditMode('${project.id}')" class="${isEditingPinPositionMode ? 'bg-amber-500 text-white font-bold' : 'bg-slate-800 text-slate-200'} text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1 border border-slate-700">
                                 <i class="fa-solid fa-location-dot text-xs"></i>
                                 <span>${isEditingPinPositionMode ? 'ยกเลิกปักหมุด' : 'กำหนดจุดแปลงบนผัง'}</span>
@@ -3223,6 +3224,7 @@
                                 <i class="fa-solid fa-image text-xs"></i>
                                 <span>อัปโหลดรูปผังใหม่</span>
                             </button>
+                            ` : ''}
                         </div>
                     </div>
 
@@ -3286,6 +3288,10 @@
         }
 
         function togglePinEditMode(projId) {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ PM (ADMIN) เท่านั้นที่กำหนดจุดแปลงบนผังได้', 'rose');
+                return;
+            }
             isEditingPinPositionMode = !isEditingPinPositionMode;
             renderSitePlanView();
             if (isEditingPinPositionMode) {
@@ -4232,6 +4238,10 @@
         }
 
         function openEditProjectModal(id) {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ PM (ADMIN) เท่านั้นที่แก้ไขโครงการ/อัปโหลดรูปผังได้', 'rose');
+                return;
+            }
             const p = projectsData.find(item => item.id === id);
             if (!p) return;
             document.getElementById('project-form-title').textContent = 'แก้ไขโครงการ';
