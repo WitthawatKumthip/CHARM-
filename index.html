@@ -3177,7 +3177,10 @@
             if (procFilter) procFilter.innerHTML = filterOptions;
             if (histFilter) histFilter.innerHTML = filterOptions;
             if (photosFilter) photosFilter.innerHTML = filterOptions;
-            if (siteplanSelect) siteplanSelect.innerHTML = projectOptions;
+            if (siteplanSelect) {
+                const sortedForSiteplan = [...projectsData].sort((a, b) => a.id.localeCompare(b.id));
+                siteplanSelect.innerHTML = sortedForSiteplan.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            }
 
             onRecordProjectChange();
             onProcurementProjectChange();
