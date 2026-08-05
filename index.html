@@ -753,8 +753,8 @@
             </div>
             <form onsubmit="handleLogin(event)" class="space-y-3 text-left">
                 <div>
-                    <label id="login-user-label" class="block text-xs font-semibold text-slate-600 mb-1">Username</label>
-                    <input type="text" id="login-username" required autocomplete="username" placeholder="เช่น admin, foreman" class="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                    <label id="login-user-label" class="block text-xs font-semibold text-slate-600 mb-1">อีเมล (Email)</label>
+                    <input type="email" id="login-username" required autocomplete="username" placeholder="you@company.com" class="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Password</label>
@@ -765,25 +765,11 @@
             </form>
 
             <!-- ตัวบอกโหมดการยืนยันตัวตน -->
-            <div id="login-auth-mode" class="text-[10px] font-semibold text-slate-400 flex items-center justify-center gap-1 pt-1 border-t border-slate-100">
-                <i class="fa-solid fa-hard-drive"></i> โหมด Local (บัญชีเก็บในเครื่อง)
+            <div id="login-auth-mode" class="text-[10px] font-semibold text-emerald-600 flex items-center justify-center gap-1 pt-1 border-t border-slate-100">
+                <i class="fa-solid fa-shield-halved"></i> โหมด Cloud (Supabase Auth — รหัสผ่านเข้ารหัส)
             </div>
 
-            <!-- ทางออกฉุกเฉิน: ใช้ได้เมื่อกรอก Cloud ไว้แล้วแต่ยังไม่มีบัญชีบน Supabase -->
-            <div id="login-escape-box" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-2.5 space-y-2 text-left">
-                <p class="text-[10px] text-amber-900 leading-relaxed">
-                    <i class="fa-solid fa-circle-info mr-1"></i>
-                    เข้าด้วยอีเมลไม่ได้? ถ้ายังไม่ได้สร้างบัญชีบน Supabase ให้ใช้บัญชีในเครื่องไปก่อนได้
-                </p>
-                <button type="button" onclick="switchToLocalLogin()" class="w-full bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold py-1.5 rounded-lg">
-                    <i class="fa-solid fa-hard-drive mr-1"></i> เข้าสู่ระบบด้วยบัญชีในเครื่อง
-                </button>
-                <button type="button" onclick="resetCloudSettings()" class="w-full bg-white hover:bg-slate-50 border border-amber-300 text-amber-800 text-[10px] font-semibold py-1.5 rounded-lg">
-                    <i class="fa-solid fa-eraser mr-1"></i> ล้างการตั้งค่า Cloud ทั้งหมด
-                </button>
-            </div>
-
-            <button onclick="openLoginCloudSetup()" class="text-[10px] text-slate-400 hover:text-blue-600 underline">ตั้งค่าการเชื่อมต่อ Cloud</button>
+            <div id="login-escape-box" class="hidden"></div>
         </div>
     </div>
 
