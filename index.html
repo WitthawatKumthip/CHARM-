@@ -632,12 +632,18 @@
                         <h3 class="font-bold text-slate-800 text-sm">รายการแจ้งปัญหา / งานแก้ไข Defect (รูปก่อน - หลังแก้ไข)</h3>
                         <p class="text-xs text-slate-500">ติดตาม Defect ประจำแปลงบ้าน แนบรูปถ่ายก่อน-หลังแก้ไข และลงวันเวลาแล้วเสร็จ</p>
                     </div>
-                    <button onclick="openAddIssueModal()" class="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center space-x-1.5">
-                        <i class="fa-solid fa-plus"></i>
-                        <span>+ แจ้งปัญหาใหม่</span>
-                    </button>
+                    <div class="flex items-center gap-2 no-print">
+                        <button onclick="window.print()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center space-x-1.5">
+                            <i class="fa-solid fa-print"></i>
+                            <span>พิมพ์รายการ</span>
+                        </button>
+                        <button onclick="openAddIssueModal()" class="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center space-x-1.5">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>+ แจ้งปัญหาใหม่</span>
+                        </button>
+                    </div>
                 </div>
-                <div class="overflow-x-auto custom-scrollbar">
+                <div class="overflow-x-auto custom-scrollbar print-area">
                     <table class="w-full text-left border-collapse min-w-[900px]">
                         <thead>
                             <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 border-b border-slate-100 uppercase">
@@ -648,9 +654,10 @@
                                 <th class="py-3 px-3">โครงการ / แปลงบ้าน</th>
                                 <th class="py-3 px-3">วันที่พบ</th>
                                 <th class="py-3 px-3">ผู้รับผิดชอบ</th>
+                                <th class="py-3 px-3">การแก้ไข</th>
                                 <th class="py-3 px-3">วันแก้ไขเสร็จ</th>
                                 <th class="py-3 px-3 text-center">สถานะ</th>
-                                <th class="py-3 px-3 text-right">จัดการ</th>
+                                <th class="py-3 px-3 text-right no-print">จัดการ</th>
                             </tr>
                         </thead>
                         <tbody id="issues-table-body" class="text-xs divide-y divide-slate-100 text-slate-700"></tbody>
@@ -1244,6 +1251,14 @@
                 </div>
             </div>
 
+            <div id="defect-compare-resolution-wrap" class="bg-amber-50 border border-amber-200 p-3 rounded-xl space-y-1 hidden">
+                <div class="text-xs font-bold text-amber-700 flex items-center space-x-1.5">
+                    <i class="fa-solid fa-wrench"></i>
+                    <span>รายละเอียดการแก้ไข</span>
+                </div>
+                <p id="defect-compare-resolution-text" class="text-xs text-slate-700 whitespace-pre-wrap"></p>
+            </div>
+
             <div class="flex justify-end pt-2 border-t border-slate-100">
                 <button onclick="closeModal('defect-compare-modal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">ปิดหน้าต่าง</button>
             </div>
@@ -1376,6 +1391,11 @@
                         <label class="block font-semibold text-slate-600 mb-1">วันแก้ไขแล้วเสร็จ</label>
                         <input type="date" id="issue-resolved-date-input" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500">
                     </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">รายละเอียดการแก้ไข (แก้ไขอย่างไร)</label>
+                    <textarea id="issue-resolution-notes-input" rows="3" placeholder="ระบุวิธีการแก้ไขปัญหา เช่น เปลี่ยนวัสดุ, ยาแนวใหม่, อุดรอยรั่ว..." class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
                 </div>
             </div>
             <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
@@ -1759,7 +1779,8 @@
                     status: s(i.status),
                     resolved_date: d(i.resolvedDate),
                     photo_before: i.photoBefore || null,
-                    photo_after: i.photoAfter || null
+                    photo_after: i.photoAfter || null,
+                    resolution_notes: s(i.resolutionNotes)
                 }),
                 fromRow: r => ({
                     id: r.id,
@@ -1771,7 +1792,8 @@
                     status: s(r.status),
                     resolvedDate: s(r.resolved_date),
                     photoBefore: r.photo_before || null,
-                    photoAfter: r.photo_after || null
+                    photoAfter: r.photo_after || null,
+                    resolutionNotes: s(r.resolution_notes)
                 })
             },
 
@@ -4192,16 +4214,17 @@
                         <td class="py-3 px-3">${project ? project.name : '-'} (${unit ? unit.name : '-'})</td>
                         <td class="py-3 px-3 text-slate-500">${iss.reportDate}</td>
                         <td class="py-3 px-3 text-slate-700">${iss.assignedTo || '-'}</td>
+                        <td class="py-3 px-3 text-slate-600 max-w-[220px] whitespace-pre-wrap">${iss.resolutionNotes || '<span class="text-slate-300 italic">-</span>'}</td>
                         <td class="py-3 px-3">${resolvedDateText}</td>
                         <td class="py-3 px-3 text-center">${badge}</td>
-                        <td class="py-3 px-3 text-right space-x-1">
+                        <td class="py-3 px-3 text-right space-x-1 no-print">
                             <button onclick="openEditIssueModal('${iss.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-semibold">แก้ไข</button>
                         </td>
                     </tr>
                 `;
             });
 
-            tbody.innerHTML = html || '<tr><td colspan="10" class="py-4 text-center text-slate-400">ยังไม่มีรายการแจ้งปัญหา/Defect ในระบบ</td></tr>';
+            tbody.innerHTML = html || '<tr><td colspan="11" class="py-4 text-center text-slate-400">ยังไม่มีรายการแจ้งปัญหา/Defect ในระบบ</td></tr>';
         }
 
         function openDefectComparisonModal(id) {
@@ -4224,6 +4247,17 @@
 
             if (imgBefore) imgBefore.src = beforeSrc;
             if (imgAfter) imgAfter.src = afterSrc;
+
+            const resWrap = document.getElementById('defect-compare-resolution-wrap');
+            const resText = document.getElementById('defect-compare-resolution-text');
+            if (resWrap && resText) {
+                if (iss.resolutionNotes) {
+                    resText.textContent = iss.resolutionNotes;
+                    resWrap.classList.remove('hidden');
+                } else {
+                    resWrap.classList.add('hidden');
+                }
+            }
 
             openModal('defect-compare-modal');
         }
@@ -4813,6 +4847,7 @@
             document.getElementById('issue-assigned-input').value = '';
             document.getElementById('issue-status-select').value = 'pending';
             document.getElementById('issue-resolved-date-input').value = '';
+            document.getElementById('issue-resolution-notes-input').value = '';
             populateProjectSelects();
             openModal('issue-form-modal');
         }
@@ -4834,6 +4869,7 @@
             document.getElementById('issue-assigned-input').value = iss.assignedTo || '';
             document.getElementById('issue-status-select').value = iss.status || 'pending';
             document.getElementById('issue-resolved-date-input').value = iss.resolvedDate || '';
+            document.getElementById('issue-resolution-notes-input').value = iss.resolutionNotes || '';
             openModal('issue-form-modal');
         }
 
@@ -4846,6 +4882,7 @@
             const assignedTo = document.getElementById('issue-assigned-input').value.trim();
             const status = document.getElementById('issue-status-select').value;
             const resolvedDate = document.getElementById('issue-resolved-date-input').value;
+            const resolutionNotes = document.getElementById('issue-resolution-notes-input').value.trim();
 
             const fileInputBefore = document.getElementById('issue-photo-before-file');
             const fileInputAfter = document.getElementById('issue-photo-after-file');
@@ -4874,6 +4911,7 @@
                         iss.assignedTo = assignedTo;
                         iss.status = status;
                         iss.resolvedDate = resolvedDate;
+                        iss.resolutionNotes = resolutionNotes;
                         if (newPhotoBefore) iss.photoBefore = newPhotoBefore;
                         if (newPhotoAfter) iss.photoAfter = newPhotoAfter;
                     }
@@ -4888,6 +4926,7 @@
                         assignedTo: assignedTo,
                         status: status,
                         resolvedDate: resolvedDate,
+                        resolutionNotes: resolutionNotes,
                         photoBefore: newPhotoBefore || null,
                         photoAfter: newPhotoAfter || null
                     });
