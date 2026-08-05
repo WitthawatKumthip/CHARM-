@@ -944,6 +944,43 @@
         </div>
     </div>
 
+    <!-- Edit Pending Record Modal (FOREMAN can edit/cancel their own pending record before PM approval) -->
+    <div id="edit-pending-record-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-800 text-sm">แก้ไขรายการบันทึกงาน (ก่อนอนุมัติ)</h3>
+                <button onclick="closeModal('edit-pending-record-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-base"></i></button>
+            </div>
+            <input type="hidden" id="edit-pending-record-id">
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">สถานะงาน</label>
+                    <select id="edit-pending-status-select" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold">
+                        <option value="completed">เสร็จเรียบร้อยแล้ว (Completed)</option>
+                        <option value="in_progress">กำลังดำเนินการ (In Progress)</option>
+                        <option value="not_started">ยังไม่เริ่ม (Not Started)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">หมายเหตุ / รายละเอียดงาน</label>
+                    <textarea id="edit-pending-remark-input" rows="3" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">รูปถ่ายหลักฐาน (คลิก × เพื่อลบรูป)</label>
+                    <div id="edit-pending-photos-preview" class="grid grid-cols-4 gap-2"></div>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">เพิ่มรูปใหม่ (ถ้ามี)</label>
+                    <input type="file" id="edit-pending-photo-file" accept="image/*" multiple class="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-slate-200 rounded-xl">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                <button onclick="closeModal('edit-pending-record-modal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-medium">ยกเลิก</button>
+                <button onclick="saveEditedPendingRecord()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm">บันทึกการแก้ไข</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Manage Units Modal -->
     <div id="units-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4">
@@ -3696,7 +3733,11 @@
             const container = document.getElementById('pm-approval-list-container');
             if (!container) return;
 
-            const pendingRecords = sequenceRecords.filter(r => r.approvalStatus === 'pending_approval');
+            const isAdminUser = !!currentUser && currentUser.role === 'ADMIN';
+            const pendingRecords = sequenceRecords.filter(r =>
+                r.approvalStatus === 'pending_approval' &&
+                (isAdminUser || (currentUser && r.recordedBy === currentUser.name))
+            );
 
             if (pendingRecords.length === 0) {
                 container.innerHTML = `
@@ -3741,12 +3782,21 @@
                         ` : ''}
 
                         <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
-                            <button onclick="rejectPendingRecord('${r.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold px-4 py-2 rounded-xl transition">
-                                <i class="fa-solid fa-xmark mr-1"></i> ปฏิเสธ
-                            </button>
-                            <button onclick="approvePendingRecord('${r.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm transition">
-                                <i class="fa-solid fa-check mr-1"></i> อนุมัติงานแล้วเสร็จ
-                            </button>
+                            ${isAdminUser ? `
+                                <button onclick="rejectPendingRecord('${r.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold px-4 py-2 rounded-xl transition">
+                                    <i class="fa-solid fa-xmark mr-1"></i> ปฏิเสธ
+                                </button>
+                                <button onclick="approvePendingRecord('${r.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm transition">
+                                    <i class="fa-solid fa-check mr-1"></i> อนุมัติงานแล้วเสร็จ
+                                </button>
+                            ` : `
+                                <button onclick="cancelOwnPendingRecord('${r.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold px-4 py-2 rounded-xl transition">
+                                    <i class="fa-solid fa-trash mr-1"></i> ยกเลิกรายการ
+                                </button>
+                                <button onclick="openEditPendingRecordModal('${r.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-semibold px-4 py-2 rounded-xl transition">
+                                    <i class="fa-solid fa-pen mr-1"></i> แก้ไข
+                                </button>
+                            `}
                         </div>
                     </div>
                 `;
@@ -3780,6 +3830,104 @@
             saveDataToDatabase();
             refreshAllViews();
             showNotification('ปฏิเสธและลบรายการบันทึกเรียบร้อยแล้ว', 'amber');
+        }
+
+        // ทีมงาน (ผู้บันทึกเอง) ยกเลิกรายการของตัวเองได้ ตราบใดที่ยังไม่ได้รับการอนุมัติจาก PM
+        function cancelOwnPendingRecord(recId) {
+            const rec = sequenceRecords.find(r => r.id === recId);
+            if (!rec) return;
+            const isOwner = currentUser && rec.recordedBy === currentUser.name;
+            const isAdmin = currentUser && currentUser.role === 'ADMIN';
+            if (rec.approvalStatus !== 'pending_approval' || !(isOwner || isAdmin)) {
+                showNotification('ยกเลิกได้เฉพาะรายการของตัวเองที่ยังไม่ได้รับการอนุมัติ', 'rose');
+                return;
+            }
+            sequenceRecords = sequenceRecords.filter(r => r.id !== recId);
+            saveDataToDatabase();
+            refreshAllViews();
+            showNotification('ยกเลิกรายการบันทึกเรียบร้อยแล้ว', 'amber');
+        }
+
+        let _editPendingPhotos = [];
+
+        // ทีมงาน (ผู้บันทึกเอง) แก้ไขรายการของตัวเองได้ ตราบใดที่ยังไม่ได้รับการอนุมัติจาก PM
+        function openEditPendingRecordModal(recId) {
+            const rec = sequenceRecords.find(r => r.id === recId);
+            if (!rec) return;
+            const isOwner = currentUser && rec.recordedBy === currentUser.name;
+            const isAdmin = currentUser && currentUser.role === 'ADMIN';
+            if (rec.approvalStatus !== 'pending_approval' || !(isOwner || isAdmin)) {
+                showNotification('แก้ไขได้เฉพาะรายการของตัวเองที่ยังไม่ได้รับการอนุมัติ', 'rose');
+                return;
+            }
+            document.getElementById('edit-pending-record-id').value = rec.id;
+            document.getElementById('edit-pending-status-select').value = rec.status || 'completed';
+            document.getElementById('edit-pending-remark-input').value = rec.remark || '';
+            document.getElementById('edit-pending-photo-file').value = '';
+            _editPendingPhotos = Array.isArray(rec.photos) ? [...rec.photos] : (rec.photo ? [rec.photo] : []);
+            renderEditPendingPhotosPreview();
+            openModal('edit-pending-record-modal');
+        }
+
+        function renderEditPendingPhotosPreview() {
+            const container = document.getElementById('edit-pending-photos-preview');
+            if (!container) return;
+            if (_editPendingPhotos.length === 0) {
+                container.innerHTML = '<div class="col-span-4 text-[10px] text-slate-400">ไม่มีรูปถ่าย</div>';
+                return;
+            }
+            container.innerHTML = _editPendingPhotos.map((url, idx) => `
+                <div class="relative">
+                    <img src="${url}" class="w-full h-16 object-cover rounded-lg border border-slate-200">
+                    <button type="button" onclick="removeEditPendingPhoto(${idx})" class="absolute -top-1.5 -right-1.5 bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow">×</button>
+                </div>
+            `).join('');
+        }
+
+        function removeEditPendingPhoto(idx) {
+            _editPendingPhotos.splice(idx, 1);
+            renderEditPendingPhotosPreview();
+        }
+
+        async function saveEditedPendingRecord() {
+            const recId = document.getElementById('edit-pending-record-id').value;
+            const rec = sequenceRecords.find(r => r.id === recId);
+            if (!rec) return;
+
+            const isOwner = currentUser && rec.recordedBy === currentUser.name;
+            const isAdmin = currentUser && currentUser.role === 'ADMIN';
+            if (rec.approvalStatus !== 'pending_approval' || !(isOwner || isAdmin)) {
+                showNotification('ไม่สามารถแก้ไขรายการนี้ได้', 'rose');
+                return;
+            }
+
+            const fileInput = document.getElementById('edit-pending-photo-file');
+            let newPhotos = [];
+            if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                const remainingSlots = Math.max(0, 10 - _editPendingPhotos.length);
+                const files = Array.from(fileInput.files).slice(0, remainingSlots);
+                if (files.length > 0) {
+                    showNotification('กำลังประมวลผลรูปใหม่...', 'amber');
+                    try {
+                        newPhotos = await processImagesForSave(files, 'sequences');
+                    } catch (err) {
+                        console.error('Edit record photo upload error:', err);
+                        showNotification('เกิดข้อผิดพลาดในการอัปโหลดรูปใหม่', 'rose');
+                        return;
+                    }
+                }
+            }
+
+            const finalPhotos = [..._editPendingPhotos, ...newPhotos];
+            rec.status = document.getElementById('edit-pending-status-select').value;
+            rec.remark = document.getElementById('edit-pending-remark-input').value.trim();
+            rec.photos = finalPhotos;
+            rec.photo = finalPhotos.length > 0 ? finalPhotos[0] : null;
+
+            saveDataToDatabase();
+            refreshAllViews();
+            closeModal('edit-pending-record-modal');
+            showNotification('แก้ไขรายการเรียบร้อยแล้ว');
         }
 
         function approveAllPendingRecords() {
