@@ -3,7 +3,7 @@
 // 2) รายการสั่งของที่ใกล้ถึงวันที่ต้องสั่ง (order_due_date) แล้วยังไม่ได้สั่ง (status = pending)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const LEAD_DAYS_WARN = 3; // แจ้งเตือนล่วงหน้ากี่วันก่อนถึงกำหนดสั่งของ — ปรับเลขนี้ได้ตามต้องการ
+const LEAD_DAYS_WARN = 1; // แจ้งเตือนล่วงหน้ากี่วันก่อนถึงกำหนดสั่งของ — ปรับเลขนี้ได้ตามต้องการ
 
 Deno.serve(async (_req) => {
   const supabase = createClient(
