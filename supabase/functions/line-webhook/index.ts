@@ -101,12 +101,12 @@ Deno.serve(async (req) => {
         }
       }
 
-      // ---------- มีคนแท็กบอทในข้อความ ----------
+      // ---------- มีคนพิมพ์เรียก "น้องณาร์ม" ในข้อความ (ไม่ต้องแท็กจริง) ----------
       if (event.type === "message" && event.message?.type === "text") {
-        const mentionees = event.message.mention?.mentionees || [];
-        const botIsMentioned = mentionees.some((m: { isSelf?: boolean }) => m.isSelf);
+        const text = event.message.text || "";
+        const isCalled = text.includes("น้องณาร์ม") || text.includes("ณาร์ม");
 
-        if (botIsMentioned && event.replyToken) {
+        if (isCalled && event.replyToken) {
           const summary = await buildProgressSummary(supabase);
           await replyLine(LINE_TOKEN, event.replyToken, summary);
         }
