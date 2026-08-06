@@ -68,9 +68,12 @@ async function buildProgressSummary(supabase: ReturnType<typeof createClient>) {
           )
           .map((r) => r.seq_index)
       );
+      const progressPct = (approvedSeqSet.size / totalSeq) * 100;
+
       if (approvedSeqSet.size >= totalSeq) {
         completedUnits++;
-      } else {
+      } else if (progressPct > 25) {
+        // นับว่า "กำลังก่อสร้าง" เฉพาะแปลงที่คืบหน้ามากกว่า 25% (แปลงที่เพิ่งเริ่ม <=25% ยังไม่นับ)
         inProgressNames.push(u.name);
       }
     }
