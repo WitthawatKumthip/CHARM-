@@ -43,15 +43,19 @@ async function buildProgressSummary(supabase: ReturnType<typeof createClient>) {
   }
 
   const lines = ["📊 สรุปความคืบหน้าทุกโครงการ"];
+  let idx = 1;
 
   for (const p of projects) {
     const units = Array.isArray(p.units) ? p.units : [];
     if (units.length === 0) {
-      lines.push(`🏗️ ${p.name}: ยังไม่มีแปลงบ้านในระบบ`);
+      lines.push(`${idx}. 🏗️ ${p.name}: ยังไม่มีแปลงบ้านในระบบ`);
+      idx++;
       continue;
     }
 
     let completedUnits = 0;
+    const inProgressNames: string[] = [];
+
     for (const u of units) {
       const approvedSeqSet = new Set(
         (records || [])
@@ -64,11 +68,19 @@ async function buildProgressSummary(supabase: ReturnType<typeof createClient>) {
           )
           .map((r) => r.seq_index)
       );
-      if (approvedSeqSet.size >= totalSeq) completedUnits++;
+      if (approvedSeqSet.size >= totalSeq) {
+        completedUnits++;
+      } else {
+        inProgressNames.push(u.name);
+      }
     }
 
     const pct = Math.round((completedUnits / units.length) * 100);
-    lines.push(`🏗️ ${p.name}: ${completedUnits}/${units.length} หลัง (${pct}%)`);
+    const progressText = inProgressNames.length > 0 ? inProgressNames.join(",") : "ไม่มี (เสร็จหมดแล้ว)";
+    lines.push(
+      `${idx}. 🏗️ ${p.name}: จำนวนบ้านที่แล้วเสร็จ ${completedUnits}/${units.length} หลัง (${pct}%) :ปัจจุบันกำลังก่อสร้างบ้าน ${progressText}`
+    );
+    idx++;
   }
 
   return lines.join("\n");
