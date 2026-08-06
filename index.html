@@ -3320,10 +3320,10 @@
 
                             return `
                                 <div class="absolute pin-marker z-20 cursor-pointer" style="left: ${x}%; top: ${y}%;" title="${u.name} (${statusLabel})" onclick="event.stopPropagation(); filterAndHighlightUnit('${project.id}', '${u.id}')">
-                                    <div class="${pinColor} border-2 rounded-full px-2.5 py-1 text-[10px] font-extrabold flex items-center space-x-1 shadow-md whitespace-nowrap">
-                                        <i class="fa-solid fa-house text-[9px]"></i>
+                                    <div class="${pinColor} border-2 rounded-full px-1 py-0.5 sm:px-2.5 sm:py-1 text-[7px] sm:text-[10px] font-extrabold flex items-center gap-0.5 sm:space-x-1 shadow-md whitespace-nowrap">
+                                        <i class="fa-solid fa-house text-[6px] sm:text-[9px]"></i>
                                         <span>${u.name}</span>
-                                        <span class="bg-black/30 rounded-full px-1.5 py-0.2 text-[9px]">${uProg}%</span>
+                                        <span class="hidden sm:inline-block bg-black/30 rounded-full px-1.5 py-0.2 text-[9px]">${uProg}%</span>
                                     </div>
                                 </div>
                             `;
