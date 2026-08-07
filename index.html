@@ -381,7 +381,9 @@
                         <select id="plan-project-filter" onchange="renderConstructionPlanView()" class="border border-slate-200 rounded-xl px-3 py-1.5 font-medium outline-none focus:ring-2 focus:ring-blue-500"></select>
                     </div>
                 </div>
+                <div id="plan-masterplan-area"></div>
                 <div id="plan-overall-summary"></div>
+                <div id="plan-unit-breakdown"></div>
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
@@ -3274,6 +3276,111 @@
             });
         }
 
+        // เวอร์ชันอ่านอย่างเดียวของผังโครงการปักหมุด (ไม่มีปุ่มแก้ไข) สำหรับหน้าแผนงาน/นำเสนอผู้บริหาร
+        function renderPlanMasterPlanSummary(projId) {
+            const container = document.getElementById('plan-masterplan-area');
+            if (!container) return;
+
+            const project = projectsData.find(p => p.id === projId) || projectsData[0];
+            if (!project) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const metrics = calculateProjectMetrics(project);
+            const defaultPlanImg = "https://placehold.co/1200x600/1e293b/ffffff?text=PROJECT+SITE+MASTER+PLAN+MAP";
+            const planSrc = project.sitePlan || defaultPlanImg;
+
+            container.innerHTML = `
+                <div class="space-y-3">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-900 text-white p-4 rounded-2xl gap-3">
+                        <div>
+                            <div class="text-[10px] text-blue-400 font-bold uppercase tracking-wider">PROJECT MASTER PLAN SUMMARY</div>
+                            <h4 class="text-lg font-bold">${project.name}</h4>
+                            <p class="text-xs text-slate-300">ทำเล: ${project.location || 'ไม่ระบุ'} • รหัส: ${project.id}</p>
+                        </div>
+                        <div class="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-2">
+                            <i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
+                            <span>สร้างเสร็จแล้ว ${metrics.completedUnits} / ${metrics.totalUnits} หลัง (${metrics.totalUnits > 0 ? Math.round((metrics.completedUnits / metrics.totalUnits) * 100) : 0}%)</span>
+                        </div>
+                    </div>
+
+                    <div class="relative w-full rounded-2xl overflow-hidden border-2 border-slate-200 bg-slate-900 shadow-lg select-none">
+                        <img src="${planSrc}" class="w-full h-auto min-h-[300px] max-h-[550px] object-contain opacity-90 mx-auto">
+                        ${project.units ? project.units.filter(u => u.pinX !== undefined && u.pinY !== undefined).map(u => {
+                            const uProg = calculateUnitProgress(project.id, u.id);
+                            const uStatus = calculateUnitStatus(u, uProg);
+
+                            let pinColor = "bg-slate-500 border-white text-white";
+                            let statusLabel = "ยังไม่เริ่ม";
+                            if (uProg >= 100) {
+                                pinColor = "bg-emerald-500 border-white text-white shadow-emerald-500/50 shadow-lg";
+                                statusLabel = "เสร็จแล้ว 100%";
+                            } else if (uStatus === 'delayed') {
+                                pinColor = "bg-rose-600 border-white text-white shadow-rose-600/50 shadow-lg animate-pulse";
+                                statusLabel = `ล่าช้า (${uProg}%)`;
+                            } else if (uProg > 0) {
+                                pinColor = "bg-amber-500 border-white text-white shadow-amber-500/50 shadow-lg";
+                                statusLabel = `กำลังสร้าง (${uProg}%)`;
+                            }
+
+                            return `
+                                <div class="absolute pin-marker z-20" style="left: ${u.pinX}%; top: ${u.pinY}%;" title="${u.name} (${statusLabel})">
+                                    <div class="${pinColor} border-2 rounded-full px-1 py-0.5 sm:px-2.5 sm:py-1 text-[7px] sm:text-[10px] font-extrabold flex items-center gap-0.5 sm:space-x-1 shadow-md whitespace-nowrap">
+                                        <i class="fa-solid fa-house text-[6px] sm:text-[9px]"></i>
+                                        <span>${u.name}</span>
+                                        <span class="hidden sm:inline-block bg-black/30 rounded-full px-1.5 py-0.2 text-[9px]">${uProg}%</span>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('') : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function getUnitPlanStatusList(filterProjId, today) {
+            const totalSeq = masterSequences.length || 10;
+            const todayStr = toISODateStr(today);
+            const list = [];
+            const projectsToUse = (filterProjId && filterProjId !== 'ALL') ? projectsData.filter(p => p.id === filterProjId) : projectsData;
+
+            projectsToUse.forEach(p => {
+                (p.units || []).forEach(u => {
+                    const actualDone = sequenceRecords.filter(r => r.projectId === p.id && r.unitId === u.id && r.approvalStatus === 'approved' && r.status === 'completed').length;
+
+                    let plannedIdx = 0;
+                    let plannedDueCount = 0;
+                    if (u.startDate && u.endDate) {
+                        const start = new Date(u.startDate).getTime();
+                        const end = new Date(u.endDate).getTime();
+                        if (!isNaN(start) && !isNaN(end) && end > start) {
+                            for (let i = 1; i <= totalSeq; i++) {
+                                const plannedTime = start + (end - start) * (i / totalSeq);
+                                if (toISODateStr(new Date(plannedTime)) <= todayStr) {
+                                    plannedIdx = i;
+                                    plannedDueCount++;
+                                }
+                            }
+                        }
+                    }
+
+                    list.push({
+                        projectId: p.id,
+                        projectName: p.name,
+                        unitId: u.id,
+                        unitName: u.name,
+                        actualDone,
+                        totalSeq,
+                        plannedIdx,
+                        plannedDueCount,
+                        plannedSeqName: plannedIdx > 0 ? (masterSequences[plannedIdx - 1] || `Sequence ${plannedIdx}`) : null
+                    });
+                });
+            });
+            return list;
+        }
+
         function renderConstructionPlanView() {
             const filterEl = document.getElementById('plan-project-filter');
             if (!filterEl) return;
@@ -3303,29 +3410,61 @@
             const actualEvents = getActualSeqEvents(filterProjId);
             const inRange = (dateStr, start, end) => dateStr && dateStr >= toISODateStr(start) && dateStr <= toISODateStr(end);
 
-            // ---------- 9) ภาพรวมแผนงานทั้งโครงการ ----------
+            // ---------- 1) ผังโครงการปักหมุด (อ่านอย่างเดียว) ----------
+            renderPlanMasterPlanSummary(filterProjId !== 'ALL' ? filterProjId : (projectsData[0]?.id || null));
+
+            // ---------- 2-4) ภาพรวมแผนงานทั้งโครงการ + รายละเอียดต่อแปลง ----------
+            const unitStatusList = getUnitPlanStatusList(filterProjId, today);
             const totalPlanned = plannedEvents.length;
             const totalActual = actualEvents.length;
-            const overallPct = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : 0;
+            const totalDueByToday = unitStatusList.reduce((s, u) => s + u.plannedDueCount, 0);
+            const totalActualAll = unitStatusList.reduce((s, u) => s + u.actualDone, 0);
+            const schedulePct = totalDueByToday > 0 ? Math.round((totalActualAll / totalDueByToday) * 100) : (totalActualAll > 0 ? 100 : 0);
+            const scheduleColor = schedulePct >= 100 ? 'text-emerald-600' : (schedulePct >= 70 ? 'text-amber-600' : 'text-rose-600');
+
             const summaryEl = document.getElementById('plan-overall-summary');
             if (summaryEl) {
                 summaryEl.innerHTML = `
                     <div class="grid grid-cols-3 gap-3">
-                        <div class="bg-slate-50 rounded-xl p-3 text-center">
+                        <div class="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-3 text-center">
                             <div class="text-[10px] text-slate-500 font-semibold uppercase">แผนทั้งหมด (PLAN)</div>
                             <div class="text-xl font-extrabold text-slate-800">${totalPlanned}</div>
                             <div class="text-[10px] text-slate-400">Sequence</div>
                         </div>
-                        <div class="bg-slate-50 rounded-xl p-3 text-center">
-                            <div class="text-[10px] text-slate-500 font-semibold uppercase">ทำได้จริง (ACT)</div>
-                            <div class="text-xl font-extrabold text-blue-600">${totalActual}</div>
-                            <div class="text-[10px] text-slate-400">Sequence</div>
+                        <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-3 text-center">
+                            <div class="text-[10px] text-blue-600 font-semibold uppercase">ทำได้จริง (ACT)</div>
+                            <div class="text-xl font-extrabold text-blue-700">${totalActual}</div>
+                            <div class="text-[10px] text-blue-400">Sequence</div>
                         </div>
-                        <div class="bg-slate-50 rounded-xl p-3 text-center">
-                            <div class="text-[10px] text-slate-500 font-semibold uppercase">คืบหน้าตามแผน</div>
-                            <div class="text-xl font-extrabold ${overallPct >= 100 ? 'text-emerald-600' : 'text-amber-600'}">${overallPct}%</div>
-                            <div class="text-[10px] text-slate-400">ทั้งโครงการ</div>
+                        <div class="bg-gradient-to-br ${schedulePct >= 100 ? 'from-emerald-50 to-emerald-100 border-emerald-200' : (schedulePct >= 70 ? 'from-amber-50 to-amber-100 border-amber-200' : 'from-rose-50 to-rose-100 border-rose-200')} border rounded-xl p-3 text-center">
+                            <div class="text-[10px] font-semibold uppercase ${scheduleColor}">คืบหน้าตามแผน</div>
+                            <div class="text-xl font-extrabold ${scheduleColor}">${schedulePct}%</div>
+                            <div class="text-[10px] text-slate-400">เทียบวันที่ควรถึงวันนี้</div>
                         </div>
+                    </div>
+                `;
+            }
+
+            const breakdownEl = document.getElementById('plan-unit-breakdown');
+            if (breakdownEl) {
+                breakdownEl.innerHTML = `
+                    <div class="text-[11px] font-semibold text-slate-600 mt-3 mb-1.5">รายละเอียดตามแปลง — แผนตอนนี้ควรอยู่ Sequence ไหน เทียบกับทำได้จริง</div>
+                    <div class="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
+                        ${unitStatusList.map(u => {
+                            const onTrack = u.actualDone >= u.plannedDueCount;
+                            const planText = u.plannedIdx > 0
+                                ? `แผนควรอยู่: Sequence ${u.plannedIdx} (${(u.plannedSeqName || '').replace(/^Sequence\s*\d+[:\s]*/i, '')})`
+                                : (u.totalSeq > 0 ? 'ยังไม่ถึงกำหนดเริ่มตามแผน' : '-');
+                            return `
+                                <div class="flex items-center justify-between gap-2 bg-slate-50 rounded-lg px-3 py-2 text-[11px]">
+                                    <div class="flex-1 min-w-0">
+                                        <span class="font-bold text-slate-800">${u.projectName} — ${u.unitName}</span>
+                                        <span class="text-slate-500 ml-1">${planText}</span>
+                                    </div>
+                                    <span class="font-extrabold ${onTrack ? 'text-emerald-600' : 'text-rose-600'} shrink-0">${u.actualDone}/${u.totalSeq}</span>
+                                </div>
+                            `;
+                        }).join('') || '<p class="text-xs text-slate-400 text-center py-2">ยังไม่มีแปลงบ้านในระบบ</p>'}
                     </div>
                 `;
             }
@@ -3341,16 +3480,16 @@
                 lastWeekEl.innerHTML = `
                     <p class="text-[11px] text-slate-400">ช่วงวันที่ ${toISODateStr(lastMonday)} ถึง ${toISODateStr(lastSunday)}</p>
                     <div class="grid grid-cols-3 gap-3 mt-1">
-                        <div class="bg-slate-50 rounded-xl p-3 text-center">
+                        <div class="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-3 text-center">
                             <div class="text-[10px] text-slate-500 font-semibold uppercase">ปริมาณงานตามแผน (PLAN)</div>
                             <div class="text-lg font-extrabold text-slate-800">${lastWeekPlanned.length}</div>
                         </div>
-                        <div class="bg-slate-50 rounded-xl p-3 text-center">
-                            <div class="text-[10px] text-slate-500 font-semibold uppercase">ปริมาณที่ทำจริง (ACT)</div>
-                            <div class="text-lg font-extrabold text-blue-600">${lastWeekActual.length}</div>
+                        <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-3 text-center">
+                            <div class="text-[10px] text-blue-600 font-semibold uppercase">ปริมาณที่ทำจริง (ACT)</div>
+                            <div class="text-lg font-extrabold text-blue-700">${lastWeekActual.length}</div>
                         </div>
-                        <div class="bg-slate-50 rounded-xl p-3 text-center">
-                            <div class="text-[10px] text-slate-500 font-semibold uppercase">ผลต่าง</div>
+                        <div class="bg-gradient-to-br ${diff >= 0 ? 'from-emerald-50 to-emerald-100 border-emerald-200' : 'from-rose-50 to-rose-100 border-rose-200'} border rounded-xl p-3 text-center">
+                            <div class="text-[10px] font-semibold uppercase ${diffColor}">ผลต่าง</div>
                             <div class="text-lg font-extrabold ${diffColor}">${diffText}</div>
                         </div>
                     </div>
@@ -3417,9 +3556,9 @@
                     <p class="text-[11px] text-slate-400">ช่วงวันที่ ${toISODateStr(thisMonday)} ถึง ${toISODateStr(thisSunday)}</p>
                     <div class="flex items-center gap-3 mt-1">
                         <div class="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                            <div class="bg-blue-600 h-full rounded-full" style="width:${Math.min(100, overallPct)}%"></div>
+                            <div class="bg-blue-600 h-full rounded-full" style="width:${Math.min(100, schedulePct)}%"></div>
                         </div>
-                        <span class="text-xs font-bold text-blue-600">${overallPct}% คืบหน้ารวมทั้งโครงการ</span>
+                        <span class="text-xs font-bold text-blue-600">${schedulePct}% คืบหน้าตามแผน</span>
                     </div>
 
                     <div class="mt-3">
