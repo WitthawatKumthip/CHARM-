@@ -4620,9 +4620,18 @@
                 const project = projectsData.find(p => p.id === m.projectId);
                 const unit = project?.units?.find(u => u.id === m.unitId);
 
-                let statusBadge = '<span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold">รอสั่งซื้อ</span>';
-                if (m.status === 'ordered') statusBadge = '<span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold">สั่งซื้อแล้ว</span>';
-                if (m.status === 'delivered') statusBadge = '<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold">ถึงหน้างานแล้ว</span>';
+                const statusBadge = `
+                    <div class="flex flex-col items-start gap-1 text-[10px]">
+                        <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                            <input type="checkbox" ${(m.status === 'ordered' || m.status === 'delivered') ? 'checked' : ''} onchange="toggleProcurementStage('${m.id}', 'ordered')" class="w-3.5 h-3.5 rounded accent-amber-600">
+                            <span class="font-semibold text-slate-600">สั่งซื้อแล้ว</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                            <input type="checkbox" ${m.status === 'delivered' ? 'checked' : ''} onchange="toggleProcurementStage('${m.id}', 'delivered')" class="w-3.5 h-3.5 rounded accent-emerald-600">
+                            <span class="font-semibold text-slate-600">ของเข้าแล้ว</span>
+                        </label>
+                    </div>
+                `;
 
                 let dateWarning = '';
                 if (m.status === 'pending' && m.orderDueDate) {
@@ -4649,7 +4658,7 @@
                             <span class="font-bold text-slate-800">${m.orderDueDate || '-'}</span>
                             ${dateWarning}
                         </td>
-                        <td class="py-3 px-3 text-center">${statusBadge}</td>
+                        <td class="py-3 px-3">${statusBadge}</td>
                         <td class="py-3 px-3 text-right space-x-1">
                             <button onclick="openEditProcurementModal('${m.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-semibold">แก้ไข</button>
                         </td>
@@ -4671,6 +4680,27 @@
             document.getElementById('procurement-remark-input').value = '';
             populateProjectSelects();
             openModal('procurement-form-modal');
+        }
+
+        // ติ๊กเช็คสถานะสั่งซื้อ/ของเข้า ได้เลยจากตาราง ไม่ต้องเปิดหน้าแก้ไข
+        function toggleProcurementStage(id, stage) {
+            const item = procurementsData.find(m => m.id === id);
+            if (!item) return;
+
+            if (stage === 'ordered') {
+                if (item.status === 'delivered') {
+                    showNotification('ของถึงหน้างานแล้ว ต้องยกเลิก "ของเข้าแล้ว" ก่อน ถึงจะยกเลิกสั่งซื้อได้', 'amber');
+                    renderProcurementsTable();
+                    return;
+                }
+                item.status = item.status === 'pending' ? 'ordered' : 'pending';
+            } else if (stage === 'delivered') {
+                item.status = item.status === 'delivered' ? 'ordered' : 'delivered';
+            }
+
+            saveDataToDatabase();
+            refreshAllViews();
+            showNotification(`อัปเดตสถานะ ${item.name} เรียบร้อยแล้ว`);
         }
 
         function openEditProcurementModal(id) {
