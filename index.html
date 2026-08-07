@@ -5159,6 +5159,16 @@
                 filtered = procurementsData.filter(m => m.projectId === filterProjId);
             }
 
+            // เรียงตามแปลง (Block) ก่อน แล้วเรียงตามเลขลำดับหน้าชื่อรายการ (เช่น "8. งานสุขภัณฑ์...")
+            const getUnitName = (m) => projectsData.find(p => p.id === m.projectId)?.units?.find(u => u.id === m.unitId)?.name || '';
+            filtered = [...filtered].sort((a, b) => {
+                const unitCompare = getUnitName(a).localeCompare(getUnitName(b), 'th', { numeric: true });
+                if (unitCompare !== 0) return unitCompare;
+                const numA = parseInt((a.name || '').match(/^\d+/)?.[0] || '0', 10);
+                const numB = parseInt((b.name || '').match(/^\d+/)?.[0] || '0', 10);
+                return numA - numB;
+            });
+
             const today = new Date().toISOString().split('T')[0];
             let html = '';
 
