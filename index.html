@@ -4502,12 +4502,17 @@
             if (project.units && project.units.length > 0) {
                 project.units.forEach(u => {
                     html += `
-                        <div class="bg-white border border-slate-200 rounded-xl p-2.5 flex items-center justify-between text-xs">
-                            <div>
-                                <div class="font-bold text-slate-800">${u.name}</div>
-                                <div class="text-[10px] text-slate-400">วันเริ่ม: ${u.startDate || '-'} | วันเสร็จ: ${u.endDate || '-'}</div>
+                        <div class="bg-white border border-slate-200 rounded-xl p-2.5 flex items-center justify-between text-xs gap-2">
+                            <div class="flex-1 min-w-0">
+                                <div class="font-bold text-slate-800 mb-1">${u.name}</div>
+                                <div class="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[10px] text-slate-500">
+                                    <span>เริ่ม:</span>
+                                    <input type="date" value="${u.startDate || ''}" onchange="updateUnitDate('${u.id}', 'startDate', this.value)" class="border border-slate-200 rounded-lg px-1.5 py-0.5 text-[10px] outline-none focus:ring-2 focus:ring-blue-500">
+                                    <span>เสร็จ:</span>
+                                    <input type="date" value="${u.endDate || ''}" onchange="updateUnitDate('${u.id}', 'endDate', this.value)" class="border border-slate-200 rounded-lg px-1.5 py-0.5 text-[10px] outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
                             </div>
-                            <button onclick="deleteUnitFromProject('${u.id}')" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash"></i></button>
+                            <button onclick="deleteUnitFromProject('${u.id}')" class="text-rose-500 hover:text-rose-700 p-1 shrink-0"><i class="fa-solid fa-trash"></i></button>
                         </div>
                     `;
                 });
@@ -4515,6 +4520,18 @@
                 html = '<div class="text-xs text-slate-400 py-3 text-center">ยังไม่มีแปลงบ้านในโครงการนี้</div>';
             }
             container.innerHTML = html;
+        }
+
+        function updateUnitDate(unitId, field, value) {
+            const projId = document.getElementById('units-modal-project-id').value;
+            const project = projectsData.find(p => p.id === projId);
+            const unit = project?.units?.find(u => u.id === unitId);
+            if (unit) {
+                unit[field] = value;
+                saveDataToDatabase();
+                refreshAllViews();
+                showNotification(`แก้ไขวันที่แปลง ${unit.name} เรียบร้อยแล้ว`);
+            }
         }
 
         function addUnitToProject() {
