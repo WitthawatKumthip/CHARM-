@@ -121,6 +121,10 @@
                     <i class="fa-solid fa-city w-5 text-center text-sm"></i>
                     <span>โครงการทั้งหมด (Projects)</span>
                 </button>
+                <button onclick="switchTab('construction-plan')" id="nav-construction-plan" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-calendar-week w-5 text-center text-sm"></i>
+                    <span>แผนงานก่อสร้าง (Plan)</span>
+                </button>
                 <button onclick="switchTab('record-seq')" id="nav-record-seq" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition">
                     <i class="fa-solid fa-camera-retro w-5 text-center text-sm"></i>
                     <span>บันทึกรูปและงานตาม Sequence</span>
@@ -360,6 +364,49 @@
                         </thead>
                         <tbody id="all-projects-table-body" class="text-xs divide-y divide-slate-100 text-slate-700"></tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: CONSTRUCTION PLAN (สัปดาห์/เดือน ที่ผ่านมา-นี้-หน้า) -->
+        <div id="view-construction-plan" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm">ภาพรวมความคืบหน้าแผนงานทั้งหมด</h3>
+                        <p class="text-xs text-slate-500">แผน (PLAN) คำนวณอัตโนมัติจากวันเริ่ม-สิ้นสุดของแต่ละแปลง เทียบกับผลงานจริง (ACT) ที่บันทึกและอนุมัติแล้ว</p>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <label class="font-semibold text-slate-600">โครงการ:</label>
+                        <select id="plan-project-filter" onchange="renderConstructionPlanView()" class="border border-slate-200 rounded-xl px-3 py-1.5 font-medium outline-none focus:ring-2 focus:ring-blue-500"></select>
+                    </div>
+                </div>
+                <div id="plan-overall-summary"></div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-slate-500"></i> สัปดาห์ที่ผ่านมา — ทบทวนแผนกับงานจริง</h3>
+                <div id="plan-last-week"></div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-calendar-day text-blue-500"></i> สัปดาห์นี้ — กำลังดำเนินการ</h3>
+                <div id="plan-this-week"></div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-forward text-amber-500"></i> สัปดาห์หน้า — เตรียมงานล่วงหน้า</h3>
+                <div id="plan-next-week"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
+                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-calendar text-purple-500"></i> ภาพรวมเดือนนี้</h3>
+                    <div id="plan-this-month"></div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
+                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-calendar-plus text-indigo-500"></i> ภาพรวมเดือนหน้า</h3>
+                    <div id="plan-next-month"></div>
                 </div>
             </div>
         </div>
@@ -2407,7 +2454,7 @@
         }
 
         function switchTab(tabName) {
-            const views = ['dashboard', 'projects', 'record-seq', 'pm-approval', 'seq-history', 'photos', 'procurement', 'issues', 'reports'];
+            const views = ['dashboard', 'projects', 'construction-plan', 'record-seq', 'pm-approval', 'seq-history', 'photos', 'procurement', 'issues', 'reports'];
             views.forEach(v => {
                 const el = document.getElementById(`view-${v}`);
                 if (el) el.classList.add('hidden');
@@ -2433,6 +2480,7 @@
             const titleMap = {
                 'dashboard': 'แดชบอร์ดภาพรวมการดำเนินงาน',
                 'projects': 'จัดการรายการโครงการและแปลงบ้าน',
+                'construction-plan': 'แผนงานก่อสร้าง — ทบทวนสัปดาห์ที่ผ่านมา วางแผนสัปดาห์/เดือนถัดไป',
                 'record-seq': 'บันทึกรูปและงานตาม Sequence',
                 'pm-approval': 'รายการบันทึกงานค้างรอ PM ตรวจสอบและอนุมัติ',
                 'seq-history': 'ประวัติวันแล้วเสร็จ Sequence',
@@ -3147,6 +3195,310 @@
             };
         }
 
+        // ===================================================================
+        // แผนงานก่อสร้าง (Construction Plan) — สัปดาห์/เดือน ที่ผ่านมา-นี้-หน้า
+        // PLAN คำนวณอัตโนมัติ: แบ่ง Sequence ของแต่ละแปลงเฉลี่ยเท่ากันตลอดช่วงวันเริ่ม-สิ้นสุดของแปลงนั้น
+        // ACT ใช้วันที่บันทึกงานจริง (recordDate) ของ Sequence ที่อนุมัติแล้ว
+        // ===================================================================
+        function getMondayOfWeek(d) {
+            const date = new Date(d);
+            date.setHours(0, 0, 0, 0);
+            const day = date.getDay(); // 0=อาทิตย์ .. 6=เสาร์
+            const diff = day === 0 ? -6 : 1 - day;
+            date.setDate(date.getDate() + diff);
+            return date;
+        }
+
+        function addDaysToDate(d, n) {
+            const date = new Date(d);
+            date.setDate(date.getDate() + n);
+            return date;
+        }
+
+        function toISODateStr(d) {
+            // ใช้วันที่ตามเวลาท้องถิ่น ไม่ใช้ toISOString() เพราะจะเลื่อนวันผิดในโซนเวลา UTC+7
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        function getPlannedSeqEvents(filterProjId) {
+            const totalSeq = masterSequences.length || 10;
+            const events = [];
+            const projectsToUse = (filterProjId && filterProjId !== 'ALL')
+                ? projectsData.filter(p => p.id === filterProjId)
+                : projectsData;
+
+            projectsToUse.forEach(p => {
+                (p.units || []).forEach(u => {
+                    if (!u.startDate || !u.endDate) return;
+                    const start = new Date(u.startDate).getTime();
+                    const end = new Date(u.endDate).getTime();
+                    if (isNaN(start) || isNaN(end) || end <= start) return;
+
+                    for (let i = 1; i <= totalSeq; i++) {
+                        const plannedTime = start + (end - start) * (i / totalSeq);
+                        events.push({
+                            projectId: p.id,
+                            projectName: p.name,
+                            unitId: u.id,
+                            unitName: u.name,
+                            seqIndex: i,
+                            seqName: masterSequences[i - 1] || `Sequence ${i}`,
+                            plannedDate: toISODateStr(new Date(plannedTime))
+                        });
+                    }
+                });
+            });
+            return events;
+        }
+
+        function getActualSeqEvents(filterProjId) {
+            let records = sequenceRecords.filter(r => r.approvalStatus === 'approved' && r.status === 'completed');
+            if (filterProjId && filterProjId !== 'ALL') {
+                records = records.filter(r => r.projectId === filterProjId);
+            }
+            return records.map(r => {
+                const project = projectsData.find(p => p.id === r.projectId);
+                const unit = project?.units?.find(u => u.id === r.unitId);
+                return {
+                    projectId: r.projectId,
+                    projectName: project ? project.name : '-',
+                    unitId: r.unitId,
+                    unitName: unit ? unit.name : '-',
+                    seqIndex: r.seqIndex,
+                    seqName: r.seqName,
+                    actualDate: r.recordDate
+                };
+            });
+        }
+
+        function renderConstructionPlanView() {
+            const filterEl = document.getElementById('plan-project-filter');
+            if (!filterEl) return;
+
+            const currentVal = filterEl.value || 'ALL';
+            const options = '<option value="ALL">-- ทุกโครงการ --</option>' + projectsData.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            if (filterEl.innerHTML !== options) {
+                filterEl.innerHTML = options;
+                filterEl.value = projectsData.some(p => p.id === currentVal) ? currentVal : 'ALL';
+            }
+            const filterProjId = filterEl.value || 'ALL';
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const thisMonday = getMondayOfWeek(today);
+            const thisSunday = addDaysToDate(thisMonday, 6);
+            const lastMonday = addDaysToDate(thisMonday, -7);
+            const lastSunday = addDaysToDate(thisMonday, -1);
+            const nextMonday = addDaysToDate(thisMonday, 7);
+            const nextSunday = addDaysToDate(thisMonday, 13);
+            const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            const thisMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+            const nextMonthEnd = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+
+            const plannedEvents = getPlannedSeqEvents(filterProjId);
+            const actualEvents = getActualSeqEvents(filterProjId);
+            const inRange = (dateStr, start, end) => dateStr && dateStr >= toISODateStr(start) && dateStr <= toISODateStr(end);
+
+            // ---------- 9) ภาพรวมแผนงานทั้งโครงการ ----------
+            const totalPlanned = plannedEvents.length;
+            const totalActual = actualEvents.length;
+            const overallPct = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : 0;
+            const summaryEl = document.getElementById('plan-overall-summary');
+            if (summaryEl) {
+                summaryEl.innerHTML = `
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="bg-slate-50 rounded-xl p-3 text-center">
+                            <div class="text-[10px] text-slate-500 font-semibold uppercase">แผนทั้งหมด (PLAN)</div>
+                            <div class="text-xl font-extrabold text-slate-800">${totalPlanned}</div>
+                            <div class="text-[10px] text-slate-400">Sequence</div>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-3 text-center">
+                            <div class="text-[10px] text-slate-500 font-semibold uppercase">ทำได้จริง (ACT)</div>
+                            <div class="text-xl font-extrabold text-blue-600">${totalActual}</div>
+                            <div class="text-[10px] text-slate-400">Sequence</div>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-3 text-center">
+                            <div class="text-[10px] text-slate-500 font-semibold uppercase">คืบหน้าตามแผน</div>
+                            <div class="text-xl font-extrabold ${overallPct >= 100 ? 'text-emerald-600' : 'text-amber-600'}">${overallPct}%</div>
+                            <div class="text-[10px] text-slate-400">ทั้งโครงการ</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // ---------- 4) สัปดาห์ที่ผ่านมา: ทบทวนแผนกับจริง ----------
+            const lastWeekPlanned = plannedEvents.filter(e => inRange(e.plannedDate, lastMonday, lastSunday));
+            const lastWeekActual = actualEvents.filter(e => inRange(e.actualDate, lastMonday, lastSunday));
+            const lastWeekEl = document.getElementById('plan-last-week');
+            if (lastWeekEl) {
+                const diff = lastWeekActual.length - lastWeekPlanned.length;
+                const diffText = diff === 0 ? 'ตรงตามแผน' : (diff > 0 ? `เกินแผน +${diff}` : `ต่ำกว่าแผน ${diff}`);
+                const diffColor = diff >= 0 ? 'text-emerald-600' : 'text-rose-600';
+                lastWeekEl.innerHTML = `
+                    <p class="text-[11px] text-slate-400">ช่วงวันที่ ${toISODateStr(lastMonday)} ถึง ${toISODateStr(lastSunday)}</p>
+                    <div class="grid grid-cols-3 gap-3 mt-1">
+                        <div class="bg-slate-50 rounded-xl p-3 text-center">
+                            <div class="text-[10px] text-slate-500 font-semibold uppercase">ปริมาณงานตามแผน (PLAN)</div>
+                            <div class="text-lg font-extrabold text-slate-800">${lastWeekPlanned.length}</div>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-3 text-center">
+                            <div class="text-[10px] text-slate-500 font-semibold uppercase">ปริมาณที่ทำจริง (ACT)</div>
+                            <div class="text-lg font-extrabold text-blue-600">${lastWeekActual.length}</div>
+                        </div>
+                        <div class="bg-slate-50 rounded-xl p-3 text-center">
+                            <div class="text-[10px] text-slate-500 font-semibold uppercase">ผลต่าง</div>
+                            <div class="text-lg font-extrabold ${diffColor}">${diffText}</div>
+                        </div>
+                    </div>
+                    ${lastWeekActual.length > 0 ? `
+                        <div class="mt-2 space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
+                            ${lastWeekActual.map(e => `
+                                <div class="text-[11px] text-slate-600 flex items-center gap-1.5 bg-white border border-slate-100 rounded-lg px-2 py-1">
+                                    <i class="fa-solid fa-camera text-emerald-500 text-[10px]"></i>
+                                    <span class="font-semibold">${e.actualDate}</span>
+                                    <span>${e.projectName} — ${e.unitName} — ${e.seqName}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '<p class="text-xs text-slate-400 text-center py-2">ไม่มีการบันทึกงานในสัปดาห์ที่ผ่านมา</p>'}
+                `;
+            }
+
+            // ---------- 5) สัปดาห์นี้: กำลังดำเนินการ + ปฏิทินรายวัน + เช็คลำดับ Sequence ----------
+            const thisWeekEl = document.getElementById('plan-this-week');
+            if (thisWeekEl) {
+                const inProgressRecords = sequenceRecords.filter(r =>
+                    (filterProjId === 'ALL' || r.projectId === filterProjId) &&
+                    (r.status === 'in_progress' || r.approvalStatus === 'pending_approval')
+                );
+
+                const dayNames = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
+                const weekDays = Array.from({ length: 7 }, (_, i) => addDaysToDate(thisMonday, i));
+                const thisWeekActual = actualEvents.filter(e => inRange(e.actualDate, thisMonday, thisSunday));
+
+                const calendarHtml = weekDays.map((d, i) => {
+                    const dStr = toISODateStr(d);
+                    const dayRecords = thisWeekActual.filter(e => e.actualDate === dStr);
+                    const isToday = dStr === toISODateStr(today);
+                    return `
+                        <div class="bg-slate-50 rounded-xl p-2 ${isToday ? 'ring-2 ring-blue-500' : ''} min-h-[70px]">
+                            <div class="text-[10px] font-bold ${isToday ? 'text-blue-600' : 'text-slate-500'}">${dayNames[i]}</div>
+                            <div class="text-[9px] text-slate-400 mb-1">${dStr.slice(5)}</div>
+                            ${dayRecords.length > 0
+                                ? dayRecords.map(e => `<div class="text-[9px] text-slate-700 truncate" title="${e.unitName} - ${e.seqName}">🏠${e.unitName} ${e.seqName.replace(/^Sequence\s*\d+[:\s]*/i, '')}</div>`).join('')
+                                : '<div class="text-[9px] text-slate-300">-</div>'}
+                        </div>
+                    `;
+                }).join('');
+
+                const outOfOrderIssues = [];
+                projectsData.forEach(p => {
+                    if (filterProjId !== 'ALL' && p.id !== filterProjId) return;
+                    (p.units || []).forEach(u => {
+                        const totalSeq = masterSequences.length || 10;
+                        let lastApprovedIdx = 0;
+                        for (let i = 1; i <= totalSeq; i++) {
+                            const approved = sequenceRecords.some(r => r.projectId === p.id && r.unitId === u.id && r.seqIndex === i && r.approvalStatus === 'approved' && r.status === 'completed');
+                            if (approved) lastApprovedIdx = i;
+                            else break;
+                        }
+                        const hasLaterRecord = sequenceRecords.some(r => r.projectId === p.id && r.unitId === u.id && r.seqIndex > lastApprovedIdx + 1);
+                        if (hasLaterRecord) {
+                            outOfOrderIssues.push(`${p.name} — ${u.name} (มีการบันทึกข้าม Sequence ${lastApprovedIdx + 1})`);
+                        }
+                    });
+                });
+
+                thisWeekEl.innerHTML = `
+                    <p class="text-[11px] text-slate-400">ช่วงวันที่ ${toISODateStr(thisMonday)} ถึง ${toISODateStr(thisSunday)}</p>
+                    <div class="flex items-center gap-3 mt-1">
+                        <div class="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                            <div class="bg-blue-600 h-full rounded-full" style="width:${Math.min(100, overallPct)}%"></div>
+                        </div>
+                        <span class="text-xs font-bold text-blue-600">${overallPct}% คืบหน้ารวมทั้งโครงการ</span>
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="text-[11px] font-semibold text-slate-600 mb-1">งานที่กำลังดำเนินการอยู่ (${inProgressRecords.length} รายการ)</div>
+                        ${inProgressRecords.length > 0 ? `
+                            <div class="space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
+                                ${inProgressRecords.map(r => {
+                                    const project = projectsData.find(p => p.id === r.projectId);
+                                    const unit = project?.units?.find(u => u.id === r.unitId);
+                                    return `<div class="text-[11px] text-slate-600 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1">${project ? project.name : '-'} — ${unit ? unit.name : '-'} — ${r.seqName}${r.approvalStatus === 'pending_approval' ? ' (รอ PM อนุมัติ)' : ' (กำลังทำ)'}</div>`;
+                                }).join('')}
+                            </div>
+                        ` : '<p class="text-xs text-slate-400">ไม่มีงานที่กำลังดำเนินการ</p>'}
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="text-[11px] font-semibold text-slate-600 mb-1">ปฏิทินงานรายวัน (จันทร์-อาทิตย์)</div>
+                        <div class="grid grid-cols-7 gap-1.5">${calendarHtml}</div>
+                    </div>
+
+                    ${outOfOrderIssues.length > 0 ? `
+                        <div class="mt-3 bg-rose-50 border border-rose-200 rounded-xl p-2.5">
+                            <div class="text-[11px] font-bold text-rose-700 mb-1"><i class="fa-solid fa-triangle-exclamation mr-1"></i>พบการทำงานไม่ตามลำดับ Sequence:</div>
+                            ${outOfOrderIssues.map(t => `<div class="text-[10px] text-rose-600">• ${t}</div>`).join('')}
+                        </div>
+                    ` : '<p class="text-[10px] text-emerald-600 mt-2"><i class="fa-solid fa-circle-check mr-1"></i>ทุกแปลงทำงานตามลำดับ Sequence ถูกต้อง</p>'}
+                `;
+            }
+
+            // ---------- 6) สัปดาห์หน้า: เตรียมงานล่วงหน้า ----------
+            const nextWeekEl = document.getElementById('plan-next-week');
+            if (nextWeekEl) {
+                const nextWeekPlanned = plannedEvents.filter(e => inRange(e.plannedDate, nextMonday, nextSunday));
+                nextWeekEl.innerHTML = `
+                    <p class="text-[11px] text-slate-400">ช่วงวันที่ ${toISODateStr(nextMonday)} ถึง ${toISODateStr(nextSunday)}</p>
+                    ${nextWeekPlanned.length > 0 ? `
+                        <div class="space-y-1 mt-2 max-h-48 overflow-y-auto custom-scrollbar">
+                            ${nextWeekPlanned.map(e => `
+                                <div class="text-[11px] text-slate-600 flex items-center gap-1.5 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1">
+                                    <i class="fa-solid fa-hourglass-start text-amber-500 text-[10px]"></i>
+                                    <span class="font-semibold">${e.plannedDate}</span>
+                                    <span>${e.projectName} — ${e.unitName} — ${e.seqName}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-2">* เตรียมแรงงาน/วัสดุ/เครื่องมือให้พร้อมสำหรับ ${nextWeekPlanned.length} รายการนี้</p>
+                    ` : '<p class="text-xs text-slate-400 text-center py-2">ยังไม่มีงานตามแผนในสัปดาห์หน้า</p>'}
+                `;
+            }
+
+            // ---------- 7-8) ภาพรวมเดือนนี้ / เดือนหน้า ----------
+            const renderMonthCard = (elId, start, end, showActual) => {
+                const el = document.getElementById(elId);
+                if (!el) return;
+                const monthPlanned = plannedEvents.filter(e => inRange(e.plannedDate, start, end));
+                const monthActual = showActual ? actualEvents.filter(e => inRange(e.actualDate, start, end)) : [];
+
+                const byProject = {};
+                monthPlanned.forEach(e => { byProject[e.projectName] = (byProject[e.projectName] || 0) + 1; });
+                const byProjectHtml = Object.entries(byProject).map(([name, count]) => `
+                    <div class="text-[11px] text-slate-600 flex items-center justify-between bg-slate-50 rounded-lg px-2 py-1">
+                        <span>${name}</span>
+                        <span class="font-bold text-slate-800">${count} Sequence</span>
+                    </div>
+                `).join('');
+
+                el.innerHTML = `
+                    <p class="text-[11px] text-slate-400">${toISODateStr(start)} ถึง ${toISODateStr(end)}</p>
+                    <div class="text-2xl font-extrabold text-slate-800 mt-1">${monthPlanned.length} <span class="text-xs font-medium text-slate-400">Sequence ตามแผน</span></div>
+                    ${showActual ? `<div class="text-xs text-blue-600 font-semibold mt-0.5">ทำได้จริงแล้ว ${monthActual.length} รายการ</div>` : ''}
+                    ${monthPlanned.length > 0
+                        ? `<div class="space-y-1 mt-2 max-h-40 overflow-y-auto custom-scrollbar">${byProjectHtml}</div>`
+                        : '<p class="text-xs text-slate-400 mt-2">ไม่มีงานตามแผนในเดือนนี้</p>'}
+                `;
+            };
+            renderMonthCard('plan-this-month', thisMonthStart, thisMonthEnd, true);
+            renderMonthCard('plan-next-month', nextMonthStart, nextMonthEnd, false);
+        }
+
         function refreshAllViews() {
             updatePendingApprovalBadge();
             populateSequenceSelects();
@@ -3156,6 +3508,7 @@
             renderSequenceSummaryBars();
             renderIndividualProjectCharts();
             renderSitePlanView();
+            renderConstructionPlanView();
             renderDashboardProjectsTable();
             renderAllProjectsTable();
             renderRecordSequenceOverview();
