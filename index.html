@@ -393,12 +393,6 @@
                 <div id="plan-this-week-detail"></div>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
-                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-forward text-amber-500"></i> สัปดาห์หน้า — เตรียมงานล่วงหน้า</h3>
-                <div id="plan-next-week-summary"></div>
-                <div id="plan-next-week-breakdown"></div>
-            </div>
-
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
                     <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-calendar text-purple-500"></i> ภาพรวมเดือนนี้</h3>
@@ -3259,7 +3253,18 @@
             if (filterProjId && filterProjId !== 'ALL') {
                 records = records.filter(r => r.projectId === filterProjId);
             }
-            return records.map(r => {
+
+            // กันนับซ้ำ: ถ้า Sequence เดียวกันของแปลงเดียวกันมีมากกว่า 1 แถว (เช่น บันทึกซ้ำ/แก้ไข) ให้เหลือแถวเดียวที่วันที่ล่าสุด
+            const dedupMap = new Map();
+            records.forEach(r => {
+                const key = `${r.unitId}|${r.seqIndex}`;
+                const existing = dedupMap.get(key);
+                if (!existing || (r.recordDate && r.recordDate > existing.recordDate)) {
+                    dedupMap.set(key, r);
+                }
+            });
+
+            return Array.from(dedupMap.values()).map(r => {
                 const project = projectsData.find(p => p.id === r.projectId);
                 const unit = project?.units?.find(u => u.id === r.unitId);
                 return {
@@ -3345,7 +3350,12 @@
 
             projectsToUse.forEach(p => {
                 (p.units || []).forEach(u => {
-                    const actualDone = sequenceRecords.filter(r => r.projectId === p.id && r.unitId === u.id && r.approvalStatus === 'approved' && r.status === 'completed').length;
+                    // ใช้ Set กันนับ Sequence เดิมซ้ำ ถ้ามีการบันทึก/แก้ไขมากกว่า 1 แถวต่อ Sequence เดียวกัน (สาเหตุที่เคยเห็น % เกิน 100)
+                    const actualDone = new Set(
+                        sequenceRecords
+                            .filter(r => r.projectId === p.id && r.unitId === u.id && r.approvalStatus === 'approved' && r.status === 'completed')
+                            .map(r => r.seqIndex)
+                    ).size;
 
                     let plannedIdx = 0;
                     let plannedDueCount = 0;
@@ -3395,8 +3405,6 @@
             today.setHours(0, 0, 0, 0);
             const thisMonday = getMondayOfWeek(today);
             const thisSunday = addDaysToDate(thisMonday, 6);
-            const nextMonday = addDaysToDate(thisMonday, 7);
-            const nextSunday = addDaysToDate(thisMonday, 13);
             const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
             const thisMonthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
             const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1);
@@ -3444,10 +3452,11 @@
 
             const breakdownEl = document.getElementById('plan-unit-breakdown');
             if (breakdownEl) {
+                const inProgressUnits = unitStatusList.filter(u => u.actualDone < u.totalSeq);
                 breakdownEl.innerHTML = `
-                    <div class="text-[11px] font-semibold text-slate-600 mt-3 mb-1.5">รายละเอียดตามแปลง — แผนอยู่ Sequence ไหน เทียบกับทำได้จริงกี่ %</div>
+                    <div class="text-[11px] font-semibold text-slate-600 mt-3 mb-1.5">รายละเอียดตามแปลง — แผนอยู่ Sequence ไหน เทียบกับทำได้จริงกี่ % (ไม่รวมแปลงที่เสร็จ 100% แล้ว)</div>
                     <div class="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
-                        ${unitStatusList.map(u => {
+                        ${inProgressUnits.map(u => {
                             const onTrack = u.actualDone >= u.plannedDueCount;
                             const unitPct = u.totalSeq > 0 ? Math.round((u.actualDone / u.totalSeq) * 100) : 0;
                             const planText = u.plannedIdx > 0
@@ -3465,7 +3474,7 @@
                                     </div>
                                 </div>
                             `;
-                        }).join('') || '<p class="text-xs text-slate-400 text-center py-2">ยังไม่มีแปลงบ้านในระบบ</p>'}
+                        }).join('') || '<p class="text-xs text-slate-400 text-center py-2">ทุกแปลงเสร็จตามแผนแล้ว 🎉</p>'}
                     </div>
                 `;
             }
@@ -3578,14 +3587,6 @@
                 `;
             }
 
-            // ---------- 6) สัปดาห์หน้า ----------
-            const nextWeekPlanned = plannedEvents.filter(e => inRange(e.plannedDate, nextMonday, nextSunday));
-            const nextWeekCard = buildWeekCard(nextWeekPlanned);
-            const nextWeekSummaryEl = document.getElementById('plan-next-week-summary');
-            const nextWeekBreakdownEl = document.getElementById('plan-next-week-breakdown');
-            if (nextWeekSummaryEl) nextWeekSummaryEl.innerHTML = `<p class="text-[11px] text-slate-400 mb-2">ช่วงวันที่ ${toISODateStr(nextMonday)} ถึง ${toISODateStr(nextSunday)}</p>` + nextWeekCard.summaryHtml;
-            if (nextWeekBreakdownEl) nextWeekBreakdownEl.innerHTML = nextWeekCard.breakdownHtml;
-
             // ---------- 7-8) ภาพรวมเดือนนี้ / เดือนหน้า พร้อมคาดการณ์ ----------
             const renderMonthCard = (elId, start, end, showActual) => {
                 const el = document.getElementById(elId);
@@ -3609,8 +3610,9 @@
                 el.innerHTML = `
                     <p class="text-[11px] text-slate-400">${toISODateStr(start)} ถึง ${toISODateStr(end)}</p>
                     <div class="text-2xl font-extrabold text-slate-800 mt-1">${monthPlanned.length} <span class="text-xs font-medium text-slate-400">Sequence ตามแผน</span></div>
-                    ${showActual ? `<div class="text-xs text-blue-600 font-semibold mt-0.5">ทำได้จริงแล้ว ${monthActual.length} รายการ (${currentPct}%)</div>` : ''}
-                    <div class="text-xs text-purple-600 font-semibold mt-0.5"><i class="fa-solid fa-chart-line mr-1"></i>คาดการณ์สิ้นเดือน: ${forecastCount}/${monthPlanned.length} Sequence (${forecastPct}%)</div>
+                    ${showActual
+                        ? `<div class="text-xs text-blue-600 font-semibold mt-0.5">ทำได้จริงแล้ว (มีรูปยืนยัน) ${monthActual.length} Sequence รวมทุก Block (${currentPct}%)</div>`
+                        : `<div class="text-xs text-purple-600 font-semibold mt-0.5"><i class="fa-solid fa-chart-line mr-1"></i>คาดการณ์ต่อจากเดือนนี้: จะเสร็จ ${forecastCount} Sequence รวมทุก Block (${forecastPct}%)</div>`}
                     ${monthPlanned.length > 0
                         ? `<div class="space-y-1 mt-2 max-h-40 overflow-y-auto custom-scrollbar">${byProjectHtml}</div>`
                         : '<p class="text-xs text-slate-400 mt-2">ไม่มีงานตามแผนในเดือนนี้</p>'}
