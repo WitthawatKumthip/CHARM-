@@ -387,18 +387,16 @@
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
-                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-slate-500"></i> สัปดาห์ที่ผ่านมา — ทบทวนแผนกับงานจริง</h3>
-                <div id="plan-last-week"></div>
-            </div>
-
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
                 <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-calendar-day text-blue-500"></i> สัปดาห์นี้ — กำลังดำเนินการ</h3>
-                <div id="plan-this-week"></div>
+                <div id="plan-this-week-summary"></div>
+                <div id="plan-this-week-breakdown"></div>
+                <div id="plan-this-week-detail"></div>
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
                 <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-forward text-amber-500"></i> สัปดาห์หน้า — เตรียมงานล่วงหน้า</h3>
-                <div id="plan-next-week"></div>
+                <div id="plan-next-week-summary"></div>
+                <div id="plan-next-week-breakdown"></div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -3292,7 +3290,7 @@
             const planSrc = project.sitePlan || defaultPlanImg;
 
             container.innerHTML = `
-                <div class="space-y-3">
+                <div class="space-y-3 md:w-[70%] mx-auto">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-900 text-white p-4 rounded-2xl gap-3">
                         <div>
                             <div class="text-[10px] text-blue-400 font-bold uppercase tracking-wider">PROJECT MASTER PLAN SUMMARY</div>
@@ -3306,7 +3304,7 @@
                     </div>
 
                     <div class="relative w-full rounded-2xl overflow-hidden border-2 border-slate-200 bg-slate-900 shadow-lg select-none">
-                        <img src="${planSrc}" class="w-full h-auto min-h-[300px] max-h-[550px] object-contain opacity-90 mx-auto">
+                        <img src="${planSrc}" class="w-full h-auto min-h-[220px] max-h-[400px] object-contain opacity-90 mx-auto">
                         ${project.units ? project.units.filter(u => u.pinX !== undefined && u.pinY !== undefined).map(u => {
                             const uProg = calculateUnitProgress(project.id, u.id);
                             const uStatus = calculateUnitStatus(u, uProg);
@@ -3397,8 +3395,6 @@
             today.setHours(0, 0, 0, 0);
             const thisMonday = getMondayOfWeek(today);
             const thisSunday = addDaysToDate(thisMonday, 6);
-            const lastMonday = addDaysToDate(thisMonday, -7);
-            const lastSunday = addDaysToDate(thisMonday, -1);
             const nextMonday = addDaysToDate(thisMonday, 7);
             const nextSunday = addDaysToDate(thisMonday, 13);
             const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -3409,8 +3405,9 @@
             const plannedEvents = getPlannedSeqEvents(filterProjId);
             const actualEvents = getActualSeqEvents(filterProjId);
             const inRange = (dateStr, start, end) => dateStr && dateStr >= toISODateStr(start) && dateStr <= toISODateStr(end);
+            const resolvedKeySet = new Set(actualEvents.map(e => `${e.unitId}|${e.seqIndex}`));
 
-            // ---------- 1) ผังโครงการปักหมุด (อ่านอย่างเดียว) ----------
+            // ---------- 1) ผังโครงการปักหมุด (อ่านอย่างเดียว, ย่อขนาด) ----------
             renderPlanMasterPlanSummary(filterProjId !== 'ALL' ? filterProjId : (projectsData[0]?.id || null));
 
             // ---------- 2-4) ภาพรวมแผนงานทั้งโครงการ + รายละเอียดต่อแปลง ----------
@@ -3448,20 +3445,24 @@
             const breakdownEl = document.getElementById('plan-unit-breakdown');
             if (breakdownEl) {
                 breakdownEl.innerHTML = `
-                    <div class="text-[11px] font-semibold text-slate-600 mt-3 mb-1.5">รายละเอียดตามแปลง — แผนตอนนี้ควรอยู่ Sequence ไหน เทียบกับทำได้จริง</div>
+                    <div class="text-[11px] font-semibold text-slate-600 mt-3 mb-1.5">รายละเอียดตามแปลง — แผนอยู่ Sequence ไหน เทียบกับทำได้จริงกี่ %</div>
                     <div class="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
                         ${unitStatusList.map(u => {
                             const onTrack = u.actualDone >= u.plannedDueCount;
+                            const unitPct = u.totalSeq > 0 ? Math.round((u.actualDone / u.totalSeq) * 100) : 0;
                             const planText = u.plannedIdx > 0
-                                ? `แผนควรอยู่: Sequence ${u.plannedIdx} (${(u.plannedSeqName || '').replace(/^Sequence\s*\d+[:\s]*/i, '')})`
+                                ? `แผนอยู่ Sequence ${u.plannedIdx} (${(u.plannedSeqName || '').replace(/^Sequence\s*\d+[:\s]*/i, '')})`
                                 : (u.totalSeq > 0 ? 'ยังไม่ถึงกำหนดเริ่มตามแผน' : '-');
                             return `
                                 <div class="flex items-center justify-between gap-2 bg-slate-50 rounded-lg px-3 py-2 text-[11px]">
                                     <div class="flex-1 min-w-0">
-                                        <span class="font-bold text-slate-800">${u.projectName} — ${u.unitName}</span>
-                                        <span class="text-slate-500 ml-1">${planText}</span>
+                                        <div class="font-bold text-slate-800">${u.projectName} — ${u.unitName}</div>
+                                        <div class="text-slate-500">${planText}</div>
                                     </div>
-                                    <span class="font-extrabold ${onTrack ? 'text-emerald-600' : 'text-rose-600'} shrink-0">${u.actualDone}/${u.totalSeq}</span>
+                                    <div class="text-right shrink-0">
+                                        <div class="font-extrabold ${onTrack ? 'text-emerald-600' : 'text-rose-600'}">${u.actualDone}/${u.totalSeq}</div>
+                                        <div class="text-[10px] text-slate-400">${unitPct}%</div>
+                                    </div>
                                 </div>
                             `;
                         }).join('') || '<p class="text-xs text-slate-400 text-center py-2">ยังไม่มีแปลงบ้านในระบบ</p>'}
@@ -3469,52 +3470,63 @@
                 `;
             }
 
-            // ---------- 4) สัปดาห์ที่ผ่านมา: ทบทวนแผนกับจริง ----------
-            const lastWeekPlanned = plannedEvents.filter(e => inRange(e.plannedDate, lastMonday, lastSunday));
-            const lastWeekActual = actualEvents.filter(e => inRange(e.actualDate, lastMonday, lastSunday));
-            const lastWeekEl = document.getElementById('plan-last-week');
-            if (lastWeekEl) {
-                const diff = lastWeekActual.length - lastWeekPlanned.length;
-                const diffText = diff === 0 ? 'ตรงตามแผน' : (diff > 0 ? `เกินแผน +${diff}` : `ต่ำกว่าแผน ${diff}`);
-                const diffColor = diff >= 0 ? 'text-emerald-600' : 'text-rose-600';
-                lastWeekEl.innerHTML = `
-                    <p class="text-[11px] text-slate-400">ช่วงวันที่ ${toISODateStr(lastMonday)} ถึง ${toISODateStr(lastSunday)}</p>
-                    <div class="grid grid-cols-3 gap-3 mt-1">
+            // การ์ดสไตล์เดียวกับภาพรวม สำหรับสัปดาห์นี้/สัปดาห์หน้า — แทนที่ ACT ด้วย "รายการที่ยังไม่สรุป"
+            function buildWeekCard(weekPlanned) {
+                const total = weekPlanned.length;
+                const unresolved = weekPlanned.filter(e => !resolvedKeySet.has(`${e.unitId}|${e.seqIndex}`));
+                const resolvedCount = total - unresolved.length;
+                const pct = total > 0 ? Math.round((resolvedCount / total) * 100) : 0;
+                const pctColor = pct >= 100 ? 'text-emerald-600' : (pct >= 50 ? 'text-amber-600' : 'text-rose-600');
+
+                const summaryHtml = `
+                    <div class="grid grid-cols-3 gap-3">
                         <div class="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-3 text-center">
-                            <div class="text-[10px] text-slate-500 font-semibold uppercase">ปริมาณงานตามแผน (PLAN)</div>
-                            <div class="text-lg font-extrabold text-slate-800">${lastWeekPlanned.length}</div>
+                            <div class="text-[10px] text-slate-500 font-semibold uppercase">แผน (PLAN)</div>
+                            <div class="text-xl font-extrabold text-slate-800">${total}</div>
+                            <div class="text-[10px] text-slate-400">Sequence</div>
                         </div>
-                        <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-3 text-center">
-                            <div class="text-[10px] text-blue-600 font-semibold uppercase">ปริมาณที่ทำจริง (ACT)</div>
-                            <div class="text-lg font-extrabold text-blue-700">${lastWeekActual.length}</div>
+                        <div class="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-xl p-3 text-center">
+                            <div class="text-[10px] text-amber-600 font-semibold uppercase">รายการที่ยังไม่สรุป</div>
+                            <div class="text-xl font-extrabold text-amber-700">${unresolved.length}</div>
+                            <div class="text-[10px] text-amber-400">Sequence</div>
                         </div>
-                        <div class="bg-gradient-to-br ${diff >= 0 ? 'from-emerald-50 to-emerald-100 border-emerald-200' : 'from-rose-50 to-rose-100 border-rose-200'} border rounded-xl p-3 text-center">
-                            <div class="text-[10px] font-semibold uppercase ${diffColor}">ผลต่าง</div>
-                            <div class="text-lg font-extrabold ${diffColor}">${diffText}</div>
+                        <div class="bg-gradient-to-br ${pct >= 100 ? 'from-emerald-50 to-emerald-100 border-emerald-200' : (pct >= 50 ? 'from-amber-50 to-amber-100 border-amber-200' : 'from-rose-50 to-rose-100 border-rose-200')} border rounded-xl p-3 text-center">
+                            <div class="text-[10px] font-semibold uppercase ${pctColor}">สรุปแล้ว</div>
+                            <div class="text-xl font-extrabold ${pctColor}">${pct}%</div>
+                            <div class="text-[10px] text-slate-400">ของแผนช่วงนี้</div>
                         </div>
                     </div>
-                    ${lastWeekActual.length > 0 ? `
-                        <div class="mt-2 space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
-                            ${lastWeekActual.map(e => `
-                                <div class="text-[11px] text-slate-600 flex items-center gap-1.5 bg-white border border-slate-100 rounded-lg px-2 py-1">
-                                    <i class="fa-solid fa-camera text-emerald-500 text-[10px]"></i>
-                                    <span class="font-semibold">${e.actualDate}</span>
-                                    <span>${e.projectName} — ${e.unitName} — ${e.seqName}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : '<p class="text-xs text-slate-400 text-center py-2">ไม่มีการบันทึกงานในสัปดาห์ที่ผ่านมา</p>'}
                 `;
+
+                const breakdownHtml = `
+                    <div class="space-y-1.5 mt-3 max-h-56 overflow-y-auto custom-scrollbar">
+                        ${weekPlanned.map(e => {
+                            const isResolved = resolvedKeySet.has(`${e.unitId}|${e.seqIndex}`);
+                            return `
+                                <div class="flex items-center justify-between gap-2 bg-slate-50 rounded-lg px-3 py-2 text-[11px]">
+                                    <div class="flex-1 min-w-0">
+                                        <span class="font-bold text-slate-800">${e.projectName} — ${e.unitName}</span>
+                                        <span class="text-slate-500 ml-1">Sequence ${e.seqIndex}: ${(e.seqName || '').replace(/^Sequence\s*\d+[:\s]*/i, '')}</span>
+                                    </div>
+                                    <span class="font-bold ${isResolved ? 'text-emerald-600' : 'text-amber-600'} shrink-0">${isResolved ? 'สรุปแล้ว' : 'ยังไม่สรุป'}</span>
+                                </div>
+                            `;
+                        }).join('') || '<p class="text-xs text-slate-400 text-center py-2">ไม่มีงานตามแผนในช่วงนี้</p>'}
+                    </div>
+                `;
+                return { summaryHtml, breakdownHtml };
             }
 
-            // ---------- 5) สัปดาห์นี้: กำลังดำเนินการ + ปฏิทินรายวัน + เช็คลำดับ Sequence ----------
-            const thisWeekEl = document.getElementById('plan-this-week');
-            if (thisWeekEl) {
-                const inProgressRecords = sequenceRecords.filter(r =>
-                    (filterProjId === 'ALL' || r.projectId === filterProjId) &&
-                    (r.status === 'in_progress' || r.approvalStatus === 'pending_approval')
-                );
+            // ---------- 5) สัปดาห์นี้ ----------
+            const thisWeekPlanned = plannedEvents.filter(e => inRange(e.plannedDate, thisMonday, thisSunday));
+            const thisWeekCard = buildWeekCard(thisWeekPlanned);
+            const thisWeekSummaryEl = document.getElementById('plan-this-week-summary');
+            const thisWeekBreakdownEl = document.getElementById('plan-this-week-breakdown');
+            if (thisWeekSummaryEl) thisWeekSummaryEl.innerHTML = `<p class="text-[11px] text-slate-400 mb-2">ช่วงวันที่ ${toISODateStr(thisMonday)} ถึง ${toISODateStr(thisSunday)}</p>` + thisWeekCard.summaryHtml;
+            if (thisWeekBreakdownEl) thisWeekBreakdownEl.innerHTML = thisWeekCard.breakdownHtml;
 
+            const thisWeekDetailEl = document.getElementById('plan-this-week-detail');
+            if (thisWeekDetailEl) {
                 const dayNames = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
                 const weekDays = Array.from({ length: 7 }, (_, i) => addDaysToDate(thisMonday, i));
                 const thisWeekActual = actualEvents.filter(e => inRange(e.actualDate, thisMonday, thisSunday));
@@ -3552,33 +3564,11 @@
                     });
                 });
 
-                thisWeekEl.innerHTML = `
-                    <p class="text-[11px] text-slate-400">ช่วงวันที่ ${toISODateStr(thisMonday)} ถึง ${toISODateStr(thisSunday)}</p>
-                    <div class="flex items-center gap-3 mt-1">
-                        <div class="flex-1 bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                            <div class="bg-blue-600 h-full rounded-full" style="width:${Math.min(100, schedulePct)}%"></div>
-                        </div>
-                        <span class="text-xs font-bold text-blue-600">${schedulePct}% คืบหน้าตามแผน</span>
-                    </div>
-
-                    <div class="mt-3">
-                        <div class="text-[11px] font-semibold text-slate-600 mb-1">งานที่กำลังดำเนินการอยู่ (${inProgressRecords.length} รายการ)</div>
-                        ${inProgressRecords.length > 0 ? `
-                            <div class="space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
-                                ${inProgressRecords.map(r => {
-                                    const project = projectsData.find(p => p.id === r.projectId);
-                                    const unit = project?.units?.find(u => u.id === r.unitId);
-                                    return `<div class="text-[11px] text-slate-600 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1">${project ? project.name : '-'} — ${unit ? unit.name : '-'} — ${r.seqName}${r.approvalStatus === 'pending_approval' ? ' (รอ PM อนุมัติ)' : ' (กำลังทำ)'}</div>`;
-                                }).join('')}
-                            </div>
-                        ` : '<p class="text-xs text-slate-400">ไม่มีงานที่กำลังดำเนินการ</p>'}
-                    </div>
-
-                    <div class="mt-3">
+                thisWeekDetailEl.innerHTML = `
+                    <div class="mt-1">
                         <div class="text-[11px] font-semibold text-slate-600 mb-1">ปฏิทินงานรายวัน (จันทร์-อาทิตย์)</div>
                         <div class="grid grid-cols-7 gap-1.5">${calendarHtml}</div>
                     </div>
-
                     ${outOfOrderIssues.length > 0 ? `
                         <div class="mt-3 bg-rose-50 border border-rose-200 rounded-xl p-2.5">
                             <div class="text-[11px] font-bold text-rose-700 mb-1"><i class="fa-solid fa-triangle-exclamation mr-1"></i>พบการทำงานไม่ตามลำดับ Sequence:</div>
@@ -3588,33 +3578,24 @@
                 `;
             }
 
-            // ---------- 6) สัปดาห์หน้า: เตรียมงานล่วงหน้า ----------
-            const nextWeekEl = document.getElementById('plan-next-week');
-            if (nextWeekEl) {
-                const nextWeekPlanned = plannedEvents.filter(e => inRange(e.plannedDate, nextMonday, nextSunday));
-                nextWeekEl.innerHTML = `
-                    <p class="text-[11px] text-slate-400">ช่วงวันที่ ${toISODateStr(nextMonday)} ถึง ${toISODateStr(nextSunday)}</p>
-                    ${nextWeekPlanned.length > 0 ? `
-                        <div class="space-y-1 mt-2 max-h-48 overflow-y-auto custom-scrollbar">
-                            ${nextWeekPlanned.map(e => `
-                                <div class="text-[11px] text-slate-600 flex items-center gap-1.5 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1">
-                                    <i class="fa-solid fa-hourglass-start text-amber-500 text-[10px]"></i>
-                                    <span class="font-semibold">${e.plannedDate}</span>
-                                    <span>${e.projectName} — ${e.unitName} — ${e.seqName}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                        <p class="text-[10px] text-slate-400 mt-2">* เตรียมแรงงาน/วัสดุ/เครื่องมือให้พร้อมสำหรับ ${nextWeekPlanned.length} รายการนี้</p>
-                    ` : '<p class="text-xs text-slate-400 text-center py-2">ยังไม่มีงานตามแผนในสัปดาห์หน้า</p>'}
-                `;
-            }
+            // ---------- 6) สัปดาห์หน้า ----------
+            const nextWeekPlanned = plannedEvents.filter(e => inRange(e.plannedDate, nextMonday, nextSunday));
+            const nextWeekCard = buildWeekCard(nextWeekPlanned);
+            const nextWeekSummaryEl = document.getElementById('plan-next-week-summary');
+            const nextWeekBreakdownEl = document.getElementById('plan-next-week-breakdown');
+            if (nextWeekSummaryEl) nextWeekSummaryEl.innerHTML = `<p class="text-[11px] text-slate-400 mb-2">ช่วงวันที่ ${toISODateStr(nextMonday)} ถึง ${toISODateStr(nextSunday)}</p>` + nextWeekCard.summaryHtml;
+            if (nextWeekBreakdownEl) nextWeekBreakdownEl.innerHTML = nextWeekCard.breakdownHtml;
 
-            // ---------- 7-8) ภาพรวมเดือนนี้ / เดือนหน้า ----------
+            // ---------- 7-8) ภาพรวมเดือนนี้ / เดือนหน้า พร้อมคาดการณ์ ----------
             const renderMonthCard = (elId, start, end, showActual) => {
                 const el = document.getElementById(elId);
                 if (!el) return;
                 const monthPlanned = plannedEvents.filter(e => inRange(e.plannedDate, start, end));
                 const monthActual = showActual ? actualEvents.filter(e => inRange(e.actualDate, start, end)) : [];
+                const currentPct = monthPlanned.length > 0 ? Math.round((monthActual.length / monthPlanned.length) * 100) : 0;
+
+                const forecastCount = Math.min(monthPlanned.length, Math.round(monthPlanned.length * (schedulePct / 100)));
+                const forecastPct = monthPlanned.length > 0 ? Math.round((forecastCount / monthPlanned.length) * 100) : 0;
 
                 const byProject = {};
                 monthPlanned.forEach(e => { byProject[e.projectName] = (byProject[e.projectName] || 0) + 1; });
@@ -3628,7 +3609,8 @@
                 el.innerHTML = `
                     <p class="text-[11px] text-slate-400">${toISODateStr(start)} ถึง ${toISODateStr(end)}</p>
                     <div class="text-2xl font-extrabold text-slate-800 mt-1">${monthPlanned.length} <span class="text-xs font-medium text-slate-400">Sequence ตามแผน</span></div>
-                    ${showActual ? `<div class="text-xs text-blue-600 font-semibold mt-0.5">ทำได้จริงแล้ว ${monthActual.length} รายการ</div>` : ''}
+                    ${showActual ? `<div class="text-xs text-blue-600 font-semibold mt-0.5">ทำได้จริงแล้ว ${monthActual.length} รายการ (${currentPct}%)</div>` : ''}
+                    <div class="text-xs text-purple-600 font-semibold mt-0.5"><i class="fa-solid fa-chart-line mr-1"></i>คาดการณ์สิ้นเดือน: ${forecastCount}/${monthPlanned.length} Sequence (${forecastPct}%)</div>
                     ${monthPlanned.length > 0
                         ? `<div class="space-y-1 mt-2 max-h-40 overflow-y-auto custom-scrollbar">${byProjectHtml}</div>`
                         : '<p class="text-xs text-slate-400 mt-2">ไม่มีงานตามแผนในเดือนนี้</p>'}
