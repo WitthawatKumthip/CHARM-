@@ -226,69 +226,69 @@
         <!-- VIEW 1: DASHBOARD -->
         <div id="view-dashboard" class="space-y-6">
             <!-- Stat Cards Row -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200/80 flex items-center justify-between">
                     <div>
-                        <span class="text-[11px] font-semibold text-slate-400 uppercase">โครงการทั้งหมด</span>
-                        <div id="stat-total-projects" class="text-2xl font-bold text-slate-800 mt-1">0</div>
+                        <span class="text-[10px] font-semibold text-slate-400 uppercase">โครงการทั้งหมด</span>
+                        <div id="stat-total-projects" class="text-lg font-bold text-slate-800 mt-0.5">0</div>
                     </div>
-                    <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-lg">
+                    <div class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center text-sm">
                         <i class="fa-solid fa-city"></i>
                     </div>
                 </div>
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200/80 flex items-center justify-between">
                     <div>
-                        <span class="text-[11px] font-semibold text-slate-400 uppercase">โครงการที่ล่าช้า</span>
-                        <div id="stat-delayed-projects" class="text-2xl font-bold text-rose-600 mt-1">0</div>
+                        <span class="text-[10px] font-semibold text-slate-400 uppercase">โครงการที่ล่าช้า</span>
+                        <div id="stat-delayed-projects" class="text-lg font-bold text-rose-600 mt-0.5">0</div>
                     </div>
-                    <div class="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-lg">
+                    <div class="w-8 h-8 bg-rose-50 text-rose-600 rounded-lg flex items-center justify-center text-sm">
                         <i class="fa-solid fa-triangle-exclamation"></i>
                     </div>
                 </div>
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200/80 flex items-center justify-between">
                     <div>
-                        <span class="text-[11px] font-semibold text-slate-400 uppercase">เสี่ยงล่าช้า</span>
-                        <div id="stat-warning-projects" class="text-2xl font-bold text-amber-600 mt-1">0</div>
+                        <span class="text-[10px] font-semibold text-slate-400 uppercase">เสี่ยงล่าช้า</span>
+                        <div id="stat-warning-projects" class="text-lg font-bold text-amber-600 mt-0.5">0</div>
                     </div>
-                    <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-lg">
+                    <div class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center text-sm">
                         <i class="fa-solid fa-clock"></i>
                     </div>
                 </div>
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200/80 flex items-center justify-between">
                     <div>
-                        <span class="text-[11px] font-semibold text-slate-400 uppercase">Defects รอดำเนินการ</span>
-                        <div id="stat-open-issues" class="text-2xl font-bold text-teal-600 mt-1">0</div>
+                        <span class="text-[10px] font-semibold text-slate-400 uppercase">Defects รอดำเนินการ</span>
+                        <div id="stat-open-issues" class="text-lg font-bold text-teal-600 mt-0.5">0</div>
                     </div>
-                    <div class="w-10 h-10 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center text-lg">
+                    <div class="w-8 h-8 bg-teal-50 text-teal-600 rounded-lg flex items-center justify-center text-sm">
                         <i class="fa-solid fa-bug"></i>
                     </div>
                 </div>
             </div>
 
             <!-- Charts Section -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col items-center justify-center text-center space-y-3">
-                    <h3 class="font-bold text-slate-800 text-sm">เปอร์เซ็นต์ผลงานรวมทุกโครงการ</h3>
-                    <div class="relative w-44 h-44 flex items-center justify-center">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200/80 flex flex-col items-center justify-center text-center space-y-1.5">
+                    <h3 class="font-bold text-slate-800 text-xs">เปอร์เซ็นต์ผลงานรวมทุกโครงการ</h3>
+                    <div class="relative w-28 h-28 flex items-center justify-center">
                         <canvas id="overallProgressChart"></canvas>
                         <div class="absolute inset-0 flex flex-col items-center justify-center">
-                            <span id="overall-progress-text" class="text-3xl font-extrabold text-blue-600">0%</span>
-                            <span class="text-[10px] text-slate-400 font-medium">จาก <span id="overall-projects-count">0</span> โครงการ</span>
+                            <span id="overall-progress-text" class="text-xl font-extrabold text-blue-600">0%</span>
+                            <span class="text-[9px] text-slate-400 font-medium">จาก <span id="overall-projects-count">0</span> โครงการ</span>
                         </div>
                     </div>
-                    <p class="text-xs text-slate-500">คำนวณเฉลี่ยความคืบหน้าจริงสะสมของแปลงบ้านทั้งหมด</p>
+                    <p class="text-[10px] text-slate-500">คำนวณเฉลี่ยความคืบหน้าจริงสะสมของแปลงบ้านทั้งหมด</p>
                 </div>
 
-                <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
-                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="lg:col-span-2 bg-white p-3 rounded-xl shadow-sm border border-slate-200/80 space-y-2.5">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-2">
                         <div>
-                            <h3 class="font-bold text-slate-800 text-sm">ความคืบหน้า Mini Donut Chart รายโครงการ</h3>
-                            <p class="text-xs text-slate-500">แสดงสัดส่วน % ที่ทำได้ของแต่ละโครงการ</p>
+                            <h3 class="font-bold text-slate-800 text-xs">ความคืบหน้า Mini Donut Chart รายโครงการ</h3>
+                            <p class="text-[10px] text-slate-500">แสดงสัดส่วน % ที่ทำได้ของแต่ละโครงการ</p>
                         </div>
-                        <span id="seq-total-badge" class="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-lg">เสร็จสิ้น 0 / 0 Sequence</span>
+                        <span id="seq-total-badge" class="bg-blue-50 text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded-lg">เสร็จสิ้น 0 / 0 Sequence</span>
                     </div>
 
-                    <div id="individual-project-charts-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-1"></div>
+                    <div id="individual-project-charts-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1"></div>
                     <div id="seq-summary-progress-bars" class="space-y-3 pt-2"></div>
                 </div>
             </div>
@@ -6022,12 +6022,12 @@
 
                 html += `
                     <div>
-                        <div class="flex justify-between items-center text-xs mb-1">
+                        <div class="flex justify-between items-center text-[11px] mb-0.5">
                             <span class="font-semibold text-slate-700 truncate">${p.name} (${metrics.totalUnits} แปลง)</span>
                             <span class="font-bold text-blue-600">${metrics.completedSeq} / ${metrics.totalSeq} Sequence (${pct}%)</span>
                         </div>
-                        <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                            <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+                        <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div class="bg-blue-600 h-1.5 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
                         </div>
                     </div>
                 `;
@@ -6056,13 +6056,13 @@
                 }
 
                 html += `
-                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 flex flex-col items-center justify-center text-center space-y-2">
-                        <span class="text-xs font-bold text-slate-800 truncate w-full">${p.name}</span>
-                        <div class="relative w-20 h-20 flex items-center justify-center">
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-2 flex flex-col items-center justify-center text-center space-y-1">
+                        <span class="text-[11px] font-bold text-slate-800 truncate w-full">${p.name}</span>
+                        <div class="relative w-14 h-14 flex items-center justify-center">
                             <canvas id="miniChart-${p.id}"></canvas>
-                            <span class="absolute inset-0 flex items-center justify-center text-xs font-extrabold text-slate-700">${metrics.progress}%</span>
+                            <span class="absolute inset-0 flex items-center justify-center text-[10px] font-extrabold text-slate-700">${metrics.progress}%</span>
                         </div>
-                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ${badgeClass}">${statusLabel}</span>
+                        <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${badgeClass}">${statusLabel}</span>
                     </div>
                 `;
             });
