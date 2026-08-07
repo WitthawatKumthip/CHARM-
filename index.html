@@ -3378,6 +3378,8 @@
                         projectName: p.name,
                         unitId: u.id,
                         unitName: u.name,
+                        startDate: u.startDate,
+                        endDate: u.endDate,
                         actualDone,
                         totalSeq,
                         plannedIdx,
@@ -3387,6 +3389,15 @@
                 });
             });
             return list;
+        }
+
+        // สีมาตรฐานเดียวกับหมุดบนผัง: เขียว=เสร็จ100% / ส้ม=กำลังก่อสร้าง / แดง=ล่าช้ากว่าแผน / เทา=ยังไม่เริ่ม
+        function getUnitStatusColor(pct, startDate, endDate) {
+            if (pct >= 100) return { text: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'เสร็จแล้ว' };
+            const status = calculateUnitStatus({ startDate, endDate }, pct);
+            if (status === 'delayed') return { text: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-200', label: 'ล่าช้า' };
+            if (pct > 0) return { text: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', label: 'กำลังก่อสร้าง' };
+            return { text: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200', label: 'ยังไม่เริ่ม' };
         }
 
         function renderConstructionPlanView() {
@@ -3420,6 +3431,7 @@
 
             // ---------- 2-4) ภาพรวมแผนงานทั้งโครงการ + รายละเอียดต่อแปลง ----------
             const unitStatusList = getUnitPlanStatusList(filterProjId, today);
+            const unitInfoMap = new Map(unitStatusList.map(u => [u.unitId, u]));
             const totalPlanned = plannedEvents.length;
             const totalActual = actualEvents.length;
             const totalDueByToday = unitStatusList.reduce((s, u) => s + u.plannedDueCount, 0);
@@ -3457,19 +3469,19 @@
                     <div class="text-[11px] font-semibold text-slate-600 mt-3 mb-1.5">รายละเอียดตามแปลง — แผนอยู่ Sequence ไหน เทียบกับทำได้จริงกี่ % (ไม่รวมแปลงที่เสร็จ 100% แล้ว)</div>
                     <div class="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
                         ${inProgressUnits.map(u => {
-                            const onTrack = u.actualDone >= u.plannedDueCount;
                             const unitPct = u.totalSeq > 0 ? Math.round((u.actualDone / u.totalSeq) * 100) : 0;
+                            const c = getUnitStatusColor(unitPct, u.startDate, u.endDate);
                             const planText = u.plannedIdx > 0
                                 ? `แผนอยู่ Sequence ${u.plannedIdx} (${(u.plannedSeqName || '').replace(/^Sequence\s*\d+[:\s]*/i, '')})`
                                 : (u.totalSeq > 0 ? 'ยังไม่ถึงกำหนดเริ่มตามแผน' : '-');
                             return `
-                                <div class="flex items-center justify-between gap-2 bg-slate-50 rounded-lg px-3 py-2 text-[11px]">
+                                <div class="flex items-center justify-between gap-2 ${c.bg} border ${c.border} rounded-lg px-3 py-2 text-[11px]">
                                     <div class="flex-1 min-w-0">
-                                        <div class="font-bold text-slate-800">${u.projectName} — ${u.unitName}</div>
+                                        <div class="font-bold text-slate-800">${u.projectName} — ${u.unitName} <span class="${c.text} font-semibold">(${c.label})</span></div>
                                         <div class="text-slate-500">${planText}</div>
                                     </div>
                                     <div class="text-right shrink-0">
-                                        <div class="font-extrabold ${onTrack ? 'text-emerald-600' : 'text-rose-600'}">${u.actualDone}/${u.totalSeq}</div>
+                                        <div class="font-extrabold ${c.text}">${u.actualDone}/${u.totalSeq}</div>
                                         <div class="text-[10px] text-slate-400">${unitPct}%</div>
                                     </div>
                                 </div>
@@ -3510,14 +3522,19 @@
                 const breakdownHtml = `
                     <div class="space-y-1.5 mt-3 max-h-56 overflow-y-auto custom-scrollbar">
                         ${weekPlanned.map(e => {
-                            const isResolved = resolvedKeySet.has(`${e.unitId}|${e.seqIndex}`);
+                            const info = unitInfoMap.get(e.unitId) || { actualDone: 0, totalSeq: masterSequences.length || 10, startDate: null, endDate: null };
+                            const unitPct = info.totalSeq > 0 ? Math.round((info.actualDone / info.totalSeq) * 100) : 0;
+                            const c = getUnitStatusColor(unitPct, info.startDate, info.endDate);
                             return `
-                                <div class="flex items-center justify-between gap-2 bg-slate-50 rounded-lg px-3 py-2 text-[11px]">
+                                <div class="flex items-center justify-between gap-2 ${c.bg} border ${c.border} rounded-lg px-3 py-2 text-[11px]">
                                     <div class="flex-1 min-w-0">
                                         <span class="font-bold text-slate-800">${e.projectName} — ${e.unitName}</span>
                                         <span class="text-slate-500 ml-1">Sequence ${e.seqIndex}: ${(e.seqName || '').replace(/^Sequence\s*\d+[:\s]*/i, '')}</span>
                                     </div>
-                                    <span class="font-bold ${isResolved ? 'text-emerald-600' : 'text-amber-600'} shrink-0">${isResolved ? 'สรุปแล้ว' : 'ยังไม่สรุป'}</span>
+                                    <div class="text-right shrink-0">
+                                        <div class="font-extrabold ${c.text}">ทำได้จริง ${info.actualDone}/${info.totalSeq}</div>
+                                        <div class="text-[10px] text-slate-400">${unitPct}%</div>
+                                    </div>
                                 </div>
                             `;
                         }).join('') || '<p class="text-xs text-slate-400 text-center py-2">ไม่มีงานตามแผนในช่วงนี้</p>'}
@@ -3598,14 +3615,55 @@
                 const forecastCount = Math.min(monthPlanned.length, Math.round(monthPlanned.length * (schedulePct / 100)));
                 const forecastPct = monthPlanned.length > 0 ? Math.round((forecastCount / monthPlanned.length) * 100) : 0;
 
-                const byProject = {};
-                monthPlanned.forEach(e => { byProject[e.projectName] = (byProject[e.projectName] || 0) + 1; });
-                const byProjectHtml = Object.entries(byProject).map(([name, count]) => `
-                    <div class="text-[11px] text-slate-600 flex items-center justify-between bg-slate-50 rounded-lg px-2 py-1">
-                        <span>${name}</span>
-                        <span class="font-bold text-slate-800">${count} Sequence</span>
-                    </div>
-                `).join('');
+                // สรุปเป็นรายแปลง (Block) แทนรายโครงการ
+                const unitsInMonthMap = new Map();
+                monthPlanned.forEach(e => {
+                    if (!unitsInMonthMap.has(e.unitId)) {
+                        unitsInMonthMap.set(e.unitId, { projectName: e.projectName, unitName: e.unitName, unitId: e.unitId, planCount: 0 });
+                    }
+                    unitsInMonthMap.get(e.unitId).planCount++;
+                });
+
+                const blockRowsHtml = Array.from(unitsInMonthMap.values()).map(um => {
+                    const info = unitInfoMap.get(um.unitId) || { actualDone: 0, totalSeq: masterSequences.length || 10, startDate: null, endDate: null };
+
+                    if (showActual) {
+                        const doneThisMonth = monthActual.filter(e => e.unitId === um.unitId).length;
+                        const cumPct = info.totalSeq > 0 ? Math.round((info.actualDone / info.totalSeq) * 100) : 0;
+                        const c = getUnitStatusColor(cumPct, info.startDate, info.endDate);
+                        return `
+                            <div class="flex items-center justify-between gap-2 ${c.bg} border ${c.border} rounded-lg px-3 py-2 text-[11px]">
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-bold text-slate-800">${um.projectName} — ${um.unitName} <span class="${c.text} font-semibold">(${c.label})</span></div>
+                                    <div class="text-slate-500">ทำได้เดือนนี้ ${doneThisMonth} Sequence</div>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <div class="font-extrabold ${c.text}">${info.actualDone}/${info.totalSeq}</div>
+                                    <div class="text-[10px] text-slate-400">${cumPct}%</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    // เดือนหน้า: ข้ามแปลงที่เสร็จ 100% แล้ว
+                    if (info.actualDone >= info.totalSeq) return '';
+                    const forecastDelta = Math.min(um.planCount, Math.round(um.planCount * (schedulePct / 100)));
+                    const newCum = Math.min(info.totalSeq, info.actualDone + forecastDelta);
+                    const newPct = info.totalSeq > 0 ? Math.round((newCum / info.totalSeq) * 100) : 0;
+                    const c = getUnitStatusColor(newPct, info.startDate, info.endDate);
+                    return `
+                        <div class="flex items-center justify-between gap-2 ${c.bg} border ${c.border} rounded-lg px-3 py-2 text-[11px]">
+                            <div class="flex-1 min-w-0">
+                                <div class="font-bold text-slate-800">${um.projectName} — ${um.unitName} <span class="${c.text} font-semibold">(${c.label})</span></div>
+                                <div class="text-slate-500">คาดว่าจะเสร็จเพิ่ม ${forecastDelta} Sequence</div>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <div class="font-extrabold ${c.text}">${newCum}/${info.totalSeq}</div>
+                                <div class="text-[10px] text-slate-400">${newPct}%</div>
+                            </div>
+                        </div>
+                    `;
+                }).filter(Boolean).join('');
 
                 el.innerHTML = `
                     <p class="text-[11px] text-slate-400">${toISODateStr(start)} ถึง ${toISODateStr(end)}</p>
@@ -3613,9 +3671,9 @@
                     ${showActual
                         ? `<div class="text-xs text-blue-600 font-semibold mt-0.5">ทำได้จริงแล้ว (มีรูปยืนยัน) ${monthActual.length} Sequence รวมทุก Block (${currentPct}%)</div>`
                         : `<div class="text-xs text-purple-600 font-semibold mt-0.5"><i class="fa-solid fa-chart-line mr-1"></i>คาดการณ์ต่อจากเดือนนี้: จะเสร็จ ${forecastCount} Sequence รวมทุก Block (${forecastPct}%)</div>`}
-                    ${monthPlanned.length > 0
-                        ? `<div class="space-y-1 mt-2 max-h-40 overflow-y-auto custom-scrollbar">${byProjectHtml}</div>`
-                        : '<p class="text-xs text-slate-400 mt-2">ไม่มีงานตามแผนในเดือนนี้</p>'}
+                    ${blockRowsHtml
+                        ? `<div class="space-y-1.5 mt-2 max-h-56 overflow-y-auto custom-scrollbar">${blockRowsHtml}</div>`
+                        : `<p class="text-xs text-slate-400 mt-2">${showActual ? 'ไม่มีงานตามแผนในเดือนนี้' : 'ทุกแปลงเสร็จตามแผนแล้ว 🎉'}</p>`}
                 `;
             };
             renderMonthCard('plan-this-month', thisMonthStart, thisMonthEnd, true);
