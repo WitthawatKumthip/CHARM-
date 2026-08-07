@@ -3749,16 +3749,28 @@
             const projectOptions = projectsData.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
             const filterOptions = '<option value="ALL">-- ทุกโครงการ --</option>' + projectOptions;
 
-            if (recProjSelect) recProjSelect.innerHTML = projectOptions;
-            if (procProjSelect) procProjSelect.innerHTML = projectOptions;
-            if (issueProjSelect) issueProjSelect.innerHTML = projectOptions;
-            if (reportProjSelect) reportProjSelect.innerHTML = filterOptions;
-            if (procFilter) procFilter.innerHTML = filterOptions;
-            if (histFilter) histFilter.innerHTML = filterOptions;
-            if (photosFilter) photosFilter.innerHTML = filterOptions;
+            // คงค่าที่เลือกไว้เดิม ไม่ให้ dropdown เด้งกลับตัวเลือกแรกทุกครั้งที่ refresh (เช่น ตอนติ๊กเช็คในตารางสั่งซื้อ)
+            const setOptionsKeepValue = (el, html, fallback) => {
+                if (!el) return;
+                const prevValue = el.value;
+                el.innerHTML = html;
+                if (prevValue && Array.from(el.options).some(o => o.value === prevValue)) {
+                    el.value = prevValue;
+                } else if (fallback !== undefined) {
+                    el.value = fallback;
+                }
+            };
+
+            setOptionsKeepValue(recProjSelect, projectOptions);
+            setOptionsKeepValue(procProjSelect, projectOptions);
+            setOptionsKeepValue(issueProjSelect, projectOptions);
+            setOptionsKeepValue(reportProjSelect, filterOptions, 'ALL');
+            setOptionsKeepValue(procFilter, filterOptions, 'ALL');
+            setOptionsKeepValue(histFilter, filterOptions, 'ALL');
+            setOptionsKeepValue(photosFilter, filterOptions, 'ALL');
             if (siteplanSelect) {
                 const sortedForSiteplan = [...projectsData].sort((a, b) => a.id.localeCompare(b.id));
-                siteplanSelect.innerHTML = sortedForSiteplan.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+                setOptionsKeepValue(siteplanSelect, sortedForSiteplan.map(p => `<option value="${p.id}">${p.name}</option>`).join(''));
             }
 
             onRecordProjectChange();
