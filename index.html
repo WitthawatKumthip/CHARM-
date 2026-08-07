@@ -5392,11 +5392,12 @@
             const matsToCreate = masterMaterials.length > 0 ? masterMaterials : defaultMasterMaterials;
 
             let addedCount = 0;
-            matsToCreate.forEach(matName => {
+            matsToCreate.forEach((matName, matIdx) => {
                 const exists = procurementsData.some(m => m.projectId === projId && m.unitId === unitId && m.name === matName);
                 if (!exists) {
                     procurementsData.push({
-                        id: `MAT-${Date.now().toString().slice(-4)}-${Math.floor(Math.random() * 100)}`,
+                        // รวม index ของลูปเข้าไปด้วย กัน id ชนกันเวลาสร้างหลายรายการพร้อมกันในติ๊กเดียว (Date.now() เหมือนกันหมดในลูปเดียว)
+                        id: `MAT-${Date.now().toString().slice(-4)}-${matIdx}-${Math.floor(Math.random() * 1000)}`,
                         projectId: projId,
                         unitId: unitId,
                         name: matName,
