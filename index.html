@@ -1364,6 +1364,7 @@
                         <span>1. รูปถ่ายตอนพบปัญหา (ก่อนแก้ไข)</span>
                     </div>
                     <img id="defect-compare-img-before" src="" class="w-full h-56 object-cover rounded-lg border border-slate-200 bg-white">
+                    <div id="defect-compare-thumbs-before" class="grid grid-cols-6 gap-1"></div>
                 </div>
                 <div class="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-2">
                     <div class="text-xs font-bold text-emerald-600 flex items-center space-x-1.5">
@@ -1371,6 +1372,7 @@
                         <span>2. รูปถ่ายหลังแก้ไขเสร็จสมบูรณ์</span>
                     </div>
                     <img id="defect-compare-img-after" src="" class="w-full h-56 object-cover rounded-lg border border-slate-200 bg-white">
+                    <div id="defect-compare-thumbs-after" class="grid grid-cols-6 gap-1"></div>
                 </div>
             </div>
 
@@ -1517,12 +1519,16 @@
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                            <label class="block font-semibold text-slate-600 mb-1 text-[11px]">1. รูปก่อนแก้ไข (ตอนพบปัญหา)</label>
-                            <input type="file" id="issue-photo-before-file" accept="image/*" class="w-full text-[10px] text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-rose-50 file:text-rose-700 hover:file:bg-rose-100 border border-slate-200 rounded-xl bg-white">
+                            <label class="block font-semibold text-slate-600 mb-1 text-[11px]">1. รูปก่อนแก้ไข (ตอนพบปัญหา) — สูงสุด 20 รูป</label>
+                            <input type="file" id="issue-photo-before-file" accept="image/*" multiple onchange="validateDefectPhotoSelection(this, 'before')" class="w-full text-[10px] text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-rose-50 file:text-rose-700 hover:file:bg-rose-100 border border-slate-200 rounded-xl bg-white">
+                            <p id="issue-photo-before-count-msg" class="text-[10px] text-slate-400 mt-1"></p>
+                            <div id="issue-photo-before-preview" class="grid grid-cols-4 gap-1.5 mt-1.5"></div>
                         </div>
                         <div>
-                            <label class="block font-semibold text-slate-600 mb-1 text-[11px]">2. รูปหลังแก้ไข (ทำงานเสร็จแล้ว)</label>
-                            <input type="file" id="issue-photo-after-file" accept="image/*" class="w-full text-[10px] text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 border border-slate-200 rounded-xl bg-white">
+                            <label class="block font-semibold text-slate-600 mb-1 text-[11px]">2. รูปหลังแก้ไข (ทำงานเสร็จแล้ว) — สูงสุด 20 รูป</label>
+                            <input type="file" id="issue-photo-after-file" accept="image/*" multiple onchange="validateDefectPhotoSelection(this, 'after')" class="w-full text-[10px] text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 border border-slate-200 rounded-xl bg-white">
+                            <p id="issue-photo-after-count-msg" class="text-[10px] text-slate-400 mt-1"></p>
+                            <div id="issue-photo-after-preview" class="grid grid-cols-4 gap-1.5 mt-1.5"></div>
                         </div>
                     </div>
                 </div>
@@ -1952,25 +1958,36 @@
                     resolved_date: d(i.resolvedDate),
                     photo_before: i.photoBefore || null,
                     photo_after: i.photoAfter || null,
+                    photos_before: Array.isArray(i.photosBefore) ? i.photosBefore : [],
+                    photos_after: Array.isArray(i.photosAfter) ? i.photosAfter : [],
                     resolution_notes: s(i.resolutionNotes),
                     reported_by: s(i.reportedBy),
                     unit_number: s(i.unitNumber)
                 }),
-                fromRow: r => ({
-                    id: r.id,
-                    projectId: r.project_id,
-                    unitId: r.unit_id,
-                    title: s(r.title),
-                    reportDate: s(r.report_date),
-                    assignedTo: s(r.assigned_to),
-                    status: s(r.status),
-                    resolvedDate: s(r.resolved_date),
-                    photoBefore: r.photo_before || null,
-                    photoAfter: r.photo_after || null,
-                    resolutionNotes: s(r.resolution_notes),
-                    reportedBy: s(r.reported_by),
-                    unitNumber: s(r.unit_number)
-                })
+                fromRow: r => {
+                    // รองรับข้อมูลเก่าที่มีแค่รูปเดี่ยว (photo_before/photo_after) ก่อนจะรองรับหลายรูป
+                    const photosBefore = Array.isArray(r.photos_before) && r.photos_before.length > 0
+                        ? r.photos_before : (r.photo_before ? [r.photo_before] : []);
+                    const photosAfter = Array.isArray(r.photos_after) && r.photos_after.length > 0
+                        ? r.photos_after : (r.photo_after ? [r.photo_after] : []);
+                    return {
+                        id: r.id,
+                        projectId: r.project_id,
+                        unitId: r.unit_id,
+                        title: s(r.title),
+                        reportDate: s(r.report_date),
+                        assignedTo: s(r.assigned_to),
+                        status: s(r.status),
+                        resolvedDate: s(r.resolved_date),
+                        photosBefore: photosBefore,
+                        photosAfter: photosAfter,
+                        photoBefore: photosBefore.length > 0 ? photosBefore[0] : null,
+                        photoAfter: photosAfter.length > 0 ? photosAfter[0] : null,
+                        resolutionNotes: s(r.resolution_notes),
+                        reportedBy: s(r.reported_by),
+                        unitNumber: s(r.unit_number)
+                    };
+                }
             },
 
             procurements: {
@@ -2192,10 +2209,22 @@
                 }
             });
             issuesData.forEach(i => {
-                if (isDataUrlImage(i.photoBefore)) {
+                if (Array.isArray(i.photosBefore)) {
+                    i.photosBefore.forEach((ph, idx) => {
+                        if (isDataUrlImage(ph)) {
+                            jobs.push({ get: () => i.photosBefore[idx], set: v => { i.photosBefore[idx] = v; }, folder: 'defects' });
+                        }
+                    });
+                } else if (isDataUrlImage(i.photoBefore)) {
                     jobs.push({ get: () => i.photoBefore, set: v => { i.photoBefore = v; }, folder: 'defects' });
                 }
-                if (isDataUrlImage(i.photoAfter)) {
+                if (Array.isArray(i.photosAfter)) {
+                    i.photosAfter.forEach((ph, idx) => {
+                        if (isDataUrlImage(ph)) {
+                            jobs.push({ get: () => i.photosAfter[idx], set: v => { i.photosAfter[idx] = v; }, folder: 'defects' });
+                        }
+                    });
+                } else if (isDataUrlImage(i.photoAfter)) {
                     jobs.push({ get: () => i.photoAfter, set: v => { i.photoAfter = v; }, folder: 'defects' });
                 }
             });
@@ -2235,6 +2264,10 @@
             sequenceRecords.forEach(r => {
                 if (Array.isArray(r.photos) && r.photos.length > 0) r.photo = r.photos[0];
             });
+            issuesData.forEach(i => {
+                if (Array.isArray(i.photosBefore) && i.photosBefore.length > 0) i.photoBefore = i.photosBefore[0];
+                if (Array.isArray(i.photosAfter) && i.photosAfter.length > 0) i.photoAfter = i.photosAfter[0];
+            });
             saveDataToDatabase();
 
             showNotification(`ย้ายรูปขึ้น Cloud เรียบร้อย ${jobs.length - failed} รูป`, failed ? 'amber' : 'emerald');
@@ -2257,8 +2290,10 @@
                 else if (isDataUrlImage(r.photo)) n++;
             });
             issuesData.forEach(i => {
-                if (isDataUrlImage(i.photoBefore)) n++;
-                if (isDataUrlImage(i.photoAfter)) n++;
+                if (Array.isArray(i.photosBefore)) i.photosBefore.forEach(ph => { if (isDataUrlImage(ph)) n++; });
+                else if (isDataUrlImage(i.photoBefore)) n++;
+                if (Array.isArray(i.photosAfter)) i.photosAfter.forEach(ph => { if (isDataUrlImage(ph)) n++; });
+                else if (isDataUrlImage(i.photoAfter)) n++;
             });
             return n;
         }
@@ -2763,8 +2798,25 @@
             });
 
             issuesData.forEach(i => {
-                if (isDataUrlImage(i.photoBefore)) { i.photoBefore = null; removed++; }
-                if (isDataUrlImage(i.photoAfter)) { i.photoAfter = null; removed++; }
+                if (Array.isArray(i.photosBefore)) {
+                    const before = i.photosBefore.length;
+                    i.photosBefore = i.photosBefore.filter(ph => !isDataUrlImage(ph));
+                    removed += before - i.photosBefore.length;
+                } else {
+                    i.photosBefore = [];
+                }
+                if (isDataUrlImage(i.photoBefore)) { removed++; }
+                i.photoBefore = i.photosBefore.length > 0 ? i.photosBefore[0] : null;
+
+                if (Array.isArray(i.photosAfter)) {
+                    const before = i.photosAfter.length;
+                    i.photosAfter = i.photosAfter.filter(ph => !isDataUrlImage(ph));
+                    removed += before - i.photosAfter.length;
+                } else {
+                    i.photosAfter = [];
+                }
+                if (isDataUrlImage(i.photoAfter)) { removed++; }
+                i.photoAfter = i.photosAfter.length > 0 ? i.photosAfter[0] : null;
             });
 
             if (removed > 0) {
@@ -2930,18 +2982,29 @@
                     // 3. Issues/Defects Conversion
                     const rawIssues = data.issuesData || data.issues || data.defects || data.defectList;
                     if (Array.isArray(rawIssues)) {
-                        issuesData = rawIssues.map(iss => ({
-                            id: iss.id || `DEF-${Math.random()}`,
-                            projectId: iss.projectId || iss.project_id || '',
-                            unitId: iss.unitId || iss.unit_id || '',
-                            title: iss.title || iss.issueTitle || iss.description || 'Defect',
-                            reportDate: iss.reportDate || iss.date || new Date().toISOString().split('T')[0],
-                            assignedTo: iss.assignedTo || iss.assignee || '',
-                            status: iss.status || 'pending',
-                            resolvedDate: iss.resolvedDate || '',
-                            photoBefore: iss.photoBefore || iss.photo || iss.image || null,
-                            photoAfter: iss.photoAfter || null
-                        }));
+                        issuesData = rawIssues.map(iss => {
+                            const photosBefore = Array.isArray(iss.photosBefore) && iss.photosBefore.length > 0
+                                ? iss.photosBefore : (iss.photoBefore || iss.photo || iss.image ? [iss.photoBefore || iss.photo || iss.image] : []);
+                            const photosAfter = Array.isArray(iss.photosAfter) && iss.photosAfter.length > 0
+                                ? iss.photosAfter : (iss.photoAfter ? [iss.photoAfter] : []);
+                            return {
+                                id: iss.id || `DEF-${Math.random()}`,
+                                projectId: iss.projectId || iss.project_id || '',
+                                unitId: iss.unitId || iss.unit_id || '',
+                                unitNumber: iss.unitNumber || iss.unit_number || '',
+                                title: iss.title || iss.issueTitle || iss.description || 'Defect',
+                                reportDate: iss.reportDate || iss.date || new Date().toISOString().split('T')[0],
+                                assignedTo: iss.assignedTo || iss.assignee || '',
+                                status: iss.status || 'pending',
+                                resolvedDate: iss.resolvedDate || '',
+                                photosBefore: photosBefore,
+                                photosAfter: photosAfter,
+                                photoBefore: photosBefore.length > 0 ? photosBefore[0] : null,
+                                photoAfter: photosAfter.length > 0 ? photosAfter[0] : null,
+                                resolutionNotes: iss.resolutionNotes || '',
+                                reportedBy: iss.reportedBy || ''
+                            };
+                        });
                         parsedSectionCount++;
                     }
 
@@ -4636,6 +4699,8 @@
         }
 
         let _editPendingPhotos = [];
+        let _issuePhotosBefore = [];
+        let _issuePhotosAfter = [];
 
         // ทีมงาน (ผู้บันทึกเอง) แก้ไขรายการของตัวเองได้ ตราบใดที่ยังไม่ได้รับการอนุมัติจาก PM
         function openEditPendingRecordModal(recId) {
@@ -4957,15 +5022,17 @@
                 let badge = '<span class="bg-rose-100 text-rose-700 px-2.5 py-1 rounded-full text-[10px] font-bold"><i class="fa-solid fa-clock mr-1"></i>รอแก้ไข</span>';
                 if (iss.status === 'resolved') badge = '<span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-[10px] font-bold"><i class="fa-solid fa-check mr-1"></i>แก้ไขเสร็จสิ้น</span>';
 
+                const photosBeforeCount = Array.isArray(iss.photosBefore) ? iss.photosBefore.length : (iss.photoBefore ? 1 : 0);
+                const photosAfterCount = Array.isArray(iss.photosAfter) ? iss.photosAfter.length : (iss.photoAfter ? 1 : 0);
                 const beforePhotoSrc = iss.photoBefore || iss.photo;
                 let beforePhotoHtml = '<span class="text-slate-300 text-[10px] italic">ไม่มีรูป</span>';
                 if (beforePhotoSrc) {
-                    beforePhotoHtml = `<img src="${beforePhotoSrc}" onclick="openDefectComparisonModal('${iss.id}')" title="คลิกดูเปรียบเทียบรูปก่อน-หลัง" class="w-10 h-10 object-cover rounded-lg mx-auto cursor-pointer border-2 border-rose-200 hover:scale-110 transition shadow-sm">`;
+                    beforePhotoHtml = `<div class="relative inline-block"><img src="${beforePhotoSrc}" onclick="openDefectComparisonModal('${iss.id}')" title="คลิกดูเปรียบเทียบรูปก่อน-หลัง" class="w-10 h-10 object-cover rounded-lg mx-auto cursor-pointer border-2 border-rose-200 hover:scale-110 transition shadow-sm">${photosBeforeCount > 1 ? `<span class="absolute -bottom-1 -right-1 bg-rose-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${photosBeforeCount}</span>` : ''}</div>`;
                 }
 
                 let afterPhotoHtml = '<span class="text-slate-300 text-[10px] italic">รอแก้ไข</span>';
                 if (iss.photoAfter) {
-                    afterPhotoHtml = `<img src="${iss.photoAfter}" onclick="openDefectComparisonModal('${iss.id}')" title="คลิกดูเปรียบเทียบรูปก่อน-หลัง" class="w-10 h-10 object-cover rounded-lg mx-auto cursor-pointer border-2 border-emerald-200 hover:scale-110 transition shadow-sm">`;
+                    afterPhotoHtml = `<div class="relative inline-block"><img src="${iss.photoAfter}" onclick="openDefectComparisonModal('${iss.id}')" title="คลิกดูเปรียบเทียบรูปก่อน-หลัง" class="w-10 h-10 object-cover rounded-lg mx-auto cursor-pointer border-2 border-emerald-200 hover:scale-110 transition shadow-sm">${photosAfterCount > 1 ? `<span class="absolute -bottom-1 -right-1 bg-emerald-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${photosAfterCount}</span>` : ''}</div>`;
                 }
 
                 let resolvedDateText = iss.resolvedDate ? `<span class="font-bold text-emerald-600">${iss.resolvedDate}</span>` : '<span class="text-slate-400 text-[11px]">-</span>';
@@ -5014,11 +5081,27 @@
             const unitNumberLabel = iss.unitNumber ? ` แปลงที่ ${iss.unitNumber}` : '';
             if (subTitleEl) subTitleEl.textContent = `โครงการ: ${project ? project.name : '-'} (${unitLabel}${unitNumberLabel}) | ผู้รับผิดชอบ: ${iss.assignedTo || 'ไม่ระบุ'}`;
 
-            const beforeSrc = iss.photoBefore || iss.photo || 'https://placehold.co/600x400/f1f5f9/94a3b8?text=No+Before+Photo';
-            const afterSrc = iss.photoAfter || 'https://placehold.co/600x400/f1f5f9/94a3b8?text=No+After+Photo+Yet';
+            const photosBefore = Array.isArray(iss.photosBefore) && iss.photosBefore.length > 0
+                ? iss.photosBefore : (iss.photoBefore || iss.photo ? [iss.photoBefore || iss.photo] : []);
+            const photosAfter = Array.isArray(iss.photosAfter) && iss.photosAfter.length > 0
+                ? iss.photosAfter : (iss.photoAfter ? [iss.photoAfter] : []);
+
+            const beforeSrc = photosBefore[0] || 'https://placehold.co/600x400/f1f5f9/94a3b8?text=No+Before+Photo';
+            const afterSrc = photosAfter[0] || 'https://placehold.co/600x400/f1f5f9/94a3b8?text=No+After+Photo+Yet';
 
             if (imgBefore) imgBefore.src = beforeSrc;
             if (imgAfter) imgAfter.src = afterSrc;
+
+            const thumbsBefore = document.getElementById('defect-compare-thumbs-before');
+            const thumbsAfter = document.getElementById('defect-compare-thumbs-after');
+            const renderThumbs = (container, photos, targetImgId) => {
+                if (!container) return;
+                container.innerHTML = photos.length > 1 ? photos.map(url => `
+                    <img src="${url}" onclick="document.getElementById('${targetImgId}').src='${url}'" class="w-full h-10 object-cover rounded border border-slate-200 cursor-pointer hover:opacity-80">
+                `).join('') : '';
+            };
+            renderThumbs(thumbsBefore, photosBefore, 'defect-compare-img-before');
+            renderThumbs(thumbsAfter, photosAfter, 'defect-compare-img-after');
 
             const resWrap = document.getElementById('defect-compare-resolution-wrap');
             const resText = document.getElementById('defect-compare-resolution-text');
@@ -5948,6 +6031,10 @@
             document.getElementById('issue-resolved-date-input').value = '';
             document.getElementById('issue-resolution-notes-input').value = '';
             document.getElementById('issue-delete-btn').classList.add('hidden');
+            _issuePhotosBefore = [];
+            _issuePhotosAfter = [];
+            renderIssuePhotosPreview('before');
+            renderIssuePhotosPreview('after');
             populateProjectSelects();
             openModal('issue-form-modal');
         }
@@ -5980,7 +6067,50 @@
             document.getElementById('issue-resolved-date-input').value = iss.resolvedDate || '';
             document.getElementById('issue-resolution-notes-input').value = iss.resolutionNotes || '';
             document.getElementById('issue-delete-btn').classList.toggle('hidden', !isOwner);
+
+            _issuePhotosBefore = Array.isArray(iss.photosBefore) && iss.photosBefore.length > 0
+                ? [...iss.photosBefore] : (iss.photoBefore ? [iss.photoBefore] : []);
+            _issuePhotosAfter = Array.isArray(iss.photosAfter) && iss.photosAfter.length > 0
+                ? [...iss.photosAfter] : (iss.photoAfter ? [iss.photoAfter] : []);
+            renderIssuePhotosPreview('before');
+            renderIssuePhotosPreview('after');
+
             openModal('issue-form-modal');
+        }
+
+        // ใช้ร่วมกันทั้งช่องรูปก่อน/หลัง — ตรวจว่าไม่เกิน 20 รูปต่อช่อง (รวมรูปเดิมที่มีอยู่แล้ว)
+        function validateDefectPhotoSelection(input, which) {
+            const existing = which === 'before' ? _issuePhotosBefore : _issuePhotosAfter;
+            const msgEl = document.getElementById(`issue-photo-${which}-count-msg`);
+            const remainingSlots = Math.max(0, 20 - existing.length);
+
+            if (input.files && input.files.length > remainingSlots) {
+                showNotification(`รูป${which === 'before' ? 'ก่อน' : 'หลัง'}แก้ไข เพิ่มได้อีกสูงสุด ${remainingSlots} รูป (รวมของเดิมแล้วไม่เกิน 20 รูป)`, 'rose');
+                input.value = '';
+                if (msgEl) msgEl.className = 'text-[10px] text-rose-600 font-bold mt-1';
+                return;
+            }
+            if (msgEl && input.files) {
+                msgEl.textContent = input.files.length > 0 ? `เลือกใหม่ ${input.files.length} รูป (รวมของเดิม ${existing.length} รูป)` : '';
+                msgEl.className = 'text-[10px] text-emerald-600 font-bold mt-1';
+            }
+        }
+
+        function renderIssuePhotosPreview(which) {
+            const container = document.getElementById(`issue-photo-${which}-preview`);
+            if (!container) return;
+            const photos = which === 'before' ? _issuePhotosBefore : _issuePhotosAfter;
+            container.innerHTML = photos.map((url, idx) => `
+                <div class="relative">
+                    <img src="${url}" class="w-full h-14 object-cover rounded-lg border border-slate-200">
+                    <button type="button" onclick="removeIssuePhoto('${which}', ${idx})" class="absolute -top-1.5 -right-1.5 bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow">×</button>
+                </div>
+            `).join('');
+        }
+
+        function removeIssuePhoto(which, idx) {
+            if (which === 'before') { _issuePhotosBefore.splice(idx, 1); } else { _issuePhotosAfter.splice(idx, 1); }
+            renderIssuePhotosPreview(which);
         }
 
         function saveIssueFormData() {
@@ -6003,15 +6133,20 @@
                 return;
             }
 
-            const hasNewPhoto = !!(fileInputBefore?.files?.[0] || fileInputAfter?.files?.[0]);
+            const newFilesBefore = fileInputBefore?.files?.length ? Array.from(fileInputBefore.files) : [];
+            const newFilesAfter = fileInputAfter?.files?.length ? Array.from(fileInputAfter.files) : [];
+            const hasNewPhoto = newFilesBefore.length > 0 || newFilesAfter.length > 0;
             if (hasNewPhoto && isCloudStorageReady()) {
                 showNotification('กำลังอัปโหลดรูป Defect ขึ้น Cloud...', 'amber');
             }
 
-            const readBefore = fileInputBefore?.files?.[0] ? processImageForSave(fileInputBefore.files[0], 'defects') : Promise.resolve(null);
-            const readAfter = fileInputAfter?.files?.[0] ? processImageForSave(fileInputAfter.files[0], 'defects') : Promise.resolve(null);
+            const readBefore = newFilesBefore.length > 0 ? processImagesForSave(newFilesBefore, 'defects') : Promise.resolve([]);
+            const readAfter = newFilesAfter.length > 0 ? processImagesForSave(newFilesAfter, 'defects') : Promise.resolve([]);
 
-            Promise.all([readBefore, readAfter]).then(([newPhotoBefore, newPhotoAfter]) => {
+            Promise.all([readBefore, readAfter]).then(([newPhotosBefore, newPhotosAfter]) => {
+                const finalPhotosBefore = [..._issuePhotosBefore, ...newPhotosBefore];
+                const finalPhotosAfter = [..._issuePhotosAfter, ...newPhotosAfter];
+
                 if (formId) {
                     const iss = issuesData.find(i => i.id === formId);
                     if (iss) {
@@ -6024,8 +6159,10 @@
                         iss.status = status;
                         iss.resolvedDate = resolvedDate;
                         iss.resolutionNotes = resolutionNotes;
-                        if (newPhotoBefore) iss.photoBefore = newPhotoBefore;
-                        if (newPhotoAfter) iss.photoAfter = newPhotoAfter;
+                        iss.photosBefore = finalPhotosBefore;
+                        iss.photosAfter = finalPhotosAfter;
+                        iss.photoBefore = finalPhotosBefore.length > 0 ? finalPhotosBefore[0] : null;
+                        iss.photoAfter = finalPhotosAfter.length > 0 ? finalPhotosAfter[0] : null;
                     }
                     showNotification('แก้ไขรายการ Defect เรียบร้อยแล้ว');
                 } else {
@@ -6040,8 +6177,10 @@
                         status: status,
                         resolvedDate: resolvedDate,
                         resolutionNotes: resolutionNotes,
-                        photoBefore: newPhotoBefore || null,
-                        photoAfter: newPhotoAfter || null,
+                        photosBefore: finalPhotosBefore,
+                        photosAfter: finalPhotosAfter,
+                        photoBefore: finalPhotosBefore.length > 0 ? finalPhotosBefore[0] : null,
+                        photoAfter: finalPhotosAfter.length > 0 ? finalPhotosAfter[0] : null,
                         reportedBy: currentUser ? currentUser.name : 'ผู้ใช้งาน'
                     });
                     showNotification('แจ้งปัญหา Defect เรียบร้อยแล้ว');
