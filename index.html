@@ -1500,6 +1500,11 @@
                 </div>
 
                 <div>
+                    <label class="block font-semibold text-slate-600 mb-1">แปลงที่ (ระบุเลขบ้าน)</label>
+                    <input type="text" id="issue-unit-number-input" placeholder="เช่น แปลงที่ 5, บ้านเลขที่ 12" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-rose-500">
+                </div>
+
+                <div>
                     <label class="block font-semibold text-slate-600 mb-1">หัวข้อปัญหา / รายละเอียด Defect *</label>
                     <input type="text" id="issue-title-input" placeholder="เช่น รอยแตกร้าวผนัง, น้ำซึมขอบซิงค์" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-rose-500">
                 </div>
@@ -1552,9 +1557,12 @@
                     <textarea id="issue-resolution-notes-input" rows="3" placeholder="ระบุวิธีการแก้ไขปัญหา เช่น เปลี่ยนวัสดุ, ยาแนวใหม่, อุดรอยรั่ว..." class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
                 </div>
             </div>
-            <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+            <div class="flex justify-between items-center pt-3 border-t border-slate-100">
+                <button id="issue-delete-btn" onclick="deleteIssue()" class="hidden px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-semibold">ลบรายการ</button>
+                <div class="flex space-x-2 ml-auto">
                 <button onclick="closeModal('issue-form-modal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-medium">ยกเลิก</button>
                 <button onclick="saveIssueFormData()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold shadow-sm">บันทึก Defect</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1835,11 +1843,7 @@
             {"id": "REC-1785291473033", "projectId": "PJ-2026-001", "unitId": "U-1977", "seqIndex": 2, "seqName": "Sequence 2: ตรวจรับงานเข็ม", "subTask": "", "status": "completed", "approvalStatus": "approved", "recordDate": "2026-07-29", "recordedBy": "Project Manager", "approvedBy": "Project Manager", "approvedDate": "2026-07-29", "remark": "", "photos": [], "photo": null}
         ];
 
-        const defaultIssues = [
-            {"id": "DEF-001", "projectId": "PJ-2026-001", "unitId": "U-0265", "title": "ผนังห้องนอนชั้น 2 มีรอยแตกร้าว", "reportDate": "2026-07-27", "assignedTo": "ช่างปูน A", "status": "resolved", "resolvedDate": "2026-07-27", "photoBefore": null, "photoAfter": null},
-            {"id": "DEF-002", "projectId": "PJ-2026-001", "unitId": "U-0265", "title": "ท่อน้ำทิ้งห้องน้ำ leak", "reportDate": "2026-07-27", "assignedTo": "ช่างประปา B", "status": "resolved", "resolvedDate": "2026-07-27", "photoBefore": null, "photoAfter": null},
-            {"id": "DEF-5235", "projectId": "PJ-2026-001", "unitId": "U-0265", "title": "รอยแตกร้าว", "reportDate": "2026-07-25", "assignedTo": "แมน", "status": "resolved", "resolvedDate": "2026-07-25", "photoBefore": null, "photoAfter": null}
-        ];
+        const defaultIssues = [];
 
         const defaultProcurements = [];
 
@@ -1949,7 +1953,8 @@
                     photo_before: i.photoBefore || null,
                     photo_after: i.photoAfter || null,
                     resolution_notes: s(i.resolutionNotes),
-                    reported_by: s(i.reportedBy)
+                    reported_by: s(i.reportedBy),
+                    unit_number: s(i.unitNumber)
                 }),
                 fromRow: r => ({
                     id: r.id,
@@ -1963,7 +1968,8 @@
                     photoBefore: r.photo_before || null,
                     photoAfter: r.photo_after || null,
                     resolutionNotes: s(r.resolution_notes),
-                    reportedBy: s(r.reported_by)
+                    reportedBy: s(r.reported_by),
+                    unitNumber: s(r.unit_number)
                 })
             },
 
@@ -4973,7 +4979,7 @@
                             <div class="font-bold text-slate-800">${iss.title}</div>
                             ${(iss.photoBefore && iss.photoAfter) ? `<button onclick="openDefectComparisonModal('${iss.id}')" class="text-[10px] text-blue-600 font-semibold hover:underline mt-0.5"><i class="fa-solid fa-images mr-1"></i>ดูเปรียบเทียบ ก่อน-หลัง</button>` : ''}
                         </td>
-                        <td class="py-3 px-3">${project ? project.name : '-'} (${unit ? unit.name : '-'})</td>
+                        <td class="py-3 px-3">${project ? project.name : '-'} (${unit ? unit.name : '-'})${iss.unitNumber ? `<div class="text-[10px] text-rose-500 font-semibold">แปลงที่ ${iss.unitNumber}</div>` : ''}</td>
                         <td class="py-3 px-3 text-slate-500">${iss.reportDate}</td>
                         <td class="py-3 px-3 text-slate-700">${iss.assignedTo || '-'}</td>
                         <td class="py-3 px-3 text-slate-600 max-w-[220px] whitespace-pre-wrap">${iss.resolutionNotes || '<span class="text-slate-300 italic">-</span>'}</td>
@@ -5004,7 +5010,9 @@
             const imgAfter = document.getElementById('defect-compare-img-after');
 
             if (titleEl) titleEl.textContent = `เปรียบเทียบ Defect ${iss.id}: ${iss.title}`;
-            if (subTitleEl) subTitleEl.textContent = `โครงการ: ${project ? project.name : '-'} (${unit ? unit.name : '-'}) | ผู้รับผิดชอบ: ${iss.assignedTo || 'ไม่ระบุ'}`;
+            const unitLabel = unit ? unit.name : '-';
+            const unitNumberLabel = iss.unitNumber ? ` แปลงที่ ${iss.unitNumber}` : '';
+            if (subTitleEl) subTitleEl.textContent = `โครงการ: ${project ? project.name : '-'} (${unitLabel}${unitNumberLabel}) | ผู้รับผิดชอบ: ${iss.assignedTo || 'ไม่ระบุ'}`;
 
             const beforeSrc = iss.photoBefore || iss.photo || 'https://placehold.co/600x400/f1f5f9/94a3b8?text=No+Before+Photo';
             const afterSrc = iss.photoAfter || 'https://placehold.co/600x400/f1f5f9/94a3b8?text=No+After+Photo+Yet';
@@ -5930,6 +5938,7 @@
         function openAddIssueModal() {
             document.getElementById('issue-form-title').textContent = 'แจ้งปัญหา / Defect ใหม่';
             document.getElementById('issue-form-id').value = '';
+            document.getElementById('issue-unit-number-input').value = '';
             document.getElementById('issue-title-input').value = '';
             document.getElementById('issue-photo-before-file').value = '';
             document.getElementById('issue-photo-after-file').value = '';
@@ -5938,6 +5947,7 @@
             document.getElementById('issue-status-select').value = 'pending';
             document.getElementById('issue-resolved-date-input').value = '';
             document.getElementById('issue-resolution-notes-input').value = '';
+            document.getElementById('issue-delete-btn').classList.add('hidden');
             populateProjectSelects();
             openModal('issue-form-modal');
         }
@@ -5960,6 +5970,7 @@
             document.getElementById('issue-project-select').value = iss.projectId;
             onIssueProjectChange();
             document.getElementById('issue-unit-select').value = iss.unitId;
+            document.getElementById('issue-unit-number-input').value = iss.unitNumber || '';
             document.getElementById('issue-title-input').value = iss.title;
             document.getElementById('issue-photo-before-file').value = '';
             document.getElementById('issue-photo-after-file').value = '';
@@ -5968,6 +5979,7 @@
             document.getElementById('issue-status-select').value = iss.status || 'pending';
             document.getElementById('issue-resolved-date-input').value = iss.resolvedDate || '';
             document.getElementById('issue-resolution-notes-input').value = iss.resolutionNotes || '';
+            document.getElementById('issue-delete-btn').classList.toggle('hidden', !isOwner);
             openModal('issue-form-modal');
         }
 
@@ -5975,6 +5987,7 @@
             const formId = document.getElementById('issue-form-id').value;
             const projId = document.getElementById('issue-project-select').value;
             const unitId = document.getElementById('issue-unit-select').value;
+            const unitNumber = document.getElementById('issue-unit-number-input').value.trim();
             const title = document.getElementById('issue-title-input').value.trim();
             const date = document.getElementById('issue-date-input').value;
             const assignedTo = document.getElementById('issue-assigned-input').value.trim();
@@ -6004,6 +6017,7 @@
                     if (iss) {
                         iss.projectId = projId;
                         iss.unitId = unitId;
+                        iss.unitNumber = unitNumber;
                         iss.title = title;
                         iss.reportDate = date;
                         iss.assignedTo = assignedTo;
@@ -6019,6 +6033,7 @@
                         id: nextDefectId(),
                         projectId: projId,
                         unitId: unitId,
+                        unitNumber: unitNumber,
                         title: title,
                         reportDate: date,
                         assignedTo: assignedTo,
@@ -6039,6 +6054,25 @@
                 console.error('Defect photo upload error:', err);
                 showNotification('อัปโหลดรูป Defect ไม่สำเร็จ กรุณาลองใหม่', 'rose');
             });
+        }
+
+        // ลบได้เฉพาะคนที่แจ้งและบันทึกรายการนี้เองเท่านั้น (แม้แต่ ADMIN ก็ลบของคนอื่นไม่ได้)
+        function deleteIssue() {
+            const formId = document.getElementById('issue-form-id').value;
+            const iss = issuesData.find(i => i.id === formId);
+            if (!iss) return;
+
+            const isOwner = currentUser && iss.reportedBy && iss.reportedBy === currentUser.name;
+            if (!isOwner) {
+                showNotification('ลบได้เฉพาะรายการ Defect ที่ตัวเองแจ้งเท่านั้น', 'rose');
+                return;
+            }
+
+            issuesData = issuesData.filter(i => i.id !== formId);
+            saveDataToDatabase();
+            refreshAllViews();
+            closeModal('issue-form-modal');
+            showNotification('ลบรายการ Defect เรียบร้อยแล้ว', 'amber');
         }
 
         function openUserMgmtModal() {
