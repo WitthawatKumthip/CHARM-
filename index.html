@@ -3295,7 +3295,7 @@
             const planSrc = project.sitePlan || defaultPlanImg;
 
             container.innerHTML = `
-                <div class="space-y-3 md:w-[70%] mx-auto">
+                <div class="space-y-3 md:w-[60%] mx-auto">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-900 text-white p-4 rounded-2xl gap-3">
                         <div>
                             <div class="text-[10px] text-blue-400 font-bold uppercase tracking-wider">PROJECT MASTER PLAN SUMMARY</div>
@@ -3309,7 +3309,7 @@
                     </div>
 
                     <div class="relative w-full rounded-2xl overflow-hidden border-2 border-slate-200 bg-slate-900 shadow-lg select-none">
-                        <img src="${planSrc}" class="w-full h-auto min-h-[220px] max-h-[400px] object-contain opacity-90 mx-auto">
+                        <img src="${planSrc}" class="w-full h-auto min-h-[180px] max-h-[320px] object-contain opacity-90 mx-auto">
                         ${project.units ? project.units.filter(u => u.pinX !== undefined && u.pinY !== undefined).map(u => {
                             const uProg = calculateUnitProgress(project.id, u.id);
                             const uStatus = calculateUnitStatus(u, uProg);
