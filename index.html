@@ -150,7 +150,7 @@
                 </button>
                 <button onclick="switchTab('materials')" id="nav-materials" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition">
                     <i class="fa-solid fa-clipboard-list w-5 text-center text-sm"></i>
-                    <span>รายการวัสดุที่ใช้ (สเปค/ราคา)</span>
+                    <span>สรุปวัสดุ/ผู้รับเหมา (BY SUB/OWNER)</span>
                 </button>
                 <button onclick="switchTab('issues')" id="nav-issues" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition">
                     <i class="fa-solid fa-triangle-exclamation w-5 text-center text-sm"></i>
@@ -388,6 +388,7 @@
                 <div id="plan-masterplan-area"></div>
                 <div id="plan-overall-summary"></div>
                 <div id="plan-unit-breakdown"></div>
+                <div id="plan-materials-link-card"></div>
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
@@ -630,81 +631,93 @@
             </div>
         </div>
 
-        <!-- VIEW: MATERIALS (สเปค/ยี่ห้อ/รุ่น/ราคา/ผู้จำหน่าย) -->
+        <!-- VIEW: MATERIALS SUMMARY (สรุปวัสดุ/ผู้รับเหมา BY SUB / BY OWNER — ระดับโครงการ) -->
         <div id="view-materials" class="hidden space-y-6">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
-                    <div>
-                        <span class="text-[11px] font-semibold text-slate-400 uppercase">มูลค่าวัสดุรวม</span>
-                        <div id="mat-stat-total-value" class="text-xl font-bold text-slate-800 mt-1">0 บาท</div>
-                    </div>
-                    <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-lg">
-                        <i class="fa-solid fa-coins"></i>
-                    </div>
-                </div>
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
-                    <div>
-                        <span class="text-[11px] font-semibold text-slate-400 uppercase">จำนวนรายการวัสดุ</span>
-                        <div id="mat-stat-total-count" class="text-2xl font-bold text-slate-800 mt-1">0</div>
-                    </div>
-                    <div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center text-lg">
-                        <i class="fa-solid fa-boxes-stacked"></i>
-                    </div>
-                </div>
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
-                    <div>
-                        <span class="text-[11px] font-semibold text-slate-400 uppercase">ต้องสั่งด่วน (ชิ้น)</span>
-                        <div id="mat-stat-urgent-count" class="text-2xl font-bold text-rose-600 mt-1">0</div>
-                    </div>
-                    <div class="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-lg">
-                        <i class="fa-solid fa-bell"></i>
-                    </div>
-                </div>
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
-                    <div>
-                        <span class="text-[11px] font-semibold text-slate-400 uppercase">มูลค่าที่ต้องสั่งด่วน</span>
-                        <div id="mat-stat-urgent-value" class="text-xl font-bold text-rose-600 mt-1">0 บาท</div>
-                    </div>
-                    <div class="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-lg">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                    </div>
-                </div>
-            </div>
-
-            <div id="mat-incomplete-warning" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
-                <h3 class="font-bold text-amber-800 text-sm flex items-center gap-2"><i class="fa-solid fa-clipboard-question"></i> รายการที่ต้องสั่งด่วนแต่ยังไม่ได้สรุป สเปค/ราคา/ผู้จำหน่าย</h3>
-                <p class="text-xs text-amber-700">ถึงกำหนดสั่งซื้อแล้วตามแผนงาน แต่ยังกรอกข้อมูลไม่ครบ — รีบตามข้อมูลให้ครบก่อนสั่งจริง</p>
-                <div id="mat-incomplete-list" class="space-y-1.5"></div>
-            </div>
-
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-4">
                 <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                     <div>
-                        <h3 class="font-bold text-slate-800 text-sm">รายการวัสดุที่ใช้ทั้งหมด (สเปค / ยี่ห้อ / รุ่น / ราคา / ผู้จำหน่าย)</h3>
-                        <p class="text-xs text-slate-500">ข้อมูลเดียวกับหน้าแผนสั่งซื้อวัสดุ เน้นดูสเปคและต้นทุน — ลิงก์กับวันเริ่มงานของแต่ละแปลงในหน้าจัดการโครงการ</p>
+                        <h3 class="font-bold text-slate-800 text-sm">สรุปวัสดุ / ผู้รับเหมาแยกงาน (BY SUB / BY OWNER)</h3>
+                        <p class="text-xs text-slate-500">ติดตามการสรุปยี่ห้อ ผู้รับจ้าง และผู้รับผิดชอบของแต่ละรายการ แยกตามโครงการ</p>
                     </div>
                     <div class="flex items-center gap-2 text-xs">
                         <label class="font-semibold text-slate-600">โครงการ:</label>
-                        <select id="materials-project-filter" onchange="renderMaterialsView()" class="border border-slate-200 rounded-xl px-3 py-1.5 font-medium outline-none focus:ring-2 focus:ring-blue-500"></select>
+                        <select id="materials-project-select" onchange="renderMaterialsView()" class="border border-slate-200 rounded-xl px-3 py-1.5 font-medium outline-none focus:ring-2 focus:ring-blue-500"></select>
+                        <button onclick="openAddMaterialSpecModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 shrink-0">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>เพิ่มรายการ</span>
+                        </button>
                     </div>
                 </div>
-                <div class="overflow-x-auto custom-scrollbar">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 border-b border-slate-100 uppercase">
-                                <th class="py-3 px-3">รายการวัสดุ</th>
-                                <th class="py-3 px-3">ยี่ห้อ / รุ่น</th>
-                                <th class="py-3 px-3">สเปค</th>
-                                <th class="py-3 px-3 text-right">ราคา</th>
-                                <th class="py-3 px-3">ผู้จำหน่าย/ผู้รับจ้าง</th>
-                                <th class="py-3 px-3">โครงการ / แปลง</th>
-                                <th class="py-3 px-3">กำหนดสั่งซื้อ</th>
-                                <th class="py-3 px-3 text-center">สถานะ</th>
-                                <th class="py-3 px-3 text-right">จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="materials-table-body" class="text-xs divide-y divide-slate-100 text-slate-700"></tbody>
-                    </table>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="bg-slate-50 rounded-xl p-3 text-center">
+                        <div class="text-[10px] text-slate-500 font-semibold uppercase">รายการทั้งหมด</div>
+                        <div id="mat-stat-total-count" class="text-xl font-extrabold text-slate-800">0</div>
+                    </div>
+                    <div class="bg-emerald-50 rounded-xl p-3 text-center">
+                        <div class="text-[10px] text-emerald-600 font-semibold uppercase">สรุปแล้ว</div>
+                        <div id="mat-stat-done-count" class="text-xl font-extrabold text-emerald-700">0</div>
+                    </div>
+                    <div class="bg-amber-50 rounded-xl p-3 text-center">
+                        <div class="text-[10px] text-amber-600 font-semibold uppercase">ยังไม่สรุป</div>
+                        <div id="mat-stat-pending-count" class="text-xl font-extrabold text-amber-700">0</div>
+                    </div>
+                </div>
+
+                <div id="materials-spec-table-container" class="space-y-6"></div>
+            </div>
+        </div>
+
+        <!-- Add/Edit Material Spec Modal -->
+        <div id="material-spec-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <h3 id="material-spec-form-title" class="font-bold text-slate-800 text-sm">เพิ่มรายการสรุปวัสดุ</h3>
+                    <button onclick="closeModal('material-spec-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-base"></i></button>
+                </div>
+                <input type="hidden" id="material-spec-form-id">
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">โครงการ *</label>
+                        <select id="material-spec-project-select" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">รูปแบบ *</label>
+                        <select id="material-spec-category-select" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 font-bold">
+                            <option value="BY SUB">BY SUB (ผู้รับเหมาช่วงจัดหา)</option>
+                            <option value="BY OWNER">BY OWNER (เจ้าของโครงการจัดหา)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">รายการ *</label>
+                        <input type="text" id="material-spec-name-input" placeholder="เช่น งาน PRECAST" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">ยี่ห้อ / ผู้รับจ้าง</label>
+                        <input type="text" id="material-spec-brand-input" placeholder="เช่น Precast Kingdom" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">ผู้รับผิดชอบ</label>
+                        <input type="text" id="material-spec-responsible-input" placeholder="เช่น แมน, พี่ชมพู" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">สถานะ *</label>
+                        <select id="material-spec-status-select" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 font-bold">
+                            <option value="pending">ยังไม่สรุป</option>
+                            <option value="done">สรุปแล้ว</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">หมายเหตุ</label>
+                        <textarea id="material-spec-note-input" rows="2" placeholder="เช่น ก็อก+อ่าง+FD เรียกของเข้า 25/7" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center pt-3 border-t border-slate-100">
+                    <button id="material-spec-delete-btn" onclick="deleteMaterialSpec()" class="hidden px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-semibold">ลบรายการ</button>
+                    <div class="flex space-x-2 ml-auto">
+                        <button onclick="closeModal('material-spec-modal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-medium">ยกเลิก</button>
+                        <button onclick="saveMaterialSpec()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm">บันทึก</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1838,6 +1851,7 @@
         let sequenceRecords = [];
         let issuesData = [];
         let procurementsData = [];
+        let materialSpecsData = [];
         let currentUser = null;
         let chartInstance = null;
         let projectChartInstances = {};
@@ -1988,6 +2002,34 @@
                     requiredDate: s(r.required_date),
                     status: s(r.status),
                     remark: s(r.remark)
+                })
+            },
+
+            materialSpecs: {
+                table: 'material_specs',
+                get: () => materialSpecsData,
+                set: v => { materialSpecsData = v; },
+                toRow: m => ({
+                    id: m.id,
+                    project_id: m.projectId,
+                    category: s(m.category),
+                    name: s(m.name),
+                    brand: s(m.brand),
+                    responsible: s(m.responsible),
+                    status: s(m.status),
+                    note: s(m.note),
+                    sort_order: Number(m.sortOrder) || 0
+                }),
+                fromRow: r => ({
+                    id: r.id,
+                    projectId: r.project_id,
+                    category: s(r.category),
+                    name: s(r.name),
+                    brand: s(r.brand),
+                    responsible: s(r.responsible),
+                    status: s(r.status),
+                    note: s(r.note),
+                    sortOrder: Number(r.sort_order) || 0
                 })
             }
         };
@@ -2586,6 +2628,13 @@
             });
         }
 
+        function goToMaterialsForProject(projectId) {
+            switchTab('materials');
+            const selectEl = document.getElementById('materials-project-select');
+            if (selectEl) selectEl.value = projectId;
+            renderMaterialsView();
+        }
+
         function switchTab(tabName) {
             const views = ['dashboard', 'projects', 'construction-plan', 'record-seq', 'pm-approval', 'seq-history', 'photos', 'procurement', 'materials', 'issues', 'reports'];
             views.forEach(v => {
@@ -2619,7 +2668,7 @@
                 'seq-history': 'ประวัติวันแล้วเสร็จ Sequence',
                 'photos': 'คลังรูปภาพหลักฐานหน้างาน',
                 'procurement': 'แผนรายการสั่งซื้อวัสดุ (กำหนดวันสั่งล่วงหน้าได้)',
-                'materials': 'รายการวัสดุที่ใช้ — สเปค ยี่ห้อ รุ่น ราคา และผู้จำหน่าย',
+                'materials': 'สรุปวัสดุ/ผู้รับเหมาแยกงาน — BY SUB / BY OWNER',
                 'issues': 'รายการแจ้งปัญหา / งานแก้ไข (Defects)',
                 'reports': 'รายงานสรุปผลการก่อสร้างรายโครงการ/แปลงบ้าน'
             };
@@ -2665,6 +2714,9 @@
 
                 const savedProcurements = localStorage.getItem('bt_procurements');
                 procurementsData = savedProcurements ? JSON.parse(savedProcurements) : JSON.parse(JSON.stringify(defaultProcurements));
+
+                const savedMaterialSpecs = localStorage.getItem('bt_material_specs');
+                materialSpecsData = savedMaterialSpecs ? JSON.parse(savedMaterialSpecs) : [];
 
                 // กันข้อมูลเก่าที่ยังฝังรูป base64 ค้างอยู่ในเครื่อง — ล้างทิ้งอัตโนมัติ
                 stripEmbeddedBase64Photos();
@@ -2724,6 +2776,7 @@
             localStorage.setItem('bt_seq_records', JSON.stringify(sequenceRecords));
             localStorage.setItem('bt_issues', JSON.stringify(issuesData));
             localStorage.setItem('bt_procurements', JSON.stringify(procurementsData));
+            localStorage.setItem('bt_material_specs', JSON.stringify(materialSpecsData));
         }
 
         function saveDataToDatabase() {
@@ -3631,6 +3684,33 @@
                 `;
             }
 
+            // ลิงก์สรุปวัสดุ/ผู้รับเหมา (BY SUB/OWNER) ของโครงการที่กำลังดูอยู่ในหน้าแผนงาน
+            const materialsLinkEl = document.getElementById('plan-materials-link-card');
+            if (materialsLinkEl) {
+                const linkProjects = filterProjId !== 'ALL' ? projectsData.filter(p => p.id === filterProjId) : projectsData;
+                materialsLinkEl.innerHTML = `
+                    <div class="mt-3 border-t border-slate-100 pt-3">
+                        <div class="text-[11px] font-semibold text-slate-600 mb-1.5">สรุปวัสดุ/ผู้รับเหมาแยกงาน (BY SUB / BY OWNER)</div>
+                        <div class="space-y-1.5">
+                            ${linkProjects.map(p => {
+                                const items = materialSpecsData.filter(m => m.projectId === p.id);
+                                const doneCount = items.filter(m => m.status === 'done').length;
+                                const pendingCount = items.length - doneCount;
+                                return `
+                                    <button onclick="goToMaterialsForProject('${p.id}')" class="w-full flex items-center justify-between gap-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg px-3 py-2 text-[11px] transition text-left">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="font-bold text-slate-800">${p.name}</div>
+                                            <div class="text-slate-500">ทั้งหมด ${items.length} รายการ — สรุปแล้ว ${doneCount} / ยังไม่สรุป ${pendingCount}</div>
+                                        </div>
+                                        <div class="text-indigo-600 font-semibold shrink-0"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i>ดูรายการ</div>
+                                    </button>
+                                `;
+                            }).join('') || '<p class="text-xs text-slate-400 text-center py-2">ยังไม่มีโครงการ</p>'}
+                        </div>
+                    </div>
+                `;
+            }
+
             // การ์ดสไตล์เดียวกับภาพรวม สำหรับสัปดาห์นี้/สัปดาห์หน้า — แทนที่ ACT ด้วย "รายการที่ยังไม่สรุป"
             function buildWeekCard(weekPlanned) {
                 const total = weekPlanned.length;
@@ -3881,7 +3961,7 @@
             const procProjSelect = document.getElementById('procurement-project-select');
             const histFilter = document.getElementById('history-project-filter');
             const photosFilter = document.getElementById('photos-project-filter');
-            const materialsFilter = document.getElementById('materials-project-filter');
+            const materialsProjSelect = document.getElementById('materials-project-select');
             const issueProjSelect = document.getElementById('issue-project-select');
             const reportProjSelect = document.getElementById('report-project-select');
             const siteplanSelect = document.getElementById('siteplan-project-select');
@@ -3910,7 +3990,7 @@
             setOptionsKeepValue(procFilter, filterOptions, 'ALL');
             setOptionsKeepValue(histFilter, filterOptions, 'ALL');
             setOptionsKeepValue(photosFilter, filterOptions, 'ALL');
-            setOptionsKeepValue(materialsFilter, filterOptions, 'ALL');
+            setOptionsKeepValue(materialsProjSelect, projectOptions);
             if (siteplanSelect) {
                 const sortedForSiteplan = [...projectsData].sort((a, b) => a.id.localeCompare(b.id));
                 setOptionsKeepValue(siteplanSelect, sortedForSiteplan.map(p => `<option value="${p.id}">${p.name}</option>`).join(''));
@@ -5368,106 +5448,174 @@
             tbody.innerHTML = html || '<tr><td colspan="7" class="py-4 text-center text-slate-400">ยังไม่มีรายการสั่งซื้อวัสดุ</td></tr>';
         }
 
-        // หน้ารายการวัสดุที่ใช้ — สเปค/ยี่ห้อ/รุ่น/ราคา/ผู้จำหน่าย ใช้ข้อมูลเดียวกับ procurementsData
-        // "ต้องสั่งด่วน" = ยังไม่สั่งซื้อ (pending) และถึง/เลยกำหนดวันต้องสั่งซื้อแล้ว (ผูกกับวันเริ่มงานที่ตั้งในหน้าจัดการโครงการ)
+        // หน้าสรุปวัสดุ/ผู้รับเหมา ระดับโครงการ (BY SUB / BY OWNER) — คนละชุดข้อมูลกับแผนสั่งซื้อวัสดุรายแปลง
         function renderMaterialsView() {
-            const tbody = document.getElementById('materials-table-body');
-            const filterEl = document.getElementById('materials-project-filter');
-            if (!tbody || !filterEl) return;
+            const container = document.getElementById('materials-spec-table-container');
+            const selectEl = document.getElementById('materials-project-select');
+            if (!container || !selectEl) return;
 
-            const filterProjId = filterEl.value || 'ALL';
-            let filtered = procurementsData;
-            if (filterProjId !== 'ALL') {
-                filtered = procurementsData.filter(m => m.projectId === filterProjId);
+            const currentVal = selectEl.value;
+            const options = projectsData.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            if (selectEl.innerHTML !== options) {
+                selectEl.innerHTML = options;
+                selectEl.value = projectsData.some(p => p.id === currentVal) ? currentVal : (projectsData[0]?.id || '');
             }
+            const projId = selectEl.value;
 
-            const getUnitName = (m) => projectsData.find(p => p.id === m.projectId)?.units?.find(u => u.id === m.unitId)?.name || '';
-            filtered = [...filtered].sort((a, b) => {
-                const unitCompare = getUnitName(a).localeCompare(getUnitName(b), 'th', { numeric: true });
-                if (unitCompare !== 0) return unitCompare;
-                const numA = parseInt((a.name || '').match(/^\d+/)?.[0] || '0', 10);
-                const numB = parseInt((b.name || '').match(/^\d+/)?.[0] || '0', 10);
-                return numA - numB;
-            });
+            const items = materialSpecsData.filter(m => m.projectId === projId);
 
-            const today = new Date().toISOString().split('T')[0];
-            const isUrgent = (m) => m.status === 'pending' && m.orderDueDate && m.orderDueDate <= today;
-
-            // สถิติสรุป (คิดจากรายการทั้งหมด ไม่ขึ้นกับตัวกรองโครงการ เพื่อให้เห็นภาพรวมทั้งบริษัท)
-            const totalValue = procurementsData.reduce((s, m) => s + (Number(m.price) || 0), 0);
-            const urgentItems = procurementsData.filter(isUrgent);
-            const urgentValue = urgentItems.reduce((s, m) => s + (Number(m.price) || 0), 0);
-
-            const totalValueEl = document.getElementById('mat-stat-total-value');
             const totalCountEl = document.getElementById('mat-stat-total-count');
-            const urgentCountEl = document.getElementById('mat-stat-urgent-count');
-            const urgentValueEl = document.getElementById('mat-stat-urgent-value');
-            if (totalValueEl) totalValueEl.textContent = `${totalValue.toLocaleString('th-TH')} บาท`;
-            if (totalCountEl) totalCountEl.textContent = procurementsData.length;
-            if (urgentCountEl) urgentCountEl.textContent = urgentItems.length;
-            if (urgentValueEl) urgentValueEl.textContent = `${urgentValue.toLocaleString('th-TH')} บาท`;
+            const doneCountEl = document.getElementById('mat-stat-done-count');
+            const pendingCountEl = document.getElementById('mat-stat-pending-count');
+            const doneCount = items.filter(m => m.status === 'done').length;
+            if (totalCountEl) totalCountEl.textContent = items.length;
+            if (doneCountEl) doneCountEl.textContent = doneCount;
+            if (pendingCountEl) pendingCountEl.textContent = items.length - doneCount;
 
-            // รายการที่ถึงกำหนดสั่งด่วนแล้ว แต่ยังกรอกสเปค/ราคา/ผู้จำหน่ายไม่ครบ
-            const isIncomplete = (m) => !m.spec && !m.price && !m.supplier;
-            const incompleteUrgent = urgentItems.filter(isIncomplete);
-            const warningEl = document.getElementById('mat-incomplete-warning');
-            const warningListEl = document.getElementById('mat-incomplete-list');
-            if (warningEl && warningListEl) {
-                if (incompleteUrgent.length > 0) {
-                    warningEl.classList.remove('hidden');
-                    warningListEl.innerHTML = incompleteUrgent.map(m => {
-                        const project = projectsData.find(p => p.id === m.projectId);
-                        const unit = project?.units?.find(u => u.id === m.unitId);
-                        return `
-                            <div class="flex items-center justify-between gap-2 bg-white border border-amber-200 rounded-lg px-3 py-2 text-[11px]">
-                                <div class="flex-1 min-w-0">
-                                    <span class="font-bold text-slate-800">${m.name}</span>
-                                    <span class="text-slate-500 ml-1">${project ? project.name : '-'} — ${unit ? unit.name : '-'} — กำหนดสั่ง ${m.orderDueDate || '-'}</span>
-                                </div>
-                                <button onclick="openEditProcurementModal('${m.id}')" class="bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1 rounded-lg text-xs font-semibold shrink-0">กรอกข้อมูล</button>
-                            </div>
-                        `;
-                    }).join('');
-                } else {
-                    warningEl.classList.add('hidden');
-                    warningListEl.innerHTML = '';
-                }
-            }
-
+            const categories = ['BY SUB', 'BY OWNER'];
             let html = '';
-            filtered.forEach(m => {
-                const project = projectsData.find(p => p.id === m.projectId);
-                const unit = project?.units?.find(u => u.id === m.unitId);
-
-                let statusBadge = '<span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold">รอสั่งซื้อ</span>';
-                if (m.status === 'ordered') statusBadge = '<span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold">สั่งซื้อแล้ว</span>';
-                if (m.status === 'delivered') statusBadge = '<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold">ถึงหน้างานแล้ว</span>';
+            categories.forEach(cat => {
+                const catItems = items
+                    .filter(m => (m.category || 'BY SUB') === cat)
+                    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
                 html += `
-                    <tr class="hover:bg-slate-50 transition ${isUrgent(m) ? 'bg-rose-50/50' : ''}">
-                        <td class="py-3 px-3">
-                            <div class="font-bold text-slate-800">${m.name}</div>
-                            ${m.materialType ? `<div class="text-[10px] text-indigo-600 font-semibold"><i class="fa-solid fa-tag mr-0.5"></i>${m.materialType}</div>` : ''}
-                            ${isUrgent(m) ? '<div class="text-[10px] text-rose-600 font-bold"><i class="fa-solid fa-bell mr-0.5"></i>ต้องสั่งด่วน</div>' : ''}
-                        </td>
-                        <td class="py-3 px-3 text-slate-600">${[m.brand, m.model].filter(Boolean).join(' / ') || '-'}</td>
-                        <td class="py-3 px-3 text-slate-600">${m.spec || '-'}</td>
-                        <td class="py-3 px-3 text-right font-semibold text-slate-800">${(m.price !== null && m.price !== undefined && m.price !== '') ? Number(m.price).toLocaleString('th-TH') + ' บาท' : '-'}</td>
-                        <td class="py-3 px-3 text-slate-600">${m.supplier || '-'}</td>
-                        <td class="py-3 px-3">
-                            <div class="font-semibold text-slate-700">${project ? project.name : '-'}</div>
-                            <div class="text-[10px] text-blue-600 font-bold">${unit ? unit.name : '-'}</div>
-                        </td>
-                        <td class="py-3 px-3 text-slate-600">${m.orderDueDate || '-'}</td>
-                        <td class="py-3 px-3 text-center">${statusBadge}</td>
-                        <td class="py-3 px-3 text-right">
-                            <button onclick="openEditProcurementModal('${m.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-semibold">แก้ไข</button>
-                        </td>
-                    </tr>
+                    <div>
+                        <div class="bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded-t-xl">${cat}</div>
+                        <div class="overflow-x-auto custom-scrollbar border border-slate-200 border-t-0 rounded-b-xl">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 border-b border-slate-100 uppercase">
+                                        <th class="py-2.5 px-3 w-12">ลำดับ</th>
+                                        <th class="py-2.5 px-3">รายการ</th>
+                                        <th class="py-2.5 px-3">ยี่ห้อ / ผู้รับจ้าง</th>
+                                        <th class="py-2.5 px-3">ผู้รับผิดชอบ</th>
+                                        <th class="py-2.5 px-3">หมายเหตุ</th>
+                                        <th class="py-2.5 px-3 text-center">สถานะ</th>
+                                        <th class="py-2.5 px-3 text-right">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-xs divide-y divide-slate-100 text-slate-700">
+                                    ${catItems.map((m, idx) => `
+                                        <tr class="hover:bg-slate-50 transition ${m.status === 'done' ? 'bg-emerald-50/50' : ''}">
+                                            <td class="py-2.5 px-3 text-slate-400">${idx + 1}</td>
+                                            <td class="py-2.5 px-3 font-semibold text-slate-800">${m.name}</td>
+                                            <td class="py-2.5 px-3">${m.brand || '-'}</td>
+                                            <td class="py-2.5 px-3">${m.responsible || '-'}</td>
+                                            <td class="py-2.5 px-3 text-rose-600">${m.note || ''}</td>
+                                            <td class="py-2.5 px-3 text-center">
+                                                ${m.status === 'done'
+                                                    ? '<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold">สรุปแล้ว</span>'
+                                                    : '<span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold">ยังไม่สรุป</span>'}
+                                            </td>
+                                            <td class="py-2.5 px-3 text-right">
+                                                <button onclick="openEditMaterialSpecModal('${m.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-semibold">แก้ไข</button>
+                                            </td>
+                                        </tr>
+                                    `).join('') || `<tr><td colspan="7" class="py-4 text-center text-slate-400">ยังไม่มีรายการในหมวดนี้</td></tr>`}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 `;
             });
 
-            tbody.innerHTML = html || '<tr><td colspan="9" class="py-4 text-center text-slate-400">ยังไม่มีรายการวัสดุ</td></tr>';
+            container.innerHTML = html;
+        }
+
+        function openAddMaterialSpecModal() {
+            const projSelectEl = document.getElementById('materials-project-select');
+            document.getElementById('material-spec-form-title').textContent = 'เพิ่มรายการสรุปวัสดุ';
+            document.getElementById('material-spec-form-id').value = '';
+            const projSelect = document.getElementById('material-spec-project-select');
+            projSelect.innerHTML = projectsData.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            projSelect.value = projSelectEl?.value || (projectsData[0]?.id || '');
+            document.getElementById('material-spec-category-select').value = 'BY SUB';
+            document.getElementById('material-spec-name-input').value = '';
+            document.getElementById('material-spec-brand-input').value = '';
+            document.getElementById('material-spec-responsible-input').value = '';
+            document.getElementById('material-spec-status-select').value = 'pending';
+            document.getElementById('material-spec-note-input').value = '';
+            document.getElementById('material-spec-delete-btn').classList.add('hidden');
+            openModal('material-spec-modal');
+        }
+
+        function openEditMaterialSpecModal(id) {
+            const item = materialSpecsData.find(m => m.id === id);
+            if (!item) return;
+
+            document.getElementById('material-spec-form-title').textContent = 'แก้ไขรายการสรุปวัสดุ';
+            document.getElementById('material-spec-form-id').value = item.id;
+            const projSelect = document.getElementById('material-spec-project-select');
+            projSelect.innerHTML = projectsData.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            projSelect.value = item.projectId;
+            document.getElementById('material-spec-category-select').value = item.category || 'BY SUB';
+            document.getElementById('material-spec-name-input').value = item.name || '';
+            document.getElementById('material-spec-brand-input').value = item.brand || '';
+            document.getElementById('material-spec-responsible-input').value = item.responsible || '';
+            document.getElementById('material-spec-status-select').value = item.status || 'pending';
+            document.getElementById('material-spec-note-input').value = item.note || '';
+            document.getElementById('material-spec-delete-btn').classList.remove('hidden');
+            openModal('material-spec-modal');
+        }
+
+        function saveMaterialSpec() {
+            const id = document.getElementById('material-spec-form-id').value;
+            const projectId = document.getElementById('material-spec-project-select').value;
+            const category = document.getElementById('material-spec-category-select').value;
+            const name = document.getElementById('material-spec-name-input').value.trim();
+            const brand = document.getElementById('material-spec-brand-input').value.trim();
+            const responsible = document.getElementById('material-spec-responsible-input').value.trim();
+            const status = document.getElementById('material-spec-status-select').value;
+            const note = document.getElementById('material-spec-note-input').value.trim();
+
+            if (!projectId || !name) {
+                showNotification('กรุณาระบุโครงการและชื่อรายการ', 'rose');
+                return;
+            }
+
+            if (id) {
+                const item = materialSpecsData.find(m => m.id === id);
+                if (item) {
+                    item.projectId = projectId;
+                    item.category = category;
+                    item.name = name;
+                    item.brand = brand;
+                    item.responsible = responsible;
+                    item.status = status;
+                    item.note = note;
+                }
+                showNotification('แก้ไขรายการสรุปวัสดุเรียบร้อย');
+            } else {
+                const sameCategory = materialSpecsData.filter(m => m.projectId === projectId && m.category === category);
+                const maxOrder = sameCategory.reduce((max, m) => Math.max(max, m.sortOrder || 0), 0);
+                materialSpecsData.push({
+                    id: `SPEC-${Date.now().toString().slice(-4)}-${Math.floor(Math.random() * 1000)}`,
+                    projectId,
+                    category,
+                    name,
+                    brand,
+                    responsible,
+                    status,
+                    note,
+                    sortOrder: maxOrder + 1
+                });
+                showNotification('เพิ่มรายการสรุปวัสดุเรียบร้อย');
+            }
+
+            saveDataToDatabase();
+            refreshAllViews();
+            closeModal('material-spec-modal');
+        }
+
+        function deleteMaterialSpec() {
+            const id = document.getElementById('material-spec-form-id').value;
+            if (!id) return;
+            materialSpecsData = materialSpecsData.filter(m => m.id !== id);
+            saveDataToDatabase();
+            refreshAllViews();
+            closeModal('material-spec-modal');
+            showNotification('ลบรายการเรียบร้อยแล้ว', 'amber');
         }
 
         function populateMaterialTypeSelect(selectedValue) {
