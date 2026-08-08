@@ -463,7 +463,7 @@
                                 <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200">ย่อรูป 1200px อัตโนมัติ</span>
                             </div>
                             <input type="file" id="record-photo-file" accept="image/*" multiple onchange="validatePhotoSelection(this)" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-slate-200 rounded-xl">
-                            <p id="record-photo-count-msg" class="text-[10px] text-slate-400 mt-1">* ระบบบีบอัดภาพให้อัตโนมัติ ไม่หนักเครื่อง เลือกได้สูงสุด 10 รูป</p>
+                            <p id="record-photo-count-msg" class="text-[10px] text-slate-400 mt-1">* ระบบบีบอัดภาพให้อัตโนมัติ ไม่หนักเครื่อง เลือกได้สูงสุด 20 รูป</p>
                         </div>
 
                         <div>
@@ -4402,14 +4402,14 @@
 
         function validatePhotoSelection(input) {
             const countMsg = document.getElementById('record-photo-count-msg');
-            if (input.files && input.files.length > 10) {
-                showNotification('คุณสามารถอัปโหลดรูปภาพได้สูงสุด 10 รูปต่อครั้งเท่านั้น', 'rose');
+            if (input.files && input.files.length > 20) {
+                showNotification('คุณสามารถอัปโหลดรูปภาพได้สูงสุด 20 รูปต่อครั้งเท่านั้น', 'rose');
                 input.value = '';
                 if (countMsg) countMsg.className = 'text-[10px] text-rose-600 font-bold mt-1';
                 return;
             }
             if (countMsg && input.files) {
-                countMsg.textContent = `เลือกแล้ว ${input.files.length} / 10 รูป (ระบบจะย่อรูปอัตโนมัติ)`;
+                countMsg.textContent = `เลือกแล้ว ${input.files.length} / 20 รูป (ระบบจะย่อรูปอัตโนมัติ)`;
                 countMsg.className = 'text-[10px] text-emerald-600 font-bold mt-1';
             }
         }
@@ -4492,11 +4492,11 @@
                 document.getElementById('record-remark-input').value = '';
                 document.getElementById('record-photo-file').value = '';
                 const countMsg = document.getElementById('record-photo-count-msg');
-                if (countMsg) countMsg.textContent = '* ระบบบีบอัดภาพให้อัตโนมัติ ไม่หนักเครื่อง เลือกได้สูงสุด 10 รูป';
+                if (countMsg) countMsg.textContent = '* ระบบบีบอัดภาพให้อัตโนมัติ ไม่หนักเครื่อง เลือกได้สูงสุด 20 รูป';
             }
 
             if (fileInput && fileInput.files && fileInput.files.length > 0) {
-                const files = Array.from(fileInput.files).slice(0, 10);
+                const files = Array.from(fileInput.files).slice(0, 20);
                 const cloudOn = isCloudStorageReady();
                 showNotification(cloudOn
                     ? `กำลังบีบอัดและอัปโหลดรูป ${files.length} รูปขึ้น Cloud โปรดรอสักครู่...`
@@ -4691,7 +4691,7 @@
             const fileInput = document.getElementById('edit-pending-photo-file');
             let newPhotos = [];
             if (fileInput && fileInput.files && fileInput.files.length > 0) {
-                const remainingSlots = Math.max(0, 10 - _editPendingPhotos.length);
+                const remainingSlots = Math.max(0, 20 - _editPendingPhotos.length);
                 const files = Array.from(fileInput.files).slice(0, remainingSlots);
                 if (files.length > 0) {
                     showNotification('กำลังประมวลผลรูปใหม่...', 'amber');
