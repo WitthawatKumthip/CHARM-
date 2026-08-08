@@ -148,6 +148,10 @@
                     <i class="fa-solid fa-boxes-packing w-5 text-center text-sm"></i>
                     <span>แผนสั่งซื้อวัสดุ (กำหนดวันเองได้)</span>
                 </button>
+                <button onclick="switchTab('materials')" id="nav-materials" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-clipboard-list w-5 text-center text-sm"></i>
+                    <span>รายการวัสดุที่ใช้ (สเปค/ราคา)</span>
+                </button>
                 <button onclick="switchTab('issues')" id="nav-issues" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition">
                     <i class="fa-solid fa-triangle-exclamation w-5 text-center text-sm"></i>
                     <span>แจ้งปัญหา / งานแก้ไข (Defects)</span>
@@ -621,6 +625,79 @@
                             </tr>
                         </thead>
                         <tbody id="procurements-table-body" class="text-xs divide-y divide-slate-100 text-slate-700"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: MATERIALS (สเปค/ยี่ห้อ/รุ่น/ราคา/ผู้จำหน่าย) -->
+        <div id="view-materials" class="hidden space-y-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+                    <div>
+                        <span class="text-[11px] font-semibold text-slate-400 uppercase">มูลค่าวัสดุรวม</span>
+                        <div id="mat-stat-total-value" class="text-xl font-bold text-slate-800 mt-1">0 บาท</div>
+                    </div>
+                    <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-coins"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+                    <div>
+                        <span class="text-[11px] font-semibold text-slate-400 uppercase">จำนวนรายการวัสดุ</span>
+                        <div id="mat-stat-total-count" class="text-2xl font-bold text-slate-800 mt-1">0</div>
+                    </div>
+                    <div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+                    <div>
+                        <span class="text-[11px] font-semibold text-slate-400 uppercase">ต้องสั่งด่วน (ชิ้น)</span>
+                        <div id="mat-stat-urgent-count" class="text-2xl font-bold text-rose-600 mt-1">0</div>
+                    </div>
+                    <div class="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-bell"></i>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-between">
+                    <div>
+                        <span class="text-[11px] font-semibold text-slate-400 uppercase">มูลค่าที่ต้องสั่งด่วน</span>
+                        <div id="mat-stat-urgent-value" class="text-xl font-bold text-rose-600 mt-1">0 บาท</div>
+                    </div>
+                    <div class="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm">รายการวัสดุที่ใช้ทั้งหมด (สเปค / ยี่ห้อ / รุ่น / ราคา / ผู้จำหน่าย)</h3>
+                        <p class="text-xs text-slate-500">ข้อมูลเดียวกับหน้าแผนสั่งซื้อวัสดุ เน้นดูสเปคและต้นทุน — ลิงก์กับวันเริ่มงานของแต่ละแปลงในหน้าจัดการโครงการ</p>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <label class="font-semibold text-slate-600">โครงการ:</label>
+                        <select id="materials-project-filter" onchange="renderMaterialsView()" class="border border-slate-200 rounded-xl px-3 py-1.5 font-medium outline-none focus:ring-2 focus:ring-blue-500"></select>
+                    </div>
+                </div>
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 border-b border-slate-100 uppercase">
+                                <th class="py-3 px-3">รายการวัสดุ</th>
+                                <th class="py-3 px-3">ยี่ห้อ / รุ่น</th>
+                                <th class="py-3 px-3">สเปค</th>
+                                <th class="py-3 px-3 text-right">ราคา</th>
+                                <th class="py-3 px-3">ผู้จำหน่าย/ผู้รับจ้าง</th>
+                                <th class="py-3 px-3">โครงการ / แปลง</th>
+                                <th class="py-3 px-3">กำหนดสั่งซื้อ</th>
+                                <th class="py-3 px-3 text-center">สถานะ</th>
+                                <th class="py-3 px-3 text-right">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="materials-table-body" class="text-xs divide-y divide-slate-100 text-slate-700"></tbody>
                     </table>
                 </div>
             </div>
@@ -1313,7 +1390,32 @@
                     <label class="block font-semibold text-slate-600 mb-1">รายการวัสดุ / สเปก / จำนวน *</label>
                     <input type="text" id="procurement-name-input" placeholder="เช่น ท่อไฟฟ้า หรือ ถังบำบัดน้ำเสีย" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
-                
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">ยี่ห้อ</label>
+                        <input type="text" id="procurement-brand-input" placeholder="เช่น SCG" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">รุ่น</label>
+                        <input type="text" id="procurement-model-input" placeholder="เช่น รุ่น A100" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">สเปควัสดุ</label>
+                    <input type="text" id="procurement-spec-input" placeholder="เช่น ขนาด 6 นิ้ว, ทนแรงดัน 10 บาร์" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">ราคา (บาท)</label>
+                        <input type="number" id="procurement-price-input" min="0" step="0.01" placeholder="0.00" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">ผู้จำหน่าย/ผู้รับจ้าง</label>
+                        <input type="text" id="procurement-supplier-input" placeholder="เช่น บจก. ตัวอย่าง" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block font-semibold text-slate-600 mb-1">สั่งซื้อล่วงหน้า (วัน)</label>
@@ -1833,6 +1935,11 @@
                     project_id: m.projectId,
                     unit_id: m.unitId,
                     name: s(m.name),
+                    brand: s(m.brand),
+                    model: s(m.model),
+                    spec: s(m.spec),
+                    price: (m.price === null || m.price === undefined || m.price === '') ? null : Number(m.price),
+                    supplier: s(m.supplier),
                     lead_days: Number(m.leadDays) || 0,
                     order_due_date: d(m.orderDueDate),
                     required_date: d(m.requiredDate),
@@ -1844,6 +1951,11 @@
                     projectId: r.project_id,
                     unitId: r.unit_id,
                     name: s(r.name),
+                    brand: s(r.brand),
+                    model: s(r.model),
+                    spec: s(r.spec),
+                    price: (r.price === null || r.price === undefined) ? null : Number(r.price),
+                    supplier: s(r.supplier),
                     leadDays: Number(r.lead_days) || 0,
                     orderDueDate: s(r.order_due_date),
                     requiredDate: s(r.required_date),
@@ -2448,7 +2560,7 @@
         }
 
         function switchTab(tabName) {
-            const views = ['dashboard', 'projects', 'construction-plan', 'record-seq', 'pm-approval', 'seq-history', 'photos', 'procurement', 'issues', 'reports'];
+            const views = ['dashboard', 'projects', 'construction-plan', 'record-seq', 'pm-approval', 'seq-history', 'photos', 'procurement', 'materials', 'issues', 'reports'];
             views.forEach(v => {
                 const el = document.getElementById(`view-${v}`);
                 if (el) el.classList.add('hidden');
@@ -2480,6 +2592,7 @@
                 'seq-history': 'ประวัติวันแล้วเสร็จ Sequence',
                 'photos': 'คลังรูปภาพหลักฐานหน้างาน',
                 'procurement': 'แผนรายการสั่งซื้อวัสดุ (กำหนดวันสั่งล่วงหน้าได้)',
+                'materials': 'รายการวัสดุที่ใช้ — สเปค ยี่ห้อ รุ่น ราคา และผู้จำหน่าย',
                 'issues': 'รายการแจ้งปัญหา / งานแก้ไข (Defects)',
                 'reports': 'รายงานสรุปผลการก่อสร้างรายโครงการ/แปลงบ้าน'
             };
@@ -3696,6 +3809,7 @@
             renderPMApprovalList();
             renderProcurementStats();
             renderProcurementsTable();
+            renderMaterialsView();
             renderIssuesTable();
             renderSequenceHistoryTable();
             renderPhotosGallery();
@@ -3740,6 +3854,7 @@
             const procProjSelect = document.getElementById('procurement-project-select');
             const histFilter = document.getElementById('history-project-filter');
             const photosFilter = document.getElementById('photos-project-filter');
+            const materialsFilter = document.getElementById('materials-project-filter');
             const issueProjSelect = document.getElementById('issue-project-select');
             const reportProjSelect = document.getElementById('report-project-select');
             const siteplanSelect = document.getElementById('siteplan-project-select');
@@ -3768,6 +3883,7 @@
             setOptionsKeepValue(procFilter, filterOptions, 'ALL');
             setOptionsKeepValue(histFilter, filterOptions, 'ALL');
             setOptionsKeepValue(photosFilter, filterOptions, 'ALL');
+            setOptionsKeepValue(materialsFilter, filterOptions, 'ALL');
             if (siteplanSelect) {
                 const sortedForSiteplan = [...projectsData].sort((a, b) => a.id.localeCompare(b.id));
                 setOptionsKeepValue(siteplanSelect, sortedForSiteplan.map(p => `<option value="${p.id}">${p.name}</option>`).join(''));
@@ -5225,10 +5341,89 @@
             tbody.innerHTML = html || '<tr><td colspan="7" class="py-4 text-center text-slate-400">ยังไม่มีรายการสั่งซื้อวัสดุ</td></tr>';
         }
 
+        // หน้ารายการวัสดุที่ใช้ — สเปค/ยี่ห้อ/รุ่น/ราคา/ผู้จำหน่าย ใช้ข้อมูลเดียวกับ procurementsData
+        // "ต้องสั่งด่วน" = ยังไม่สั่งซื้อ (pending) และถึง/เลยกำหนดวันต้องสั่งซื้อแล้ว (ผูกกับวันเริ่มงานที่ตั้งในหน้าจัดการโครงการ)
+        function renderMaterialsView() {
+            const tbody = document.getElementById('materials-table-body');
+            const filterEl = document.getElementById('materials-project-filter');
+            if (!tbody || !filterEl) return;
+
+            const filterProjId = filterEl.value || 'ALL';
+            let filtered = procurementsData;
+            if (filterProjId !== 'ALL') {
+                filtered = procurementsData.filter(m => m.projectId === filterProjId);
+            }
+
+            const getUnitName = (m) => projectsData.find(p => p.id === m.projectId)?.units?.find(u => u.id === m.unitId)?.name || '';
+            filtered = [...filtered].sort((a, b) => {
+                const unitCompare = getUnitName(a).localeCompare(getUnitName(b), 'th', { numeric: true });
+                if (unitCompare !== 0) return unitCompare;
+                const numA = parseInt((a.name || '').match(/^\d+/)?.[0] || '0', 10);
+                const numB = parseInt((b.name || '').match(/^\d+/)?.[0] || '0', 10);
+                return numA - numB;
+            });
+
+            const today = new Date().toISOString().split('T')[0];
+            const isUrgent = (m) => m.status === 'pending' && m.orderDueDate && m.orderDueDate <= today;
+
+            // สถิติสรุป (คิดจากรายการทั้งหมด ไม่ขึ้นกับตัวกรองโครงการ เพื่อให้เห็นภาพรวมทั้งบริษัท)
+            const totalValue = procurementsData.reduce((s, m) => s + (Number(m.price) || 0), 0);
+            const urgentItems = procurementsData.filter(isUrgent);
+            const urgentValue = urgentItems.reduce((s, m) => s + (Number(m.price) || 0), 0);
+
+            const totalValueEl = document.getElementById('mat-stat-total-value');
+            const totalCountEl = document.getElementById('mat-stat-total-count');
+            const urgentCountEl = document.getElementById('mat-stat-urgent-count');
+            const urgentValueEl = document.getElementById('mat-stat-urgent-value');
+            if (totalValueEl) totalValueEl.textContent = `${totalValue.toLocaleString('th-TH')} บาท`;
+            if (totalCountEl) totalCountEl.textContent = procurementsData.length;
+            if (urgentCountEl) urgentCountEl.textContent = urgentItems.length;
+            if (urgentValueEl) urgentValueEl.textContent = `${urgentValue.toLocaleString('th-TH')} บาท`;
+
+            let html = '';
+            filtered.forEach(m => {
+                const project = projectsData.find(p => p.id === m.projectId);
+                const unit = project?.units?.find(u => u.id === m.unitId);
+
+                let statusBadge = '<span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold">รอสั่งซื้อ</span>';
+                if (m.status === 'ordered') statusBadge = '<span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold">สั่งซื้อแล้ว</span>';
+                if (m.status === 'delivered') statusBadge = '<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold">ถึงหน้างานแล้ว</span>';
+
+                html += `
+                    <tr class="hover:bg-slate-50 transition ${isUrgent(m) ? 'bg-rose-50/50' : ''}">
+                        <td class="py-3 px-3">
+                            <div class="font-bold text-slate-800">${m.name}</div>
+                            ${isUrgent(m) ? '<div class="text-[10px] text-rose-600 font-bold"><i class="fa-solid fa-bell mr-0.5"></i>ต้องสั่งด่วน</div>' : ''}
+                        </td>
+                        <td class="py-3 px-3 text-slate-600">${[m.brand, m.model].filter(Boolean).join(' / ') || '-'}</td>
+                        <td class="py-3 px-3 text-slate-600">${m.spec || '-'}</td>
+                        <td class="py-3 px-3 text-right font-semibold text-slate-800">${(m.price !== null && m.price !== undefined && m.price !== '') ? Number(m.price).toLocaleString('th-TH') + ' บาท' : '-'}</td>
+                        <td class="py-3 px-3 text-slate-600">${m.supplier || '-'}</td>
+                        <td class="py-3 px-3">
+                            <div class="font-semibold text-slate-700">${project ? project.name : '-'}</div>
+                            <div class="text-[10px] text-blue-600 font-bold">${unit ? unit.name : '-'}</div>
+                        </td>
+                        <td class="py-3 px-3 text-slate-600">${m.orderDueDate || '-'}</td>
+                        <td class="py-3 px-3 text-center">${statusBadge}</td>
+                        <td class="py-3 px-3 text-right">
+                            <button onclick="openEditProcurementModal('${m.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-semibold">แก้ไข</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html || '<tr><td colspan="9" class="py-4 text-center text-slate-400">ยังไม่มีรายการวัสดุ</td></tr>';
+        }
+
         function openAddProcurementModal() {
             document.getElementById('procurement-form-title').textContent = 'สั่งซื้อวัสดุ / อุปกรณ์ใหม่';
             document.getElementById('procurement-form-id').value = '';
             document.getElementById('procurement-name-input').value = '';
+            document.getElementById('procurement-brand-input').value = '';
+            document.getElementById('procurement-model-input').value = '';
+            document.getElementById('procurement-spec-input').value = '';
+            document.getElementById('procurement-price-input').value = '';
+            document.getElementById('procurement-supplier-input').value = '';
             document.getElementById('procurement-lead-days-input').value = '25';
             document.getElementById('procurement-order-date-input').value = '';
             document.getElementById('procurement-required-date-input').value = '';
@@ -5271,6 +5466,11 @@
             document.getElementById('procurement-unit-select').value = item.unitId;
 
             document.getElementById('procurement-name-input').value = item.name;
+            document.getElementById('procurement-brand-input').value = item.brand || '';
+            document.getElementById('procurement-model-input').value = item.model || '';
+            document.getElementById('procurement-spec-input').value = item.spec || '';
+            document.getElementById('procurement-price-input').value = item.price || '';
+            document.getElementById('procurement-supplier-input').value = item.supplier || '';
             document.getElementById('procurement-lead-days-input').value = item.leadDays || 25;
             document.getElementById('procurement-order-date-input').value = item.orderDueDate || '';
             document.getElementById('procurement-required-date-input').value = item.requiredDate || '';
@@ -5285,6 +5485,12 @@
             const projId = document.getElementById('procurement-project-select').value;
             const unitId = document.getElementById('procurement-unit-select').value;
             const name = document.getElementById('procurement-name-input').value.trim();
+            const brand = document.getElementById('procurement-brand-input').value.trim();
+            const model = document.getElementById('procurement-model-input').value.trim();
+            const spec = document.getElementById('procurement-spec-input').value.trim();
+            const priceInput = document.getElementById('procurement-price-input').value;
+            const price = priceInput !== '' ? parseFloat(priceInput) : null;
+            const supplier = document.getElementById('procurement-supplier-input').value.trim();
             const leadDays = parseInt(document.getElementById('procurement-lead-days-input').value || '25', 10);
             const orderDueDate = document.getElementById('procurement-order-date-input').value;
             const requiredDate = document.getElementById('procurement-required-date-input').value;
@@ -5302,6 +5508,11 @@
                     item.projectId = projId;
                     item.unitId = unitId;
                     item.name = name;
+                    item.brand = brand;
+                    item.model = model;
+                    item.spec = spec;
+                    item.price = price;
+                    item.supplier = supplier;
                     item.leadDays = leadDays;
                     item.orderDueDate = orderDueDate;
                     item.requiredDate = requiredDate;
@@ -5315,6 +5526,11 @@
                     projectId: projId,
                     unitId: unitId,
                     name: name,
+                    brand: brand,
+                    model: model,
+                    spec: spec,
+                    price: price,
+                    supplier: supplier,
                     leadDays: leadDays,
                     orderDueDate: orderDueDate,
                     requiredDate: requiredDate,
