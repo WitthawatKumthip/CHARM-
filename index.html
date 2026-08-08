@@ -671,6 +671,12 @@
                 </div>
             </div>
 
+            <div id="mat-incomplete-warning" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
+                <h3 class="font-bold text-amber-800 text-sm flex items-center gap-2"><i class="fa-solid fa-clipboard-question"></i> รายการที่ต้องสั่งด่วนแต่ยังไม่ได้สรุป สเปค/ราคา/ผู้จำหน่าย</h3>
+                <p class="text-xs text-amber-700">ถึงกำหนดสั่งซื้อแล้วตามแผนงาน แต่ยังกรอกข้อมูลไม่ครบ — รีบตามข้อมูลให้ครบก่อนสั่งจริง</p>
+                <div id="mat-incomplete-list" class="space-y-1.5"></div>
+            </div>
+
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-4">
                 <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                     <div>
@@ -1415,6 +1421,12 @@
                         <input type="text" id="procurement-supplier-input" placeholder="เช่น บจก. ตัวอย่าง" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">ประเภทงาน/วัสดุ (ลิงก์รายการละเอียด)</label>
+                    <select id="procurement-material-type-select" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">-- ไม่ระบุ --</option>
+                    </select>
+                </div>
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -1566,6 +1578,19 @@
             "8. งานสุขภัณฑ์ ถังน้ำดี",
             "9. ประตู - หลังคาที่จอดรถ",
             "10. งานเทพื้นหน้าบ้าน หลังบ้าน"
+        ];
+
+        // ตัวเลือกประเภทงาน/วัสดุแบบละเอียด — ใช้เป็น dropdown ในหน้า "รายการวัสดุที่ใช้" เท่านั้น
+        // ไม่กระทบ defaultMasterMaterials ด้านบน (ยังใช้ 10 รายการเดิมกับปุ่มสร้างแผนอัตโนมัติตามปกติ)
+        const materialTypeOptions = [
+            "งานระบบใต้ดิน", "ท่อไฟฟ้า", "ท่อน้ำ", "บ่อพัก", "ถังบำบัด", "ท่อใยหิน",
+            "งานโครงหลังคา", "เชิงชาย", "มุงหลังคา", "งานบัว ค.ส.ล.ตกแต่ง",
+            "งานกระเบื้องภายใน", "พื้น SPC บันได", "จมูกบันได",
+            "งานสีสกิมโค้ด สีรองพื้น สีTexture สีจริง",
+            "งานระบบไฟฟ้าภายในรวมสวิตซ์ปลั๊ก ระบบประปา",
+            "งานฝ้าเพดาน", "งานวงกบประตู", "งานอลูมิเนียม",
+            "งานสุขภัณฑ์", "ถังน้ำดี", "ประตู", "หลังคาที่จอดรถ",
+            "งานเทพื้นหน้าบ้าน", "งานเทพื้นหลังบ้าน"
         ];
 
         const defaultMasterSubTasks = {
@@ -1940,6 +1965,7 @@
                     spec: s(m.spec),
                     price: (m.price === null || m.price === undefined || m.price === '') ? null : Number(m.price),
                     supplier: s(m.supplier),
+                    material_type: s(m.materialType),
                     lead_days: Number(m.leadDays) || 0,
                     order_due_date: d(m.orderDueDate),
                     required_date: d(m.requiredDate),
@@ -1956,6 +1982,7 @@
                     spec: s(r.spec),
                     price: (r.price === null || r.price === undefined) ? null : Number(r.price),
                     supplier: s(r.supplier),
+                    materialType: s(r.material_type),
                     leadDays: Number(r.lead_days) || 0,
                     orderDueDate: s(r.order_due_date),
                     requiredDate: s(r.required_date),
@@ -5380,6 +5407,33 @@
             if (urgentCountEl) urgentCountEl.textContent = urgentItems.length;
             if (urgentValueEl) urgentValueEl.textContent = `${urgentValue.toLocaleString('th-TH')} บาท`;
 
+            // รายการที่ถึงกำหนดสั่งด่วนแล้ว แต่ยังกรอกสเปค/ราคา/ผู้จำหน่ายไม่ครบ
+            const isIncomplete = (m) => !m.spec && !m.price && !m.supplier;
+            const incompleteUrgent = urgentItems.filter(isIncomplete);
+            const warningEl = document.getElementById('mat-incomplete-warning');
+            const warningListEl = document.getElementById('mat-incomplete-list');
+            if (warningEl && warningListEl) {
+                if (incompleteUrgent.length > 0) {
+                    warningEl.classList.remove('hidden');
+                    warningListEl.innerHTML = incompleteUrgent.map(m => {
+                        const project = projectsData.find(p => p.id === m.projectId);
+                        const unit = project?.units?.find(u => u.id === m.unitId);
+                        return `
+                            <div class="flex items-center justify-between gap-2 bg-white border border-amber-200 rounded-lg px-3 py-2 text-[11px]">
+                                <div class="flex-1 min-w-0">
+                                    <span class="font-bold text-slate-800">${m.name}</span>
+                                    <span class="text-slate-500 ml-1">${project ? project.name : '-'} — ${unit ? unit.name : '-'} — กำหนดสั่ง ${m.orderDueDate || '-'}</span>
+                                </div>
+                                <button onclick="openEditProcurementModal('${m.id}')" class="bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1 rounded-lg text-xs font-semibold shrink-0">กรอกข้อมูล</button>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    warningEl.classList.add('hidden');
+                    warningListEl.innerHTML = '';
+                }
+            }
+
             let html = '';
             filtered.forEach(m => {
                 const project = projectsData.find(p => p.id === m.projectId);
@@ -5393,6 +5447,7 @@
                     <tr class="hover:bg-slate-50 transition ${isUrgent(m) ? 'bg-rose-50/50' : ''}">
                         <td class="py-3 px-3">
                             <div class="font-bold text-slate-800">${m.name}</div>
+                            ${m.materialType ? `<div class="text-[10px] text-indigo-600 font-semibold"><i class="fa-solid fa-tag mr-0.5"></i>${m.materialType}</div>` : ''}
                             ${isUrgent(m) ? '<div class="text-[10px] text-rose-600 font-bold"><i class="fa-solid fa-bell mr-0.5"></i>ต้องสั่งด่วน</div>' : ''}
                         </td>
                         <td class="py-3 px-3 text-slate-600">${[m.brand, m.model].filter(Boolean).join(' / ') || '-'}</td>
@@ -5415,6 +5470,14 @@
             tbody.innerHTML = html || '<tr><td colspan="9" class="py-4 text-center text-slate-400">ยังไม่มีรายการวัสดุ</td></tr>';
         }
 
+        function populateMaterialTypeSelect(selectedValue) {
+            const el = document.getElementById('procurement-material-type-select');
+            if (!el) return;
+            el.innerHTML = '<option value="">-- ไม่ระบุ --</option>' +
+                materialTypeOptions.map(t => `<option value="${t}">${t}</option>`).join('');
+            el.value = selectedValue || '';
+        }
+
         function openAddProcurementModal() {
             document.getElementById('procurement-form-title').textContent = 'สั่งซื้อวัสดุ / อุปกรณ์ใหม่';
             document.getElementById('procurement-form-id').value = '';
@@ -5424,6 +5487,7 @@
             document.getElementById('procurement-spec-input').value = '';
             document.getElementById('procurement-price-input').value = '';
             document.getElementById('procurement-supplier-input').value = '';
+            populateMaterialTypeSelect('');
             document.getElementById('procurement-lead-days-input').value = '25';
             document.getElementById('procurement-order-date-input').value = '';
             document.getElementById('procurement-required-date-input').value = '';
@@ -5471,6 +5535,7 @@
             document.getElementById('procurement-spec-input').value = item.spec || '';
             document.getElementById('procurement-price-input').value = item.price || '';
             document.getElementById('procurement-supplier-input').value = item.supplier || '';
+            populateMaterialTypeSelect(item.materialType || '');
             document.getElementById('procurement-lead-days-input').value = item.leadDays || 25;
             document.getElementById('procurement-order-date-input').value = item.orderDueDate || '';
             document.getElementById('procurement-required-date-input').value = item.requiredDate || '';
@@ -5491,6 +5556,7 @@
             const priceInput = document.getElementById('procurement-price-input').value;
             const price = priceInput !== '' ? parseFloat(priceInput) : null;
             const supplier = document.getElementById('procurement-supplier-input').value.trim();
+            const materialType = document.getElementById('procurement-material-type-select').value;
             const leadDays = parseInt(document.getElementById('procurement-lead-days-input').value || '25', 10);
             const orderDueDate = document.getElementById('procurement-order-date-input').value;
             const requiredDate = document.getElementById('procurement-required-date-input').value;
@@ -5513,6 +5579,7 @@
                     item.spec = spec;
                     item.price = price;
                     item.supplier = supplier;
+                    item.materialType = materialType;
                     item.leadDays = leadDays;
                     item.orderDueDate = orderDueDate;
                     item.requiredDate = requiredDate;
@@ -5531,6 +5598,7 @@
                     spec: spec,
                     price: price,
                     supplier: supplier,
+                    materialType: materialType,
                     leadDays: leadDays,
                     orderDueDate: orderDueDate,
                     requiredDate: requiredDate,
