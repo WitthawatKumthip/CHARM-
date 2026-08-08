@@ -603,7 +603,7 @@
                         <select id="procurement-project-filter" onchange="renderProcurementsTable()" class="border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500"></select>
                         <button onclick="openAutoGenerateModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm flex items-center space-x-1">
                             <i class="fa-solid fa-wand-magic-sparkles"></i>
-                            <span>+ สร้างแผน 10 รายการอัตโนมัติ</span>
+                            <span>+ สร้างแผนวัสดุอัตโนมัติ</span>
                         </button>
                         <button onclick="openAddProcurementModal()" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm flex items-center space-x-1">
                             <i class="fa-solid fa-plus"></i>
@@ -1195,14 +1195,14 @@
             <div class="flex justify-between items-center border-b border-slate-100 pb-3">
                 <div class="flex items-center space-x-2">
                     <i class="fa-solid fa-boxes-stacked text-purple-600"></i>
-                    <h3 class="font-bold text-slate-800 text-sm">ตั้งค่า 10 รายการวัสดุมาตรฐาน</h3>
+                    <h3 class="font-bold text-slate-800 text-sm">ตั้งค่ารายการวัสดุมาตรฐาน</h3>
                 </div>
                 <button onclick="closeModal('master-mat-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-base"></i></button>
             </div>
             <p class="text-xs text-slate-500">กำหนดรายการสั่งซื้อวัสดุมาตรฐานประจำแปลงบ้าน (บรรทัดละ 1 รายการ):</p>
             <textarea id="master-mat-textarea" rows="8" placeholder="ระบุรายการวัสดุแม่แบบ..." class="w-full text-xs font-mono border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-purple-500"></textarea>
             <div class="flex justify-between items-center pt-2">
-                <button onclick="saveMasterMaterialsConfig()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-sm">บันทึกแม่แบบ 10 รายการวัสดุ</button>
+                <button onclick="saveMasterMaterialsConfig()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-sm">บันทึกแม่แบบรายการวัสดุ</button>
                 <button onclick="closeModal('master-mat-modal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-medium">ปิด</button>
             </div>
         </div>
@@ -1303,7 +1303,7 @@
             <div class="flex justify-between items-center border-b border-slate-100 pb-3">
                 <div class="flex items-center space-x-2">
                     <i class="fa-solid fa-wand-magic-sparkles text-blue-600"></i>
-                    <h3 class="font-bold text-slate-800 text-sm">สร้างแผนสั่งของ 10 รายการอัตโนมัติ</h3>
+                    <h3 id="auto-procurement-modal-title" class="font-bold text-slate-800 text-sm">สร้างแผนสั่งของอัตโนมัติ</h3>
                 </div>
                 <button onclick="closeModal('auto-procurement-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-base"></i></button>
             </div>
@@ -1327,7 +1327,7 @@
             </div>
             <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
                 <button onclick="closeModal('auto-procurement-modal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-medium">ยกเลิก</button>
-                <button onclick="executeAutoGenerateProcurements()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm">สร้างรายการสั่งซื้อ 10 รายการ</button>
+                <button onclick="executeAutoGenerateProcurements()" id="auto-procurement-modal-confirm-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm">สร้างรายการสั่งซื้อ</button>
             </div>
         </div>
     </div>
@@ -5768,6 +5768,13 @@
                 projSelect.innerHTML = projectsData.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
             }
             onAutoMatProjectChange();
+
+            const matCount = (masterMaterials.length > 0 ? masterMaterials : defaultMasterMaterials).length;
+            const titleEl = document.getElementById('auto-procurement-modal-title');
+            const btnEl = document.getElementById('auto-procurement-modal-confirm-btn');
+            if (titleEl) titleEl.textContent = `สร้างแผนสั่งของ ${matCount} รายการอัตโนมัติ`;
+            if (btnEl) btnEl.textContent = `สร้างรายการสั่งซื้อ ${matCount} รายการ`;
+
             openModal('auto-procurement-modal');
         }
 
