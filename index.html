@@ -642,7 +642,7 @@
                     <div class="flex items-center gap-2 text-xs">
                         <label class="font-semibold text-slate-600">โครงการ:</label>
                         <select id="materials-project-select" onchange="renderMaterialsView()" class="border border-slate-200 rounded-xl px-3 py-1.5 font-medium outline-none focus:ring-2 focus:ring-blue-500"></select>
-                        <button onclick="openAddMaterialSpecModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 shrink-0">
+                        <button id="btn-add-material-spec" onclick="openAddMaterialSpecModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 shrink-0">
                             <i class="fa-solid fa-plus"></i>
                             <span>เพิ่มรายการ</span>
                         </button>
@@ -1948,7 +1948,8 @@
                     resolved_date: d(i.resolvedDate),
                     photo_before: i.photoBefore || null,
                     photo_after: i.photoAfter || null,
-                    resolution_notes: s(i.resolutionNotes)
+                    resolution_notes: s(i.resolutionNotes),
+                    reported_by: s(i.reportedBy)
                 }),
                 fromRow: r => ({
                     id: r.id,
@@ -1961,7 +1962,8 @@
                     resolvedDate: s(r.resolved_date),
                     photoBefore: r.photo_before || null,
                     photoAfter: r.photo_after || null,
-                    resolutionNotes: s(r.resolution_notes)
+                    resolutionNotes: s(r.resolution_notes),
+                    reportedBy: s(r.reported_by)
                 })
             },
 
@@ -3187,6 +3189,7 @@
             const btnDbSettings = document.getElementById('btn-db-settings');
             const btnAddProjTop = document.getElementById('btn-add-project-top');
             const btnAddProjMain = document.getElementById('btn-add-project-main');
+            const btnAddMaterialSpec = document.getElementById('btn-add-material-spec');
 
             if (btnBackupTop) btnBackupTop.style.display = isAdmin ? 'flex' : 'none';
             if (btnBackupSidebar) btnBackupSidebar.style.display = isAdmin ? 'flex' : 'none';
@@ -3197,6 +3200,7 @@
             if (btnDbSettings) btnDbSettings.style.display = isAdmin ? 'flex' : 'none';
             if (btnAddProjTop) btnAddProjTop.style.display = isAdmin ? 'flex' : 'none';
             if (btnAddProjMain) btnAddProjMain.style.display = isAdmin ? 'inline-block' : 'none';
+            if (btnAddMaterialSpec) btnAddMaterialSpec.style.display = isAdmin ? 'flex' : 'none';
         }
 
         async function handleLogin(e) {
@@ -4936,10 +4940,13 @@
             const tbody = document.getElementById('issues-table-body');
             if (!tbody) return;
 
+            const isAdminUser = !!currentUser && currentUser.role === 'ADMIN';
+
             let html = '';
             issuesData.forEach(iss => {
                 const project = projectsData.find(p => p.id === iss.projectId);
                 const unit = project?.units?.find(u => u.id === iss.unitId);
+                const canEditIssue = isAdminUser || (!!currentUser && iss.reportedBy === currentUser.name);
 
                 let badge = '<span class="bg-rose-100 text-rose-700 px-2.5 py-1 rounded-full text-[10px] font-bold"><i class="fa-solid fa-clock mr-1"></i>รอแก้ไข</span>';
                 if (iss.status === 'resolved') badge = '<span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-[10px] font-bold"><i class="fa-solid fa-check mr-1"></i>แก้ไขเสร็จสิ้น</span>';
@@ -4973,7 +4980,9 @@
                         <td class="py-3 px-3">${resolvedDateText}</td>
                         <td class="py-3 px-3 text-center">${badge}</td>
                         <td class="py-3 px-3 text-right space-x-1 no-print">
-                            <button onclick="openEditIssueModal('${iss.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-semibold">แก้ไข</button>
+                            ${canEditIssue
+                                ? `<button onclick="openEditIssueModal('${iss.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-semibold">แก้ไข</button>`
+                                : `<span class="text-slate-300 text-[10px] italic"><i class="fa-solid fa-lock mr-1"></i>ของ ${iss.reportedBy || 'ผู้อื่น'}</span>`}
                         </td>
                     </tr>
                 `;
@@ -5167,6 +5176,10 @@
         }
 
         function openAddProjectModal() {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่เพิ่มโครงการใหม่ได้', 'rose');
+                return;
+            }
             document.getElementById('project-form-title').textContent = 'เพิ่มโครงการใหม่';
             document.getElementById('project-form-id').value = '';
             document.getElementById('project-name-input').value = '';
@@ -5195,6 +5208,10 @@
         }
 
         function saveProjectFormData() {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่แก้ไข/เพิ่มโครงการได้', 'rose');
+                return;
+            }
             const formId = document.getElementById('project-form-id').value;
             const name = document.getElementById('project-name-input').value.trim();
             const location = document.getElementById('project-location-input').value.trim();
@@ -5250,6 +5267,10 @@
         }
 
         function openUnitsModal(projectId) {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่จัดการแปลงบ้านได้', 'rose');
+                return;
+            }
             const project = projectsData.find(p => p.id === projectId);
             if (!project) return;
 
@@ -5292,6 +5313,10 @@
         }
 
         function updateUnitDate(unitId, field, value) {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่จัดการแปลงบ้านได้', 'rose');
+                return;
+            }
             const projId = document.getElementById('units-modal-project-id').value;
             const project = projectsData.find(p => p.id === projId);
             const unit = project?.units?.find(u => u.id === unitId);
@@ -5304,6 +5329,10 @@
         }
 
         function addUnitToProject() {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่จัดการแปลงบ้านได้', 'rose');
+                return;
+            }
             const projId = document.getElementById('units-modal-project-id').value;
             const uName = document.getElementById('new-unit-name-input').value.trim();
             const uStart = document.getElementById('new-unit-start-input').value;
@@ -5336,6 +5365,10 @@
         }
 
         function deleteUnitFromProject(unitId) {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่จัดการแปลงบ้านได้', 'rose');
+                return;
+            }
             const projId = document.getElementById('units-modal-project-id').value;
             const project = projectsData.find(p => p.id === projId);
             if (project && project.units) {
@@ -5461,6 +5494,7 @@
                 selectEl.value = projectsData.some(p => p.id === currentVal) ? currentVal : (projectsData[0]?.id || '');
             }
             const projId = selectEl.value;
+            const canEditMaterials = !!currentUser && currentUser.role === 'ADMIN';
 
             const items = materialSpecsData.filter(m => m.projectId === projId);
 
@@ -5509,7 +5543,9 @@
                                                     : '<span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-bold">ยังไม่สรุป</span>'}
                                             </td>
                                             <td class="py-2.5 px-3 text-right">
-                                                <button onclick="openEditMaterialSpecModal('${m.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-semibold">แก้ไข</button>
+                                                ${canEditMaterials
+                                                    ? `<button onclick="openEditMaterialSpecModal('${m.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-semibold">แก้ไข</button>`
+                                                    : `<span class="text-slate-300 text-[10px] italic"><i class="fa-solid fa-lock"></i></span>`}
                                             </td>
                                         </tr>
                                     `).join('') || `<tr><td colspan="7" class="py-4 text-center text-slate-400">ยังไม่มีรายการในหมวดนี้</td></tr>`}
@@ -5524,6 +5560,10 @@
         }
 
         function openAddMaterialSpecModal() {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่แก้ไขสรุปวัสดุ/ผู้รับเหมาได้', 'rose');
+                return;
+            }
             const projSelectEl = document.getElementById('materials-project-select');
             document.getElementById('material-spec-form-title').textContent = 'เพิ่มรายการสรุปวัสดุ';
             document.getElementById('material-spec-form-id').value = '';
@@ -5541,6 +5581,10 @@
         }
 
         function openEditMaterialSpecModal(id) {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่แก้ไขสรุปวัสดุ/ผู้รับเหมาได้', 'rose');
+                return;
+            }
             const item = materialSpecsData.find(m => m.id === id);
             if (!item) return;
 
@@ -5560,6 +5604,10 @@
         }
 
         function saveMaterialSpec() {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่แก้ไขสรุปวัสดุ/ผู้รับเหมาได้', 'rose');
+                return;
+            }
             const id = document.getElementById('material-spec-form-id').value;
             const projectId = document.getElementById('material-spec-project-select').value;
             const category = document.getElementById('material-spec-category-select').value;
@@ -5609,6 +5657,10 @@
         }
 
         function deleteMaterialSpec() {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่แก้ไขสรุปวัสดุ/ผู้รับเหมาได้', 'rose');
+                return;
+            }
             const id = document.getElementById('material-spec-form-id').value;
             if (!id) return;
             materialSpecsData = materialSpecsData.filter(m => m.id !== id);
@@ -5866,6 +5918,15 @@
             showNotification(`สร้างแผนสั่งซื้อวัสดุอัตโนมัติ ${addedCount} รายการเรียบร้อยแล้ว`);
         }
 
+        // รันเลขต่อจากเลข Defect สูงสุดที่มีอยู่จริงในระบบ (แก้บั๊กเดิมที่ใช้ Date.now() ทำให้เลขกระโดดไม่เรียงกัน)
+        function nextDefectId() {
+            const usedNumbers = issuesData
+                .map(i => parseInt((i.id || '').replace(/^DEF-/, ''), 10))
+                .filter(n => !isNaN(n));
+            const maxNum = usedNumbers.length > 0 ? Math.max(...usedNumbers) : 0;
+            return `DEF-${(maxNum + 1).toString().padStart(3, '0')}`;
+        }
+
         function openAddIssueModal() {
             document.getElementById('issue-form-title').textContent = 'แจ้งปัญหา / Defect ใหม่';
             document.getElementById('issue-form-id').value = '';
@@ -5884,6 +5945,14 @@
         function openEditIssueModal(id) {
             const iss = issuesData.find(item => item.id === id);
             if (!iss) return;
+
+            const isOwner = currentUser && iss.reportedBy && iss.reportedBy === currentUser.name;
+            const isAdmin = currentUser && currentUser.role === 'ADMIN';
+            if (!(isOwner || isAdmin)) {
+                showNotification('แก้ไขได้เฉพาะรายการ Defect ที่ตัวเองแจ้งเท่านั้น', 'rose');
+                return;
+            }
+
             populateProjectSelects();
 
             document.getElementById('issue-form-title').textContent = 'แก้ไขรายการ Defect';
@@ -5947,7 +6016,7 @@
                     showNotification('แก้ไขรายการ Defect เรียบร้อยแล้ว');
                 } else {
                     issuesData.push({
-                        id: `DEF-${Date.now().toString().slice(-4)}`,
+                        id: nextDefectId(),
                         projectId: projId,
                         unitId: unitId,
                         title: title,
@@ -5957,7 +6026,8 @@
                         resolvedDate: resolvedDate,
                         resolutionNotes: resolutionNotes,
                         photoBefore: newPhotoBefore || null,
-                        photoAfter: newPhotoAfter || null
+                        photoAfter: newPhotoAfter || null,
+                        reportedBy: currentUser ? currentUser.name : 'ผู้ใช้งาน'
                     });
                     showNotification('แจ้งปัญหา Defect เรียบร้อยแล้ว');
                 }
@@ -6348,8 +6418,10 @@
                         </td>
                         <td class="py-3 px-3 text-slate-500">${p.endDate || '-'}</td>
                         <td class="py-3 px-3 text-right space-x-1">
+                            ${currentUser && currentUser.role === 'ADMIN' ? `
                             <button onclick="openUnitsModal('${p.id}')" title="จัดการแปลงบ้าน" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-1.5 rounded-lg text-xs"><i class="fa-solid fa-house"></i></button>
                             <button onclick="openEditProjectModal('${p.id}')" title="แก้ไข" class="bg-blue-50 hover:bg-blue-100 text-blue-600 p-1.5 rounded-lg text-xs"><i class="fa-solid fa-pen"></i></button>
+                            ` : ''}
                         </td>
                     </tr>
                 `;
@@ -6389,8 +6461,10 @@
                         </td>
                         <td class="py-3 px-3 text-slate-500">${p.startDate || '-'} ถึง ${p.endDate || '-'}</td>
                         <td class="py-3 px-3 text-right space-x-1">
+                            ${currentUser && currentUser.role === 'ADMIN' ? `
                             <button onclick="openUnitsModal('${p.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-semibold"><i class="fa-solid fa-house mr-1"></i> จัดการบ้าน</button>
                             <button onclick="openEditProjectModal('${p.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-semibold">แก้ไข</button>
+                            ` : '<span class="text-slate-300 text-[10px] italic"><i class="fa-solid fa-lock mr-1"></i>เฉพาะ ADMIN</span>'}
                         </td>
                     </tr>
                 `;
