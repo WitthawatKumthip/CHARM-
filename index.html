@@ -4040,15 +4040,22 @@
                 const blockRowsHtml = Array.from(unitsInMonthMap.values()).map(um => {
                     const info = unitInfoMap.get(um.unitId) || { actualDone: 0, totalSeq: masterSequences.length || 10, startDate: null, endDate: null };
 
+                    // เลขลำดับ Sequence ที่แผนกำหนดไว้ว่าควรถึงภายในเดือนนี้/เดือนหน้า (คำนวณจากวันเริ่ม-สิ้นสุดจริงของแปลง)
+                    const plannedSeqList = monthPlanned.filter(e => e.unitId === um.unitId).map(e => e.seqIndex).sort((a, b) => a - b);
+                    const plannedSeqText = plannedSeqList.length > 0 ? `Sequence ${plannedSeqList.join(', ')}` : '-';
+
                     if (showActual) {
-                        const doneThisMonth = monthActual.filter(e => e.unitId === um.unitId).length;
+                        const doneThisMonthEvents = monthActual.filter(e => e.unitId === um.unitId);
+                        const doneThisMonthSeqList = doneThisMonthEvents.map(e => e.seqIndex).sort((a, b) => a - b);
+                        const doneThisMonthText = doneThisMonthSeqList.length > 0 ? `Sequence ${doneThisMonthSeqList.join(', ')}` : 'ยังไม่มี';
                         const cumPct = info.totalSeq > 0 ? Math.round((info.actualDone / info.totalSeq) * 100) : 0;
                         const c = getUnitStatusColor(cumPct, info.startDate, info.endDate);
                         return `
                             <div class="flex items-center justify-between gap-2 ${c.bg} border ${c.border} rounded-lg px-3 py-2 text-[11px]">
                                 <div class="flex-1 min-w-0">
                                     <div class="font-bold text-slate-800">${um.projectName} — ${um.unitName} <span class="${c.text} font-semibold">(${c.label})</span></div>
-                                    <div class="text-slate-500">ทำได้เดือนนี้ ${doneThisMonth} Sequence</div>
+                                    <div class="text-slate-500">แผนเดือนนี้: ${plannedSeqText}</div>
+                                    <div class="text-emerald-600 font-semibold">ทำได้จริงแล้ว: ${doneThisMonthText}</div>
                                 </div>
                                 <div class="text-right shrink-0">
                                     <div class="font-extrabold ${c.text}">${info.actualDone}/${info.totalSeq}</div>
@@ -4068,7 +4075,7 @@
                         <div class="flex items-center justify-between gap-2 ${c.bg} border ${c.border} rounded-lg px-3 py-2 text-[11px]">
                             <div class="flex-1 min-w-0">
                                 <div class="font-bold text-slate-800">${um.projectName} — ${um.unitName} <span class="${c.text} font-semibold">(${c.label})</span></div>
-                                <div class="text-slate-500">คาดว่าจะเสร็จเพิ่ม ${forecastDelta} Sequence</div>
+                                <div class="text-slate-500">แผนเดือนหน้า: ${plannedSeqText}</div>
                             </div>
                             <div class="text-right shrink-0">
                                 <div class="font-extrabold ${c.text}">${newCum}/${info.totalSeq}</div>
