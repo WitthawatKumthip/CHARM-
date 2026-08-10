@@ -4044,6 +4044,9 @@
                     const plannedSeqList = monthPlanned.filter(e => e.unitId === um.unitId).map(e => e.seqIndex).sort((a, b) => a - b);
                     const plannedSeqText = plannedSeqList.length > 0 ? `Sequence ${plannedSeqList.join(', ')}` : '-';
 
+                    // ข้ามแปลงที่เสร็จ 100% แล้ว แสดงเฉพาะแปลงที่กำลังก่อสร้าง (ยังไม่ 100%)
+                    if (info.actualDone >= info.totalSeq) return '';
+
                     if (showActual) {
                         const doneThisMonthEvents = monthActual.filter(e => e.unitId === um.unitId);
                         const doneThisMonthSeqList = doneThisMonthEvents.map(e => e.seqIndex).sort((a, b) => a - b);
@@ -4065,8 +4068,7 @@
                         `;
                     }
 
-                    // เดือนหน้า: ข้ามแปลงที่เสร็จ 100% แล้ว
-                    if (info.actualDone >= info.totalSeq) return '';
+                    // เดือนหน้า: forecast ต่อจากเดือนนี้
                     const forecastDelta = Math.min(um.planCount, Math.round(um.planCount * (schedulePct / 100)));
                     const newCum = Math.min(info.totalSeq, info.actualDone + forecastDelta);
                     const newPct = info.totalSeq > 0 ? Math.round((newCum / info.totalSeq) * 100) : 0;
