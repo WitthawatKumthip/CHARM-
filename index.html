@@ -4240,8 +4240,8 @@
                     </div>
                     ` : ''}
 
-                    <div id="siteplan-image-frame" onclick="handleSitePlanImageClick(event, '${project.id}')" class="relative w-full rounded-2xl overflow-hidden border-2 border-slate-200 bg-slate-900 shadow-lg select-none ${isEditingPinPositionMode ? 'cursor-crosshair ring-4 ring-amber-400' : 'cursor-default'}">
-                        <img id="siteplan-main-image" src="${planSrc}" class="w-full h-auto min-h-[300px] max-h-[550px] object-contain opacity-90 mx-auto">
+                    <div id="siteplan-image-frame" onclick="handleSitePlanImageClick(event, '${project.id}')" class="relative w-full h-[385px] rounded-2xl overflow-hidden border-2 border-slate-200 bg-slate-900 shadow-lg select-none ${isEditingPinPositionMode ? 'cursor-crosshair ring-4 ring-amber-400' : 'cursor-default'}">
+                        <img id="siteplan-main-image" src="${planSrc}" onload="repositionSitePlanPins()" class="w-full h-full object-contain opacity-90 mx-auto">
 
                         ${project.units ? project.units.map(u => {
                             const uProg = calculateUnitProgress(project.id, u.id);
@@ -4268,7 +4268,7 @@
                             if (!hasPin && !isEditingPinPositionMode) return '';
 
                             return `
-                                <div class="absolute pin-marker z-20 cursor-pointer" style="left: ${x}%; top: ${y}%;" title="${u.name} (${statusLabel})" onclick="event.stopPropagation(); filterAndHighlightUnit('${project.id}', '${u.id}')">
+                                <div class="absolute pin-marker z-20 cursor-pointer" data-pin-x="${x}" data-pin-y="${y}" style="left: ${x}%; top: ${y}%;" title="${u.name} (${statusLabel})" onclick="event.stopPropagation(); filterAndHighlightUnit('${project.id}', '${u.id}')">
                                     <div class="${pinColor} border-2 rounded-full px-1 py-0.5 sm:px-2.5 sm:py-1 text-[7px] sm:text-[10px] font-extrabold flex items-center gap-0.5 sm:space-x-1 shadow-md whitespace-nowrap">
                                         <i class="fa-solid fa-house text-[6px] sm:text-[9px]"></i>
                                         <span>${u.name}</span>
@@ -4282,6 +4282,43 @@
             `;
 
             container.innerHTML = html;
+            repositionSitePlanPins();
+        }
+
+        // คำนวณกรอบรูปจริงที่แสดงผลภายในกล่อง object-contain (มีขอบดำ letterbox เมื่อสัดส่วนภาพไม่ตรงกับกรอบ)
+        function getContainedImageBox(natW, natH, boxW, boxH) {
+            if (!natW || !natH || !boxW || !boxH) return { width: boxW || 0, height: boxH || 0, offsetX: 0, offsetY: 0 };
+            const boxAspect = boxW / boxH;
+            const imgAspect = natW / natH;
+            let width, height;
+            if (imgAspect > boxAspect) {
+                width = boxW;
+                height = boxW / imgAspect;
+            } else {
+                height = boxH;
+                width = boxH * imgAspect;
+            }
+            return { width, height, offsetX: (boxW - width) / 2, offsetY: (boxH - height) / 2 };
+        }
+
+        // แปลงตำแหน่งหมุด (เก็บเป็น % ของ "รูปภาพจริง" เสมอ) ให้เป็นตำแหน่ง % ของกรอบที่แสดงผล
+        // จำเป็นเพราะตอนนี้กรอบถูก fix ขนาดตายตัว ภาพที่สัดส่วนไม่ตรงกรอบจะมีขอบดำ (letterbox) ต้องชดเชยตำแหน่งหมุดตาม
+        function repositionSitePlanPins() {
+            const frame = document.getElementById('siteplan-image-frame');
+            const img = document.getElementById('siteplan-main-image');
+            if (!frame || !img || !img.naturalWidth) return;
+
+            const frameRect = frame.getBoundingClientRect();
+            const box = getContainedImageBox(img.naturalWidth, img.naturalHeight, frameRect.width, frameRect.height);
+
+            frame.querySelectorAll('.pin-marker[data-pin-x]').forEach(pin => {
+                const imgPctX = parseFloat(pin.dataset.pinX);
+                const imgPctY = parseFloat(pin.dataset.pinY);
+                const frameLeftPx = box.offsetX + (imgPctX / 100) * box.width;
+                const frameTopPx = box.offsetY + (imgPctY / 100) * box.height;
+                pin.style.left = `${(frameLeftPx / frameRect.width) * 100}%`;
+                pin.style.top = `${(frameTopPx / frameRect.height) * 100}%`;
+            });
         }
 
         function togglePinEditMode(projId) {
@@ -4300,6 +4337,7 @@
             if (!isEditingPinPositionMode) return;
 
             const frame = document.getElementById('siteplan-image-frame');
+            const img = document.getElementById('siteplan-main-image');
             const targetUnitId = document.getElementById('pin-target-unit-select')?.value;
 
             if (!frame || !targetUnitId) return;
@@ -4308,8 +4346,18 @@
             const clickX = e.clientX - rect.left;
             const clickY = e.clientY - rect.top;
 
-            const pinX = Math.round((clickX / rect.width) * 100);
-            const pinY = Math.round((clickY / rect.height) * 100);
+            // กรอบตอนนี้เป็นขนาดตายตัว รูปที่สัดส่วนไม่ตรงกรอบจะมีขอบดำ (letterbox) — ต้องหักออกก่อนคำนวณ % ตำแหน่งบนรูปจริง
+            const box = getContainedImageBox(img?.naturalWidth, img?.naturalHeight, rect.width, rect.height);
+            const imgLocalX = clickX - box.offsetX;
+            const imgLocalY = clickY - box.offsetY;
+
+            if (imgLocalX < 0 || imgLocalX > box.width || imgLocalY < 0 || imgLocalY > box.height) {
+                showNotification('กรุณาคลิกในตำแหน่งบนรูปผังเท่านั้น (ไม่ใช่ขอบดำรอบรูป)', 'amber');
+                return;
+            }
+
+            const pinX = Math.round((imgLocalX / box.width) * 100);
+            const pinY = Math.round((imgLocalY / box.height) * 100);
 
             const project = projectsData.find(p => p.id === projId);
             const unit = project?.units?.find(u => u.id === targetUnitId);
