@@ -385,9 +385,10 @@
                         <select id="plan-project-filter" onchange="renderConstructionPlanView()" class="border border-slate-200 rounded-xl px-3 py-1.5 font-medium outline-none focus:ring-2 focus:ring-blue-500"></select>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
                     <div id="plan-masterplan-area"></div>
                     <div id="plan-overall-summary"></div>
+                    <div id="plan-excel-embed-area"></div>
                 </div>
             </div>
 
@@ -1075,6 +1076,31 @@
             <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
                 <button onclick="closeModal('project-form-modal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-medium">ยกเลิก</button>
                 <button onclick="saveProjectFormData()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm">บันทึกข้อมูล</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Excel Online Embed Link Modal (ตั้งค่าฝังชีต Excel Online สดในหน้าแผนงานก่อสร้าง) -->
+    <div id="excel-embed-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-800 text-sm">ตั้งค่าฝัง Excel Online (ชีตสด)</h3>
+                <button onclick="closeModal('excel-embed-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-base"></i></button>
+            </div>
+            <input type="hidden" id="excel-embed-project-id">
+            <div class="space-y-2 text-xs">
+                <label class="block font-semibold text-slate-600 mb-1">ลิงก์ Embed จาก Excel Online</label>
+                <input type="text" id="excel-embed-url-input" placeholder="https://onedrive.live.com/embed?..." class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                <p class="text-[10px] text-slate-400 leading-relaxed">
+                    วิธีหาลิงก์: เปิดไฟล์ใน Excel Online (Microsoft 365) → File → Share → Embed → กด Generate แล้วคัดลอกเฉพาะค่า <b>src="..."</b> จากโค้ด iframe ที่ได้มาวางที่นี่
+                </p>
+            </div>
+            <div class="flex justify-between items-center pt-3 border-t border-slate-100">
+                <button id="excel-embed-remove-btn" onclick="removeExcelEmbedUrl()" class="hidden px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-semibold">ลบลิงก์</button>
+                <div class="flex space-x-2 ml-auto">
+                    <button onclick="closeModal('excel-embed-modal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-medium">ยกเลิก</button>
+                    <button onclick="saveExcelEmbedUrl()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm">บันทึก</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1893,6 +1919,7 @@
                     start_date: d(p.startDate),
                     end_date: d(p.endDate),
                     site_plan: p.sitePlan || null,
+                    excel_embed_url: p.excelEmbedUrl || null,
                     units: Array.isArray(p.units) ? p.units : []
                 }),
                 fromRow: r => ({
@@ -1902,6 +1929,7 @@
                     startDate: s(r.start_date),
                     endDate: s(r.end_date),
                     sitePlan: r.site_plan || null,
+                    excelEmbedUrl: r.excel_embed_url || null,
                     units: Array.isArray(r.units) ? r.units : []
                 })
             },
@@ -3613,6 +3641,80 @@
             `;
         }
 
+        // พื้นที่ฝัง Excel Online แบบสด (ต่อโครงการ) — เห็นตัวเลขเปลี่ยนตามไฟล์จริงเพราะเป็น iframe ตรงไปที่ไฟล์
+        function renderPlanExcelEmbedArea(projId) {
+            const container = document.getElementById('plan-excel-embed-area');
+            if (!container) return;
+
+            const project = projectsData.find(p => p.id === projId);
+            const isAdmin = !!currentUser && currentUser.role === 'ADMIN';
+
+            if (project && project.excelEmbedUrl) {
+                container.innerHTML = `
+                    <div class="relative w-full h-full rounded-xl overflow-hidden border-2 border-slate-200 shadow-lg" style="min-height: 260px;">
+                        <iframe src="${project.excelEmbedUrl}" class="w-full h-full" style="min-height: 260px; border: 0;" loading="lazy"></iframe>
+                        ${isAdmin ? `<button onclick="openExcelEmbedModal('${project.id}')" title="แก้ไขลิงก์ฝัง Excel" class="absolute top-2 right-2 bg-slate-900/80 hover:bg-slate-900 text-white w-7 h-7 rounded-lg flex items-center justify-center text-xs shadow"><i class="fa-solid fa-pen"></i></button>` : ''}
+                    </div>
+                `;
+            } else if (isAdmin && project) {
+                container.innerHTML = `
+                    <button onclick="openExcelEmbedModal('${project.id}')" class="w-full h-full min-h-[260px] rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/50 transition flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-blue-600">
+                        <i class="fa-solid fa-table-cells text-2xl"></i>
+                        <span class="text-xs font-semibold">+ ฝังตาราง Excel Online สด</span>
+                    </button>
+                `;
+            } else {
+                container.innerHTML = '';
+            }
+        }
+
+        function openExcelEmbedModal(projectId) {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่ตั้งค่าฝัง Excel ได้', 'rose');
+                return;
+            }
+            const project = projectsData.find(p => p.id === projectId);
+            if (!project) return;
+            document.getElementById('excel-embed-project-id').value = project.id;
+            document.getElementById('excel-embed-url-input').value = project.excelEmbedUrl || '';
+            document.getElementById('excel-embed-remove-btn').classList.toggle('hidden', !project.excelEmbedUrl);
+            openModal('excel-embed-modal');
+        }
+
+        function saveExcelEmbedUrl() {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่ตั้งค่าฝัง Excel ได้', 'rose');
+                return;
+            }
+            const projectId = document.getElementById('excel-embed-project-id').value;
+            const url = document.getElementById('excel-embed-url-input').value.trim();
+            const project = projectsData.find(p => p.id === projectId);
+            if (!project) return;
+
+            if (url && !/^https:\/\//i.test(url)) {
+                showNotification('กรุณาวางลิงก์ที่ขึ้นต้นด้วย https://', 'rose');
+                return;
+            }
+
+            project.excelEmbedUrl = url || null;
+            saveDataToDatabase();
+            refreshAllViews();
+            closeModal('excel-embed-modal');
+            showNotification('บันทึกลิงก์ฝัง Excel เรียบร้อยแล้ว');
+        }
+
+        function removeExcelEmbedUrl() {
+            if (!currentUser || currentUser.role !== 'ADMIN') return;
+            const projectId = document.getElementById('excel-embed-project-id').value;
+            const project = projectsData.find(p => p.id === projectId);
+            if (!project) return;
+            project.excelEmbedUrl = null;
+            saveDataToDatabase();
+            refreshAllViews();
+            closeModal('excel-embed-modal');
+            showNotification('ลบลิงก์ฝัง Excel เรียบร้อยแล้ว', 'amber');
+        }
+
         function getUnitPlanStatusList(filterProjId, today) {
             const totalSeq = masterSequences.length || 10;
             const todayStr = toISODateStr(today);
@@ -3698,7 +3800,9 @@
             const resolvedKeySet = new Set(actualEvents.map(e => `${e.unitId}|${e.seqIndex}`));
 
             // ---------- 1) ผังโครงการปักหมุด (อ่านอย่างเดียว, ย่อขนาด) ----------
-            renderPlanMasterPlanSummary(filterProjId !== 'ALL' ? filterProjId : (projectsData[0]?.id || null));
+            const planViewProjId = filterProjId !== 'ALL' ? filterProjId : (projectsData[0]?.id || null);
+            renderPlanMasterPlanSummary(planViewProjId);
+            renderPlanExcelEmbedArea(planViewProjId);
 
             // ---------- 2-4) ภาพรวมแผนงานทั้งโครงการ + รายละเอียดต่อแปลง ----------
             const unitStatusList = getUnitPlanStatusList(filterProjId, today);
@@ -3713,7 +3817,7 @@
             const summaryEl = document.getElementById('plan-overall-summary');
             if (summaryEl) {
                 summaryEl.innerHTML = `
-                    <div class="grid grid-cols-3 gap-3">
+                    <div class="grid grid-cols-3 lg:grid-cols-1 gap-3">
                         <div class="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-3 text-center">
                             <div class="text-[10px] text-slate-500 font-semibold uppercase">แผนทั้งหมด (PLAN)</div>
                             <div class="text-xl font-extrabold text-slate-800">${totalPlanned}</div>
