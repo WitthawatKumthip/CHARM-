@@ -385,11 +385,11 @@
                         <select id="plan-project-filter" onchange="renderConstructionPlanView()" class="border border-slate-200 rounded-xl px-3 py-1.5 font-medium outline-none focus:ring-2 focus:ring-blue-500"></select>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
                     <div id="plan-masterplan-area"></div>
                     <div id="plan-overall-summary"></div>
-                    <div id="plan-excel-embed-area"></div>
                 </div>
+                <div id="plan-excel-embed-area"></div>
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-4">
@@ -1090,9 +1090,9 @@
             <input type="hidden" id="excel-embed-project-id">
             <div class="space-y-2 text-xs">
                 <label class="block font-semibold text-slate-600 mb-1">ลิงก์ Embed จาก Excel Online</label>
-                <input type="text" id="excel-embed-url-input" placeholder="https://onedrive.live.com/embed?..." class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                <textarea id="excel-embed-url-input" rows="3" placeholder="วางลิงก์ https://... หรือจะวางโค้ด iframe ทั้งก้อนที่ Excel สร้างให้ก็ได้" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-mono text-[11px]"></textarea>
                 <p class="text-[10px] text-slate-400 leading-relaxed">
-                    วิธีหาลิงก์: เปิดไฟล์ใน Excel Online (Microsoft 365) → File → Share → Embed → กด Generate แล้วคัดลอกเฉพาะค่า <b>src="..."</b> จากโค้ด iframe ที่ได้มาวางที่นี่
+                    วิธีหาลิงก์: เปิดไฟล์ใน Excel Online (Microsoft 365) → File → Share → <b>ฝังเวิร์กบุ๊ก (Embed)</b> → กด Generate → คัดลอกโค้ดทั้งกล่องมาวางที่นี่ได้เลย ระบบจะดึงลิงก์ให้อัตโนมัติ
                 </p>
             </div>
             <div class="flex justify-between items-center pt-3 border-t border-slate-100">
@@ -3651,15 +3651,16 @@
 
             if (project && project.excelEmbedUrl) {
                 container.innerHTML = `
-                    <div class="relative w-full h-full rounded-xl overflow-hidden border-2 border-slate-200 shadow-lg" style="min-height: 260px;">
-                        <iframe src="${project.excelEmbedUrl}" class="w-full h-full" style="min-height: 260px; border: 0;" loading="lazy"></iframe>
+                    <div class="text-[11px] font-semibold text-slate-600 mb-1.5">ตารางสรุป Excel Online (สด)</div>
+                    <div class="relative w-full rounded-xl overflow-hidden border-2 border-slate-200 shadow-lg" style="height: 220px;">
+                        <iframe src="${project.excelEmbedUrl}" class="w-full h-full" style="border: 0;" loading="lazy"></iframe>
                         ${isAdmin ? `<button onclick="openExcelEmbedModal('${project.id}')" title="แก้ไขลิงก์ฝัง Excel" class="absolute top-2 right-2 bg-slate-900/80 hover:bg-slate-900 text-white w-7 h-7 rounded-lg flex items-center justify-center text-xs shadow"><i class="fa-solid fa-pen"></i></button>` : ''}
                     </div>
                 `;
             } else if (isAdmin && project) {
                 container.innerHTML = `
-                    <button onclick="openExcelEmbedModal('${project.id}')" class="w-full h-full min-h-[260px] rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/50 transition flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-blue-600">
-                        <i class="fa-solid fa-table-cells text-2xl"></i>
+                    <button onclick="openExcelEmbedModal('${project.id}')" class="w-full h-[90px] rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center justify-center gap-2 text-slate-400 hover:text-blue-600">
+                        <i class="fa-solid fa-table-cells text-lg"></i>
                         <span class="text-xs font-semibold">+ ฝังตาราง Excel Online สด</span>
                     </button>
                 `;
@@ -3681,18 +3682,30 @@
             openModal('excel-embed-modal');
         }
 
+        // รองรับทั้งกรณีวางแค่ลิงก์ URL ตรงๆ และกรณีวางทั้งโค้ด <iframe ...src="..."...> มาทั้งก้อน (ดึงเฉพาะ src ให้อัตโนมัติ)
+        function extractEmbedSrcUrl(input) {
+            const trimmed = (input || '').trim();
+            const match = trimmed.match(/src\s*=\s*["']([^"']+)["']/i);
+            const raw = match ? match[1] : trimmed;
+            // ถอดรหัส HTML entity เช่น &amp; -> & ที่ติดมาจากโค้ด iframe ดิบ ให้ได้ URL ที่สะอาด
+            const decoder = document.createElement('textarea');
+            decoder.innerHTML = raw;
+            return decoder.value;
+        }
+
         function saveExcelEmbedUrl() {
             if (!currentUser || currentUser.role !== 'ADMIN') {
                 showNotification('เฉพาะ ADMIN เท่านั้นที่ตั้งค่าฝัง Excel ได้', 'rose');
                 return;
             }
             const projectId = document.getElementById('excel-embed-project-id').value;
-            const url = document.getElementById('excel-embed-url-input').value.trim();
+            const rawInput = document.getElementById('excel-embed-url-input').value;
+            const url = extractEmbedSrcUrl(rawInput);
             const project = projectsData.find(p => p.id === projectId);
             if (!project) return;
 
             if (url && !/^https:\/\//i.test(url)) {
-                showNotification('กรุณาวางลิงก์ที่ขึ้นต้นด้วย https://', 'rose');
+                showNotification('กรุณาวางลิงก์ที่ขึ้นต้นด้วย https:// หรือวางโค้ด iframe ทั้งก้อนก็ได้ ระบบจะดึงลิงก์ให้เอง', 'rose');
                 return;
             }
 
@@ -3817,7 +3830,7 @@
             const summaryEl = document.getElementById('plan-overall-summary');
             if (summaryEl) {
                 summaryEl.innerHTML = `
-                    <div class="grid grid-cols-3 lg:grid-cols-1 gap-3">
+                    <div class="grid grid-cols-3 gap-3">
                         <div class="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-3 text-center">
                             <div class="text-[10px] text-slate-500 font-semibold uppercase">แผนทั้งหมด (PLAN)</div>
                             <div class="text-xl font-extrabold text-slate-800">${totalPlanned}</div>
