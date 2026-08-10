@@ -5005,8 +5005,13 @@
                                 </div>
                                 <p class="text-[11px] text-slate-400 mt-0.5">จำนวน ${p.units.length} แปลงบ้าน • รหัสโครงการ ${p.id}</p>
                             </div>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <span class="text-[10px] text-slate-400 mr-1">เลื่อนดูตาราง</span>
+                                <button type="button" onclick="scrollHistoryTable('${p.id}', -400)" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 flex items-center justify-center transition"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                                <button type="button" onclick="scrollHistoryTable('${p.id}', 400)" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-blue-100 text-slate-600 hover:text-blue-600 flex items-center justify-center transition"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                            </div>
                         </div>
-                        
+
                         <!-- Top Scrollbar Sync Container -->
                         <div id="top-scroll-container-${p.id}" class="overflow-x-auto custom-scrollbar mb-2" onscroll="syncScroll('top', '${p.id}')">
                             <div id="top-scroll-dummy-${p.id}" style="width: 1800px; height: 1px;"></div>
@@ -5108,6 +5113,13 @@
                 e.preventDefault();
                 main.scrollLeft += e.deltaY;
             }
+        }
+
+        // ปุ่มลูกศรเลื่อนตาราง (มองเห็นชัดเจนเสมอ ต่างจากสโครลบาร์ที่บางบราวเซอร์ซ่อนไว้)
+        function scrollHistoryTable(projId, deltaX) {
+            const main = document.getElementById(`main-table-container-${projId}`);
+            if (!main) return;
+            main.scrollBy({ left: deltaX, behavior: 'smooth' });
         }
 
         function renderPhotosGallery() {
