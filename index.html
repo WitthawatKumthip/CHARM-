@@ -3628,10 +3628,10 @@
 
                             return `
                                 <div class="absolute pin-marker z-20" style="left: ${u.pinX}%; top: ${u.pinY}%;" title="${u.name} (${statusLabel})">
-                                    <div class="${pinColor} border-2 rounded-full px-1 py-0.5 sm:px-2.5 sm:py-1 text-[7px] sm:text-[10px] font-extrabold flex items-center gap-0.5 sm:space-x-1 shadow-md whitespace-nowrap">
-                                        <i class="fa-solid fa-house text-[6px] sm:text-[9px]"></i>
+                                    <div class="${pinColor} border rounded-full px-0.5 py-[1px] sm:px-1.5 sm:py-0.5 text-[5px] sm:text-[7px] font-extrabold flex items-center gap-0.5 shadow-md whitespace-nowrap">
+                                        <i class="fa-solid fa-house text-[4px] sm:text-[6px]"></i>
                                         <span>${u.name}</span>
-                                        <span class="hidden sm:inline-block bg-black/30 rounded-full px-1.5 py-0.2 text-[9px]">${uProg}%</span>
+                                        <span class="hidden sm:inline-block bg-black/30 rounded-full px-0.5 text-[6px]">${uProg}%</span>
                                     </div>
                                 </div>
                             `;
@@ -3648,6 +3648,12 @@
 
             const project = projectsData.find(p => p.id === projId);
             const isAdmin = !!currentUser && currentUser.role === 'ADMIN';
+
+            // refreshAllViews() เรียกฟังก์ชันนี้ทุกครั้งที่มีการบันทึกข้อมูลอื่นในแอป — ถ้าไม่กันไว้
+            // จะสร้าง iframe ใหม่ทุกครั้งจนตาราง Excel โหลดใหม่ตลอด ทั้งที่ลิงก์ไม่ได้เปลี่ยนเลย
+            const stateKey = `${projId || ''}|${project ? project.excelEmbedUrl || '' : ''}|${isAdmin}`;
+            if (container.dataset.embedState === stateKey) return;
+            container.dataset.embedState = stateKey;
 
             if (project && project.excelEmbedUrl) {
                 container.innerHTML = `
