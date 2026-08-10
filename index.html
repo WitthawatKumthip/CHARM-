@@ -526,7 +526,7 @@
         <!-- VIEW 4: SEQUENCE HISTORY -->
         <div id="view-seq-history" class="hidden space-y-6">
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-4">
-                <div class="flex flex-col md:flex-row justify-between md:items-center gap-3">
+                <div class="space-y-3">
                     <div>
                         <h3 class="font-bold text-slate-800 text-sm">ประวัติวันแล้วเสร็จ Sequence ประจำแปลงบ้าน (ระบุผู้บันทึก)</h3>
                         <p class="text-xs text-slate-500">ตารางตรวจสอบวันที่บันทึกรูป สถานะการอนุมัติ และ Username ผู้บันทึก Sequence 1 - 10 รายแปลงบ้าน</p>
@@ -5012,7 +5012,7 @@
                             <div id="top-scroll-dummy-${p.id}" style="width: 1800px; height: 1px;"></div>
                         </div>
 
-                        <div id="main-table-container-${p.id}" class="overflow-x-auto custom-scrollbar" onscroll="syncScroll('main', '${p.id}')">
+                        <div id="main-table-container-${p.id}" class="overflow-x-auto custom-scrollbar" onscroll="syncScroll('main', '${p.id}')" onwheel="handleHorizontalWheelScroll(event, '${p.id}')">
                             <table class="w-full text-left border-collapse min-w-[1800px]">
                                 <thead>
                                     <tr class="bg-slate-50 text-[11px] font-bold text-slate-600 border-b border-slate-200 uppercase">
@@ -5097,6 +5097,16 @@
                 main.scrollLeft = top.scrollLeft;
             } else if (main && top) {
                 top.scrollLeft = main.scrollLeft;
+            }
+        }
+
+        // ให้เลื่อนเมาส์วีล (สโครลปกติ) เพื่อดูตารางซ้าย-ขวาได้เลย ไม่ต้องหาสโครลบาร์บางๆ
+        function handleHorizontalWheelScroll(e, projId) {
+            const main = document.getElementById(`main-table-container-${projId}`);
+            if (!main) return;
+            if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                e.preventDefault();
+                main.scrollLeft += e.deltaY;
             }
         }
 
