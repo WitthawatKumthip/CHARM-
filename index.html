@@ -385,11 +385,11 @@
                         <select id="plan-project-filter" onchange="renderConstructionPlanView()" class="border border-slate-200 rounded-xl px-3 py-1.5 font-medium outline-none focus:ring-2 focus:ring-blue-500"></select>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+                <div class="grid grid-cols-1 lg:grid-cols-[1.3fr_0.8fr_1.1fr] gap-4">
                     <div id="plan-masterplan-area"></div>
                     <div id="plan-overall-summary"></div>
+                    <div id="plan-excel-embed-area"></div>
                 </div>
-                <div id="plan-excel-embed-area"></div>
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-4">
@@ -3651,16 +3651,18 @@
 
             if (project && project.excelEmbedUrl) {
                 container.innerHTML = `
-                    <div class="text-[11px] font-semibold text-slate-600 mb-1.5">ตารางสรุป Excel Online (สด)</div>
-                    <div class="relative w-full rounded-xl overflow-hidden border-2 border-slate-200 shadow-lg" style="height: 220px;">
-                        <iframe src="${project.excelEmbedUrl}" class="w-full h-full" style="border: 0;" loading="lazy"></iframe>
-                        ${isAdmin ? `<button onclick="openExcelEmbedModal('${project.id}')" title="แก้ไขลิงก์ฝัง Excel" class="absolute top-2 right-2 bg-slate-900/80 hover:bg-slate-900 text-white w-7 h-7 rounded-lg flex items-center justify-center text-xs shadow"><i class="fa-solid fa-pen"></i></button>` : ''}
+                    <div class="h-full flex flex-col gap-1.5">
+                        <div class="text-[11px] font-semibold text-slate-600">ตารางสรุป Excel Online (สด)</div>
+                        <div class="relative w-full flex-1 rounded-xl overflow-hidden border-2 border-slate-200 shadow-lg" style="min-height: 220px;">
+                            <iframe src="${project.excelEmbedUrl}" class="w-full h-full" style="border: 0;" loading="lazy"></iframe>
+                            ${isAdmin ? `<button onclick="openExcelEmbedModal('${project.id}')" title="แก้ไขลิงก์ฝัง Excel" class="absolute top-2 right-2 bg-slate-900/80 hover:bg-slate-900 text-white w-7 h-7 rounded-lg flex items-center justify-center text-xs shadow"><i class="fa-solid fa-pen"></i></button>` : ''}
+                        </div>
                     </div>
                 `;
             } else if (isAdmin && project) {
                 container.innerHTML = `
-                    <button onclick="openExcelEmbedModal('${project.id}')" class="w-full h-[90px] rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/50 transition flex items-center justify-center gap-2 text-slate-400 hover:text-blue-600">
-                        <i class="fa-solid fa-table-cells text-lg"></i>
+                    <button onclick="openExcelEmbedModal('${project.id}')" class="w-full h-full min-h-[220px] rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/50 transition flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-blue-600">
+                        <i class="fa-solid fa-table-cells text-2xl"></i>
                         <span class="text-xs font-semibold">+ ฝังตาราง Excel Online สด</span>
                     </button>
                 `;
@@ -3830,18 +3832,18 @@
             const summaryEl = document.getElementById('plan-overall-summary');
             if (summaryEl) {
                 summaryEl.innerHTML = `
-                    <div class="grid grid-cols-3 gap-3">
-                        <div class="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-3 text-center">
+                    <div class="h-full flex flex-col justify-between gap-3">
+                        <div class="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-3 text-center flex-1 flex flex-col justify-center">
                             <div class="text-[10px] text-slate-500 font-semibold uppercase">แผนทั้งหมด (PLAN)</div>
                             <div class="text-xl font-extrabold text-slate-800">${totalPlanned}</div>
                             <div class="text-[10px] text-slate-400">Sequence</div>
                         </div>
-                        <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-3 text-center">
+                        <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-3 text-center flex-1 flex flex-col justify-center">
                             <div class="text-[10px] text-blue-600 font-semibold uppercase">ทำได้จริง (ACT)</div>
                             <div class="text-xl font-extrabold text-blue-700">${totalActual}</div>
                             <div class="text-[10px] text-blue-400">Sequence</div>
                         </div>
-                        <div class="bg-gradient-to-br ${schedulePct >= 100 ? 'from-emerald-50 to-emerald-100 border-emerald-200' : (schedulePct >= 70 ? 'from-amber-50 to-amber-100 border-amber-200' : 'from-rose-50 to-rose-100 border-rose-200')} border rounded-xl p-3 text-center">
+                        <div class="bg-gradient-to-br ${schedulePct >= 100 ? 'from-emerald-50 to-emerald-100 border-emerald-200' : (schedulePct >= 70 ? 'from-amber-50 to-amber-100 border-amber-200' : 'from-rose-50 to-rose-100 border-rose-200')} border rounded-xl p-3 text-center flex-1 flex flex-col justify-center">
                             <div class="text-[10px] font-semibold uppercase ${scheduleColor}">คืบหน้าตามแผน</div>
                             <div class="text-xl font-extrabold ${scheduleColor}">${schedulePct}%</div>
                             <div class="text-[10px] text-slate-400">เทียบวันที่ควรถึงวันนี้</div>
