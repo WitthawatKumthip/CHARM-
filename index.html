@@ -3927,7 +3927,7 @@
                 `;
             }
 
-            // การ์ดสไตล์เดียวกับภาพรวม สำหรับสัปดาห์นี้/สัปดาห์หน้า — แทนที่ ACT ด้วย "รายการที่ยังไม่สรุป"
+            // การ์ดสไตล์เดียวกับภาพรวม สำหรับสัปดาห์นี้/สัปดาห์หน้า — แทนที่ ACT ด้วย "ยังไม่เสร็จ/เสร็จแล้ว"
             function buildWeekCard(weekPlanned) {
                 const total = weekPlanned.length;
                 const unresolved = weekPlanned.filter(e => !resolvedKeySet.has(`${e.unitId}|${e.seqIndex}`));
@@ -3943,12 +3943,12 @@
                             <div class="text-[10px] text-slate-400">Sequence</div>
                         </div>
                         <div class="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-xl p-3 text-center">
-                            <div class="text-[10px] text-amber-600 font-semibold uppercase">รายการที่ยังไม่สรุป</div>
+                            <div class="text-[10px] text-amber-600 font-semibold uppercase">ยังไม่เสร็จ</div>
                             <div class="text-xl font-extrabold text-amber-700">${unresolved.length}</div>
                             <div class="text-[10px] text-amber-400">Sequence</div>
                         </div>
                         <div class="bg-gradient-to-br ${pct >= 100 ? 'from-emerald-50 to-emerald-100 border-emerald-200' : (pct >= 50 ? 'from-amber-50 to-amber-100 border-amber-200' : 'from-rose-50 to-rose-100 border-rose-200')} border rounded-xl p-3 text-center">
-                            <div class="text-[10px] font-semibold uppercase ${pctColor}">สรุปแล้ว</div>
+                            <div class="text-[10px] font-semibold uppercase ${pctColor}">เสร็จแล้ว</div>
                             <div class="text-xl font-extrabold ${pctColor}">${pct}%</div>
                             <div class="text-[10px] text-slate-400">ของแผนช่วงนี้</div>
                         </div>
