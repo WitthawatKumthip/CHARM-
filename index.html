@@ -551,7 +551,9 @@
                     </div>
                     <div class="flex items-center space-x-2 text-xs">
                         <label class="font-medium text-slate-600">กรองตามโครงการ:</label>
-                        <select id="photos-project-filter" onchange="renderPhotosGallery()" class="border border-slate-200 rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500"></select>
+                        <select id="photos-project-filter" onchange="onPhotosProjectChange()" class="border border-slate-200 rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500"></select>
+                        <label class="font-medium text-slate-600">Block:</label>
+                        <select id="photos-unit-filter" onchange="renderPhotosGallery()" class="border border-slate-200 rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500"></select>
                     </div>
                 </div>
                 <div id="photos-gallery-container" class="space-y-6"></div>
@@ -4202,6 +4204,7 @@
             onProcurementProjectChange();
             onIssueProjectChange();
             onReportProjectChange();
+            onPhotosProjectChange();
         }
 
         function renderSitePlanView() {
@@ -4500,6 +4503,26 @@
                     infoEl.textContent = `วันที่ต้องใช้: ${reqDateVal} | กำหนดสั่งซื้อล่วงหน้า (${leadDays} วัน): ${orderDateStr}`;
                 }
             }
+        }
+
+        function onPhotosProjectChange() {
+            const projId = document.getElementById('photos-project-filter')?.value || 'ALL';
+            const unitSelect = document.getElementById('photos-unit-filter');
+            if (!unitSelect) return;
+
+            const project = projectsData.find(p => p.id === projId);
+            const options = '<option value="ALL">-- ทุกแปลง --</option>' +
+                (project && project.units ? project.units.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '');
+
+            // คงค่า Block ที่เลือกไว้เดิม ถ้ายังใช้ได้กับโครงการปัจจุบัน ไม่ให้เด้งกลับ "ทุกแปลง" ทุกครั้งที่ refresh
+            if (unitSelect.innerHTML !== options) {
+                const prevValue = unitSelect.value;
+                unitSelect.innerHTML = options;
+                const stillValid = project && project.units && project.units.some(u => u.id === prevValue);
+                unitSelect.value = stillValid ? prevValue : 'ALL';
+            }
+
+            renderPhotosGallery();
         }
 
         function onIssueProjectChange() {
@@ -5126,6 +5149,7 @@
         function renderPhotosGallery() {
             const container = document.getElementById('photos-gallery-container');
             const filterProjId = document.getElementById('photos-project-filter')?.value || 'ALL';
+            const filterUnitId = document.getElementById('photos-unit-filter')?.value || 'ALL';
             if (!container) return;
 
             let filteredProjects = projectsData;
@@ -5150,7 +5174,8 @@
                 `;
 
                 if (p.units && p.units.length > 0) {
-                    p.units.forEach(u => {
+                    const unitsToShow = filterUnitId !== 'ALL' ? p.units.filter(u => u.id === filterUnitId) : p.units;
+                    unitsToShow.forEach(u => {
                         const unitRecords = projRecords.filter(r => r.unitId === u.id);
                         if (unitRecords.length === 0) return;
 
