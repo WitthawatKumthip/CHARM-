@@ -1,9 +1,13 @@
 // รันทุกวันตาม cron (ตั้งค่าใน SQL Editor ด้วย pg_cron) — เช็ค 2 เรื่อง แล้วส่งสรุปเข้ากลุ่ม LINE ของทีม:
 // 1) แปลงบ้านที่ครบกำหนดวันเสร็จ (endDate) แล้ว แต่ Sequence ยังไม่ครบ/ไม่อนุมัติ
 // 2) รายการสั่งของที่ใกล้ถึงวันที่ต้องสั่ง (order_due_date) แล้วยังไม่ได้สั่ง (status = pending)
+// ข้ามการแจ้งเตือนทั้งหมดในวันอาทิตย์ และวันหยุดที่กำหนดไว้ใน HOLIDAYS
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const LEAD_DAYS_WARN = 1; // แจ้งเตือนล่วงหน้ากี่วันก่อนถึงกำหนดสั่งของ — ปรับเลขนี้ได้ตามต้องการ
+
+// วันหยุดที่ไม่ต้องแจ้งเตือนใดๆ เลย (รูปแบบ YYYY-MM-DD ตามปฏิทินสากล) — เพิ่ม/ลบวันที่ได้ตามต้องการ
+const HOLIDAYS = ["2026-08-12", "2026-10-13", "2026-12-05", "2026-12-31"];
 
 Deno.serve(async (_req) => {
   const supabase = createClient(
@@ -11,6 +15,16 @@ Deno.serve(async (_req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
   const LINE_TOKEN = Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN")!;
+
+  // แปลงเวลาปัจจุบันเป็นเวลาไทย (UTC+7) เพื่อเช็ควันอาทิตย์/วันหยุดให้ตรง
+  const nowThai = new Date(Date.now() + 7 * 60 * 60 * 1000);
+  const dayOfWeek = nowThai.getUTCDay(); // 0 = อาทิตย์
+  const todayThaiStr = nowThai.toISOString().split("T")[0];
+
+  if (dayOfWeek === 0 || HOLIDAYS.includes(todayThaiStr)) {
+    console.log(`วันหยุด (${todayThaiStr}) — ข้ามการแจ้งเตือนทั้งหมด`);
+    return new Response("Holiday - no notifications", { status: 200 });
+  }
 
   const { data: settingsRows } = await supabase
     .from("app_settings")

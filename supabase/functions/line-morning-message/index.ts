@@ -1,10 +1,13 @@
 // รันทุกวันตาม cron เวลา 07:30 น. (ตั้งค่าใน SQL Editor ด้วย pg_cron):
-// - ทักทายตอนเช้า จันทร์-เสาร์ (หยุดส่งวันอาทิตย์)
+// - ทักทายตอนเช้า จันทร์-เสาร์ (หยุดส่งวันอาทิตย์ และวันหยุดที่กำหนดไว้ใน HOLIDAYS)
 // - แจ้งเตือนวันเบิกเงิน เฉพาะวันที่ 1 และ 15 ของทุกเดือน (ส่งเพิ่มจากทักทาย)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GREETING_TEXT = "สวัสดีเช้าวันใหม่ขอให้มีความสุขกับการทำงานทุกคนนะฮะ";
 const PAYMENT_REMINDER_TEXT = "วันนี้เป็นวันเบิกเงินประจำเดือนพี่ๆ อย่าลืมตามเอกสารและตรวจงานให้ผู้รับจ้างด้วยนะฮะ";
+
+// วันหยุดที่ไม่ต้องแจ้งเตือนใดๆ เลย (รูปแบบ YYYY-MM-DD ตามปฏิทินสากล) — เพิ่ม/ลบวันที่ได้ตามต้องการ
+const HOLIDAYS = ["2026-08-12", "2026-10-13", "2026-12-05", "2026-12-31"];
 
 async function pushLine(token: string, groupId: string, text: string) {
   const res = await fetch("https://api.line.me/v2/bot/message/push", {
@@ -47,6 +50,13 @@ Deno.serve(async (_req) => {
   const nowThai = new Date(Date.now() + 7 * 60 * 60 * 1000);
   const dayOfWeek = nowThai.getUTCDay(); // 0 = อาทิตย์, 1 = จันทร์ ... 6 = เสาร์
   const dayOfMonth = nowThai.getUTCDate();
+  const todayStr = nowThai.toISOString().split("T")[0];
+
+  // วันอาทิตย์ หรือวันหยุดที่กำหนดไว้ — ไม่ต้องแจ้งเตือนอะไรเลยทั้งวัน
+  if (dayOfWeek === 0 || HOLIDAYS.includes(todayStr)) {
+    console.log(`วันหยุด (${todayStr}) — ข้ามการแจ้งเตือนทั้งหมด`);
+    return new Response("Holiday - no notifications", { status: 200 });
+  }
 
   const results: string[] = [];
 
