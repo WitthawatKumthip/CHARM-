@@ -4669,19 +4669,20 @@
                 return;
             }
 
+            // โฟร์แมนบันทึก Sequence ถัดไปต่อได้เลยไม่ต้องรอ PM กดอนุมัติ Sequence ก่อนหน้า
+            // แต่ยังคงบังคับลำดับ ห้ามข้าม Sequence ที่ยังไม่เคยบันทึกว่าเสร็จเลย
             if (seqVal > 1) {
                 const prevSeqIndex = seqVal - 1;
-                const prevSeqApproved = sequenceRecords.some(r => 
-                    r.projectId === projId && 
-                    r.unitId === unitId && 
-                    r.seqIndex === prevSeqIndex && 
-                    r.approvalStatus === 'approved' &&
+                const prevSeqRecorded = sequenceRecords.some(r =>
+                    r.projectId === projId &&
+                    r.unitId === unitId &&
+                    r.seqIndex === prevSeqIndex &&
                     r.status === 'completed'
                 );
 
-                if (!prevSeqApproved) {
+                if (!prevSeqRecorded) {
                     const prevSeqTitle = masterSequences[prevSeqIndex - 1] || `Sequence ${prevSeqIndex}`;
-                    showNotification(`ไม่สามารถบันทึก Sequence ${seqVal} ได้! เนื่องจาก Sequence ${prevSeqIndex} (${prevSeqTitle}) ยังไม่ได้รับการอนุมัติ (Approved) จากวิศวกร/PM`, 'rose');
+                    showNotification(`ไม่สามารถบันทึก Sequence ${seqVal} ได้! เนื่องจากยังไม่ได้บันทึกงาน Sequence ${prevSeqIndex} (${prevSeqTitle}) ว่าเสร็จเรียบร้อยแล้ว`, 'rose');
                     return;
                 }
             }
