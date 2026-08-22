@@ -4763,9 +4763,14 @@
             const unitSelect = document.getElementById('record-unit-select');
             if (!unitSelect) return;
 
+            // คงค่าแปลงบ้านที่เลือกไว้เดิม ถ้ายังอยู่ในโครงการเดียวกัน จะได้ไม่เด้งกลับทุกครั้งที่บันทึกงาน
+            const prevUnitValue = unitSelect.value;
             const project = projectsData.find(p => p.id === projId);
             if (project && project.units && project.units.length > 0) {
                 unitSelect.innerHTML = project.units.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+                if (prevUnitValue && project.units.some(u => u.id === prevUnitValue)) {
+                    unitSelect.value = prevUnitValue;
+                }
             } else {
                 unitSelect.innerHTML = '<option value="">-- ยังไม่มีแปลงบ้าน --</option>';
             }
@@ -4812,9 +4817,14 @@
             const unitSelect = document.getElementById('procurement-unit-select');
             if (!unitSelect) return;
 
+            // คงค่าแปลงบ้านที่เลือกไว้เดิม ถ้ายังอยู่ในโครงการเดียวกัน จะได้ไม่เด้งกลับทุกครั้งที่บันทึก
+            const prevUnitValue = unitSelect.value;
             const project = projectsData.find(p => p.id === projId);
             if (project && project.units && project.units.length > 0) {
                 unitSelect.innerHTML = project.units.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+                if (prevUnitValue && project.units.some(u => u.id === prevUnitValue)) {
+                    unitSelect.value = prevUnitValue;
+                }
             } else {
                 unitSelect.innerHTML = '<option value="">-- ยังไม่มีแปลงบ้าน --</option>';
             }
@@ -5046,18 +5056,25 @@
 
             // โฟร์แมนบันทึก Sequence ถัดไปต่อได้เลยไม่ต้องรอ PM กดอนุมัติ Sequence ก่อนหน้า
             // แต่ยังคงบังคับลำดับ ห้ามข้าม Sequence ที่ยังไม่เคยบันทึกว่าเสร็จเลย
+            // ยกเว้น Sequence 4 และ 8 ซึ่งเป็นจุดตรวจสำคัญ ต้องรอ PM กดอนุมัติก่อนถึงจะบันทึก Sequence ถัดไปได้
+            const APPROVAL_GATE_SEQUENCES = [4, 8];
             if (seqVal > 1) {
                 const prevSeqIndex = seqVal - 1;
+                const requiresApproval = APPROVAL_GATE_SEQUENCES.includes(prevSeqIndex);
                 const prevSeqRecorded = sequenceRecords.some(r =>
                     r.projectId === projId &&
                     r.unitId === unitId &&
                     r.seqIndex === prevSeqIndex &&
-                    r.status === 'completed'
+                    r.status === 'completed' &&
+                    (!requiresApproval || r.approvalStatus === 'approved')
                 );
 
                 if (!prevSeqRecorded) {
                     const prevSeqTitle = masterSequences[prevSeqIndex - 1] || `Sequence ${prevSeqIndex}`;
-                    showNotification(`ไม่สามารถบันทึก Sequence ${seqVal} ได้! เนื่องจากยังไม่ได้บันทึกงาน Sequence ${prevSeqIndex} (${prevSeqTitle}) ว่าเสร็จเรียบร้อยแล้ว`, 'rose');
+                    const msg = requiresApproval
+                        ? `ไม่สามารถบันทึก Sequence ${seqVal} ได้! Sequence ${prevSeqIndex} (${prevSeqTitle}) เป็นจุดตรวจสำคัญ ต้องรอ PM กดอนุมัติก่อนจึงจะบันทึกต่อได้`
+                        : `ไม่สามารถบันทึก Sequence ${seqVal} ได้! เนื่องจากยังไม่ได้บันทึกงาน Sequence ${prevSeqIndex} (${prevSeqTitle}) ว่าเสร็จเรียบร้อยแล้ว`;
+                    showNotification(msg, 'rose');
                     return;
                 }
             }
