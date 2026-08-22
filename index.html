@@ -30,6 +30,29 @@
             z-index: 30;
         }
 
+        /* ลายน้ำโลโก้ CHARM จางๆ กลางหน้า Dashboard */
+        #view-dashboard {
+            position: relative;
+            z-index: 0;
+        }
+        #view-dashboard::before {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 480px;
+            max-width: 70vw;
+            height: 220px;
+            transform: translate(-50%, -50%);
+            background-image: url('charm-watermark.png');
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: contain;
+            opacity: 0.06;
+            z-index: -1;
+            pointer-events: none;
+        }
+
         /* PRINT & EXPORT PDF A4 STYLING OPTIMIZATIONS */
         @media print {
             @page {
