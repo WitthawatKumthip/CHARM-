@@ -45,13 +45,14 @@ Deno.serve(async (_req) => {
   warnDate.setDate(warnDate.getDate() + LEAD_DAYS_WARN);
   const warnDateStr = warnDate.toISOString().split("T")[0];
 
-  // 1) แปลงบ้านล่าช้ากว่ากำหนด
+  // 1) แปลงบ้านล่าช้ากว่ากำหนด — จัดกลุ่มตามโครงการ
   const { data: projects } = await supabase.from("projects").select("id, name, units");
   const { data: records } = await supabase
     .from("sequence_records")
     .select("project_id, unit_id, seq_index, approval_status, status");
 
-  const lateUnits: string[] = [];
+  const lateByProject = new Map<string, { unitName: string; done: number; total: number; daysLate: number }[]>();
+  let lateUnitsCount = 0;
   for (const p of projects || []) {
     const units = Array.isArray(p.units) ? p.units : [];
     for (const u of units) {
@@ -68,40 +69,118 @@ Deno.serve(async (_req) => {
           .map((r) => r.seq_index)
       );
       if (approvedSeqSet.size < totalSeq) {
-        lateUnits.push(
-          `• ${p.name} — ${u.name} (ครบกำหนด ${u.endDate}, คืบหน้า ${approvedSeqSet.size}/${totalSeq})`
+        const daysLate = Math.floor(
+          (new Date(today).getTime() - new Date(u.endDate).getTime()) / (24 * 60 * 60 * 1000)
         );
+        if (!lateByProject.has(p.name)) lateByProject.set(p.name, []);
+        lateByProject.get(p.name)!.push({ unitName: u.name, done: approvedSeqSet.size, total: totalSeq, daysLate });
+        lateUnitsCount++;
       }
     }
   }
 
-  // 2) รายการสั่งของที่ใกล้/เลยกำหนดแล้วยังไม่สั่ง
+  // 2) รายการสั่งของที่ใกล้/เลยกำหนดแล้วยังไม่สั่ง — จัดกลุ่มตามโครงการ
   const { data: procurements } = await supabase
     .from("procurements")
     .select("name, project_id, order_due_date, status");
 
   const projectNameMap = new Map((projects || []).map((p) => [p.id, p.name]));
-  const dueProcurements: string[] = [];
+  const procByProject = new Map<string, { name: string; overdue: boolean; daysOverdue: number; dueToday: boolean }[]>();
+  let dueProcCount = 0;
   for (const item of procurements || []) {
     if (item.status !== "pending" || !item.order_due_date) continue;
     if (item.order_due_date <= warnDateStr) {
-      const tag = item.order_due_date < today ? "เลยกำหนดแล้ว" : `กำหนด ${item.order_due_date}`;
-      dueProcurements.push(`• ${item.name} (${projectNameMap.get(item.project_id) || "-"}) — ${tag}`);
+      const projName = projectNameMap.get(item.project_id) || "-";
+      const overdue = item.order_due_date < today;
+      const dueToday = item.order_due_date === today;
+      const daysOverdue = overdue
+        ? Math.floor((new Date(today).getTime() - new Date(item.order_due_date).getTime()) / (24 * 60 * 60 * 1000))
+        : 0;
+      if (!procByProject.has(projName)) procByProject.set(projName, []);
+      procByProject.get(projName)!.push({ name: item.name, overdue, daysOverdue, dueToday });
+      dueProcCount++;
     }
   }
 
-  if (lateUnits.length === 0 && dueProcurements.length === 0) {
+  if (lateUnitsCount === 0 && dueProcCount === 0) {
     console.log("ไม่มีรายการต้องแจ้งเตือนวันนี้");
     return new Response("Nothing to notify", { status: 200 });
   }
 
-  let msg = "📋 สรุปแจ้งเตือน BuildTrack ประจำวัน\n";
-  if (lateUnits.length > 0) {
-    msg += `\n🔴 แปลงบ้านล่าช้ากว่ากำหนด (${lateUnits.length} แปลง):\n${lateUnits.join("\n")}\n`;
+  // สร้างข้อความแบบ Flex Message เพื่อให้กำหนดขนาดตัวอักษรให้เล็กลงได้ (ข้อความธรรมดาของ LINE ปรับขนาดตัวอักษรไม่ได้)
+  let altText = "📋 สรุปแจ้งเตือน BuildTrack ประจำวัน";
+  if (lateUnitsCount > 0) altText += ` | ล่าช้า ${lateUnitsCount} แปลง`;
+  if (dueProcCount > 0) altText += ` | สั่งของ ${dueProcCount} รายการ`;
+  altText = altText.slice(0, 400);
+
+  const bodyContents: Record<string, unknown>[] = [
+    { type: "text", text: "📋 สรุปแจ้งเตือน BuildTrack ประจำวัน", weight: "bold", size: "sm", color: "#111827", wrap: true },
+  ];
+
+  if (lateUnitsCount > 0) {
+    bodyContents.push({ type: "separator", margin: "md" });
+    bodyContents.push({
+      type: "text",
+      text: `🔴 แปลงบ้านล่าช้ากว่ากำหนด (${lateUnitsCount})`,
+      weight: "bold",
+      size: "12px",
+      color: "#e11d48",
+      margin: "md",
+    });
+    for (const [projName, items] of lateByProject) {
+      bodyContents.push({ type: "text", text: projName, weight: "bold", size: "11px", color: "#374151", margin: "sm", wrap: true });
+      for (const it of items) {
+        bodyContents.push({
+          type: "text",
+          text: `• ${it.unitName} — คืบหน้า ${it.done}/${it.total} (เกิน ${it.daysLate} วัน)`,
+          size: "11px",
+          color: "#4b5563",
+          wrap: true,
+        });
+      }
+    }
   }
-  if (dueProcurements.length > 0) {
-    msg += `\n📦 รายการสั่งของที่ต้องดำเนินการ (${dueProcurements.length} รายการ):\n${dueProcurements.join("\n")}\n`;
+
+  if (dueProcCount > 0) {
+    bodyContents.push({ type: "separator", margin: "md" });
+    bodyContents.push({
+      type: "text",
+      text: `📦 รายการสั่งของที่ต้องดำเนินการ (${dueProcCount})`,
+      weight: "bold",
+      size: "12px",
+      color: "#d97706",
+      margin: "md",
+    });
+    for (const [projName, items] of procByProject) {
+      bodyContents.push({ type: "text", text: projName, weight: "bold", size: "11px", color: "#374151", margin: "sm", wrap: true });
+      for (const it of items) {
+        const tag = it.overdue ? `⚠️ เกิน ${it.daysOverdue} วัน` : it.dueToday ? "📌 วันนี้" : "🗓 พรุ่งนี้";
+        bodyContents.push({
+          type: "text",
+          text: `• ${it.name} — ${tag}`,
+          size: "11px",
+          color: "#4b5563",
+          wrap: true,
+        });
+      }
+    }
   }
+
+  const flexMessage = {
+    type: "flex",
+    altText,
+    contents: {
+      type: "bubble",
+      size: "giga",
+      body: {
+        type: "box",
+        layout: "vertical",
+        spacing: "xs",
+        paddingAll: "16px",
+        contents: bodyContents,
+      },
+    },
+  };
 
   const res = await fetch("https://api.line.me/v2/bot/message/push", {
     method: "POST",
@@ -111,7 +190,7 @@ Deno.serve(async (_req) => {
     },
     body: JSON.stringify({
       to: groupId,
-      messages: [{ type: "text", text: msg.slice(0, 4900) }],
+      messages: [flexMessage],
     }),
   });
 
