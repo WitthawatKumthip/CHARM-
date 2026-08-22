@@ -1228,10 +1228,11 @@
 
             <div class="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-2">
                 <div class="text-xs font-bold text-slate-700">+ เพิ่มแปลงบ้านใหม่</div>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
                     <input type="text" id="new-unit-name-input" placeholder="เช่น แปลง A1" class="text-xs border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500">
                     <input type="date" id="new-unit-start-input" class="text-xs border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500" title="วันเริ่มงานแปลงนี้">
                     <input type="date" id="new-unit-end-input" class="text-xs border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500" title="วันสิ้นสุดสัญญาแปลงนี้">
+                    <input type="number" id="new-unit-precast-input" placeholder="วัน Precast" min="0" class="text-xs border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500" title="ระยะเวลาก่อสร้าง Precast (วัน) — เว้นว่างถ้าไม่ใช่บ้าน Precast">
                 </div>
                 <div class="text-right">
                     <button onclick="addUnitToProject()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-xl">+ บันทึกแปลงบ้าน</button>
@@ -3614,6 +3615,31 @@
             return `${y}-${m}-${day}`;
         }
 
+        // จำนวน Sequence ที่ถือว่าอยู่ในช่วงก่อสร้าง Precast (Sequence 1-5 = จนถึง "ตรวจรับงานติดตั้ง Precast")
+        const PRECAST_PHASE_END_SEQ = 5;
+
+        // วันที่ตามแผนของ Sequence หนึ่งๆ ของแปลงบ้าน — ปกติเฉลี่ยเท่ากันตลอดช่วงเริ่ม-จบ
+        // แต่ถ้าแปลงนี้ตั้งค่า precastDays ไว้ (บ้าน Precast) จะแบ่ง 2 ช่วง:
+        // Sequence 1-5 เฉลี่ยอยู่ภายใน precastDays วันแรก, Sequence ที่เหลือเฉลี่ยในช่วงที่เหลือจนถึงวันจบ
+        function getPlannedDateForSeq(unit, seqIndex, totalSeq) {
+            const start = new Date(unit.startDate).getTime();
+            const end = new Date(unit.endDate).getTime();
+            if (isNaN(start) || isNaN(end) || end <= start) return null;
+
+            const precastDays = Number(unit.precastDays) || 0;
+            if (precastDays > 0 && totalSeq > PRECAST_PHASE_END_SEQ) {
+                const precastEnd = start + precastDays * 24 * 60 * 60 * 1000;
+                if (seqIndex <= PRECAST_PHASE_END_SEQ) {
+                    return new Date(start + (precastEnd - start) * (seqIndex / PRECAST_PHASE_END_SEQ));
+                }
+                const remainingCount = totalSeq - PRECAST_PHASE_END_SEQ;
+                const remainingIdx = seqIndex - PRECAST_PHASE_END_SEQ;
+                return new Date(precastEnd + (end - precastEnd) * (remainingIdx / remainingCount));
+            }
+
+            return new Date(start + (end - start) * (seqIndex / totalSeq));
+        }
+
         function getPlannedSeqEvents(filterProjId) {
             const totalSeq = masterSequences.length || 10;
             const events = [];
@@ -3629,7 +3655,7 @@
                     if (isNaN(start) || isNaN(end) || end <= start) return;
 
                     for (let i = 1; i <= totalSeq; i++) {
-                        const plannedTime = start + (end - start) * (i / totalSeq);
+                        const plannedTime = getPlannedDateForSeq(u, i, totalSeq);
                         events.push({
                             projectId: p.id,
                             projectName: p.name,
@@ -3637,7 +3663,7 @@
                             unitName: u.name,
                             seqIndex: i,
                             seqName: masterSequences[i - 1] || `Sequence ${i}`,
-                            plannedDate: toISODateStr(new Date(plannedTime))
+                            plannedDate: toISODateStr(plannedTime)
                         });
                     }
                 });
@@ -3869,8 +3895,8 @@
                         const end = new Date(u.endDate).getTime();
                         if (!isNaN(start) && !isNaN(end) && end > start) {
                             for (let i = 1; i <= totalSeq; i++) {
-                                const plannedTime = start + (end - start) * (i / totalSeq);
-                                if (toISODateStr(new Date(plannedTime)) <= todayStr) {
+                                const plannedTime = getPlannedDateForSeq(u, i, totalSeq);
+                                if (toISODateStr(plannedTime) <= todayStr) {
                                     plannedIdx = i;
                                     plannedDueCount++;
                                 }
@@ -5918,6 +5944,7 @@
             document.getElementById('new-unit-name-input').value = '';
             document.getElementById('new-unit-start-input').value = '';
             document.getElementById('new-unit-end-input').value = '';
+            document.getElementById('new-unit-precast-input').value = '';
 
             renderUnitsModalList(project);
             openModal('units-modal');
@@ -5939,6 +5966,8 @@
                                     <input type="date" value="${u.startDate || ''}" onchange="updateUnitDate('${u.id}', 'startDate', this.value)" class="border border-slate-200 rounded-lg px-1.5 py-0.5 text-[10px] outline-none focus:ring-2 focus:ring-blue-500">
                                     <span>เสร็จ:</span>
                                     <input type="date" value="${u.endDate || ''}" onchange="updateUnitDate('${u.id}', 'endDate', this.value)" class="border border-slate-200 rounded-lg px-1.5 py-0.5 text-[10px] outline-none focus:ring-2 focus:ring-blue-500">
+                                    <span title="ระยะเวลาก่อสร้าง Precast — เว้นว่างถ้าไม่ใช่บ้าน Precast">Precast:</span>
+                                    <input type="number" min="0" value="${u.precastDays || ''}" placeholder="วัน" onchange="updateUnitDate('${u.id}', 'precastDays', this.value ? Number(this.value) : null)" class="w-16 border border-slate-200 rounded-lg px-1.5 py-0.5 text-[10px] outline-none focus:ring-2 focus:ring-blue-500">
                                 </div>
                             </div>
                             <button onclick="deleteUnitFromProject('${u.id}')" class="text-rose-500 hover:text-rose-700 p-1 shrink-0"><i class="fa-solid fa-trash"></i></button>
@@ -5976,6 +6005,7 @@
             const uName = document.getElementById('new-unit-name-input').value.trim();
             const uStart = document.getElementById('new-unit-start-input').value;
             const uEnd = document.getElementById('new-unit-end-input').value;
+            const uPrecastDays = document.getElementById('new-unit-precast-input').value;
 
             if (!uName) {
                 showNotification('กรุณาระบุชื่อแปลงบ้าน', 'rose');
@@ -5989,7 +6019,8 @@
                     id: `U-${Date.now().toString().slice(-4)}`,
                     name: uName,
                     startDate: uStart,
-                    endDate: uEnd
+                    endDate: uEnd,
+                    precastDays: uPrecastDays ? Number(uPrecastDays) : null
                 });
 
                 saveDataToDatabase();
@@ -6000,6 +6031,7 @@
                 document.getElementById('new-unit-name-input').value = '';
                 document.getElementById('new-unit-start-input').value = '';
                 document.getElementById('new-unit-end-input').value = '';
+                document.getElementById('new-unit-precast-input').value = '';
             }
         }
 
@@ -6519,22 +6551,26 @@
             const project = projectsData.find(p => p.id === projId);
             const unit = project?.units?.find(u => u.id === unitId);
 
-            if (!unit || !unit.startDate) {
-                showNotification('แปลงบ้านนี้ยังไม่ได้ระบุวันเริ่มงาน กรุณาตั้งค่าวันเริ่มงานก่อน', 'amber');
+            if (!unit || !unit.startDate || !unit.endDate) {
+                showNotification('แปลงบ้านนี้ยังไม่ได้ระบุวันเริ่ม-สิ้นสุดงาน กรุณาตั้งค่าก่อน', 'amber');
                 return;
             }
 
-            const startDate = new Date(unit.startDate);
-            const orderDueDate = new Date(startDate);
-            orderDueDate.setDate(orderDueDate.getDate() - leadDays);
-            const orderDueDateStr = orderDueDate.toISOString().split('T')[0];
-
             const matsToCreate = masterMaterials.length > 0 ? masterMaterials : defaultMasterMaterials;
+            const totalSeq = masterSequences.length || 10;
 
             let addedCount = 0;
             matsToCreate.forEach((matName, matIdx) => {
                 const exists = procurementsData.some(m => m.projectId === projId && m.unitId === unitId && m.name === matName);
                 if (!exists) {
+                    // เทียบลำดับรายการวัสดุกับ Sequence งานก่อสร้างที่ตรงกัน (รายการที่ N ↔ Sequence ที่ N)
+                    // แล้วคำนวณวันครบกำหนดสั่งซื้อจากวันที่ต้องใช้จริงของ Sequence นั้น ไม่ใช่นับจากวันเริ่มงานแปลงเหมือนเดิม
+                    // (แก้ปัญหาเดิมที่วัสดุทุกชิ้นถูกตั้งวันครบกำหนดเดียวกันหมด ทำให้รายการที่ใช้ตอนท้ายงานขึ้น "เกินกำหนด" ทันที)
+                    const seqIndex = Math.min(matIdx + 1, totalSeq);
+                    const requiredDate = getPlannedDateForSeq(unit, seqIndex, totalSeq);
+                    const requiredDateStr = toISODateStr(requiredDate);
+                    const orderDueDateStr = toISODateStr(addDaysToDate(requiredDate, -leadDays));
+
                     procurementsData.push({
                         // รวม index ของลูปเข้าไปด้วย กัน id ชนกันเวลาสร้างหลายรายการพร้อมกันในติ๊กเดียว (Date.now() เหมือนกันหมดในลูปเดียว)
                         id: `MAT-${Date.now().toString().slice(-4)}-${matIdx}-${Math.floor(Math.random() * 1000)}`,
@@ -6543,9 +6579,9 @@
                         name: matName,
                         leadDays: leadDays,
                         orderDueDate: orderDueDateStr,
-                        requiredDate: unit.startDate,
+                        requiredDate: requiredDateStr,
                         status: 'pending',
-                        remark: `สร้างแผนสั่งซื้ออัตโนมัติ (-${leadDays} วัน)`
+                        remark: `สร้างแผนสั่งซื้ออัตโนมัติ (อิง Sequence ${seqIndex} -${leadDays} วัน)`
                     });
                     addedCount++;
                 }
