@@ -30,25 +30,23 @@
             z-index: 30;
         }
 
-        /* ลายน้ำโลโก้ CHARM จางๆ กลางหน้า Dashboard */
-        #view-dashboard {
+        /* ลายน้ำโลโก้ CHARM จางๆ ในการ์ดกราฟหน้า Dashboard */
+        #dashboard-overall-card,
+        #dashboard-minidonut-card {
             position: relative;
             z-index: 0;
+            overflow: hidden;
         }
-        #view-dashboard::before {
+        #dashboard-overall-card::before,
+        #dashboard-minidonut-card::before {
             content: '';
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            width: 480px;
-            max-width: 70vw;
-            height: 220px;
-            transform: translate(-50%, -50%);
+            position: absolute;
+            inset: 0;
             background-image: url('charm-watermark.png');
             background-repeat: no-repeat;
             background-position: center;
             background-size: contain;
-            opacity: 0.06;
+            opacity: 0.15;
             z-index: -1;
             pointer-events: none;
         }
@@ -298,7 +296,7 @@
 
             <!-- Charts Section -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200/80 flex flex-col items-center justify-center text-center space-y-1.5">
+                <div id="dashboard-overall-card" class="bg-white p-3 rounded-xl shadow-sm border border-slate-200/80 flex flex-col items-center justify-center text-center space-y-1.5">
                     <h3 class="font-bold text-slate-800 text-xs">เปอร์เซ็นต์ผลงานรวมทุกโครงการ</h3>
                     <div class="relative w-28 h-28 flex items-center justify-center">
                         <canvas id="overallProgressChart"></canvas>
@@ -310,7 +308,7 @@
                     <p class="text-[10px] text-slate-500">คำนวณเฉลี่ยความคืบหน้าจริงสะสมของแปลงบ้านทั้งหมด</p>
                 </div>
 
-                <div class="lg:col-span-2 bg-white p-3 rounded-xl shadow-sm border border-slate-200/80 space-y-2.5">
+                <div id="dashboard-minidonut-card" class="lg:col-span-2 bg-white p-3 rounded-xl shadow-sm border border-slate-200/80 space-y-2.5">
                     <div class="flex items-center justify-between border-b border-slate-100 pb-2">
                         <div>
                             <h3 class="font-bold text-slate-800 text-xs">ความคืบหน้า Mini Donut Chart รายโครงการ</h3>
