@@ -30,21 +30,13 @@
             z-index: 30;
         }
 
-        /* ลายน้ำโลโก้ CHARM จางๆ ในการ์ดกราฟหน้า Dashboard */
-        #dashboard-overall-card,
+        /* ลายน้ำโลโก้ CHARM จางๆ ในการ์ด Mini Donut Chart หน้า Dashboard */
         #dashboard-minidonut-card {
             position: relative;
             z-index: 0;
             overflow: hidden;
-        }
-        /* ใช้จุดเบรกเป็นพิกเซลคงที่ (ไม่ใช่ %) เพื่อให้พื้นที่สีขาวคลุมเนื้อหาด้านบนพอดีเสมอ ไม่ว่าการ์ดจะถูกยืดสูงแค่ไหนตามการ์ดข้างๆ */
-        #dashboard-overall-card {
-            background: linear-gradient(180deg, #ffffff 0px, #ffffff 195px, #f2e6d3 235px, #dcbf95 285px);
-        }
-        #dashboard-minidonut-card {
             background: #ffffff;
         }
-        #dashboard-overall-card::before,
         #dashboard-minidonut-card::before {
             content: '';
             position: absolute;
@@ -57,10 +49,10 @@
             z-index: -1;
             pointer-events: none;
         }
-        #dashboard-overall-card::before {
-            background-position: center bottom 15px;
-            background-size: 150px auto;
-            opacity: 0.28;
+
+        /* การ์ดเปอร์เซ็นต์ผลงานรวม: โลโก้ CHARM ด้านบน เนื้อหาตรงกลาง แถบสีน้ำตาลสดใสด้านล่าง */
+        #dashboard-overall-card-footer {
+            background: linear-gradient(135deg, #D08A3E 0%, #A8611C 100%);
         }
 
         /* PRINT & EXPORT PDF A4 STYLING OPTIMIZATIONS */
@@ -308,16 +300,20 @@
 
             <!-- Charts Section -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div id="dashboard-overall-card" class="p-3 rounded-xl shadow-sm border border-slate-200/80 flex flex-col items-center justify-start text-center space-y-1.5">
-                    <h3 class="font-bold text-slate-800 text-xs">เปอร์เซ็นต์ผลงานรวมทุกโครงการ</h3>
-                    <div class="relative w-28 h-28 flex items-center justify-center">
-                        <canvas id="overallProgressChart"></canvas>
-                        <div class="absolute inset-0 flex flex-col items-center justify-center">
-                            <span id="overall-progress-text" class="text-xl font-extrabold text-blue-600">0%</span>
-                            <span class="text-[9px] text-slate-400 font-medium">จาก <span id="overall-projects-count">0</span> โครงการ</span>
+                <div id="dashboard-overall-card" class="rounded-xl shadow-sm border border-slate-200/80 flex flex-col overflow-hidden">
+                    <img src="charm-watermark.png" alt="CHARM" class="w-full h-16 object-cover">
+                    <div class="flex-1 bg-white flex flex-col items-center justify-center text-center space-y-1.5 py-3">
+                        <h3 class="font-bold text-slate-800 text-xs">เปอร์เซ็นต์ผลงานรวมทุกโครงการ</h3>
+                        <div class="relative w-28 h-28 flex items-center justify-center">
+                            <canvas id="overallProgressChart"></canvas>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span id="overall-progress-text" class="text-xl font-extrabold text-blue-600">0%</span>
+                                <span class="text-[9px] text-slate-400 font-medium">จาก <span id="overall-projects-count">0</span> โครงการ</span>
+                            </div>
                         </div>
+                        <p class="text-[10px] text-slate-500">คำนวณเฉลี่ยความคืบหน้าจริงสะสมของแปลงบ้านทั้งหมด</p>
                     </div>
-                    <p class="text-[10px] text-slate-500">คำนวณเฉลี่ยความคืบหน้าจริงสะสมของแปลงบ้านทั้งหมด</p>
+                    <div id="dashboard-overall-card-footer" class="h-12"></div>
                 </div>
 
                 <div id="dashboard-minidonut-card" class="lg:col-span-2 bg-white p-3 rounded-xl shadow-sm border border-slate-200/80 space-y-2.5">
