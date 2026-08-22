@@ -37,6 +37,13 @@
             z-index: 0;
             overflow: hidden;
         }
+        /* ใช้จุดเบรกเป็นพิกเซลคงที่ (ไม่ใช่ %) เพื่อให้พื้นที่สีขาวคลุมเนื้อหาด้านบนพอดีเสมอ ไม่ว่าการ์ดจะถูกยืดสูงแค่ไหนตามการ์ดข้างๆ */
+        #dashboard-overall-card {
+            background: linear-gradient(180deg, #ffffff 0px, #ffffff 195px, #f2e6d3 235px, #dcbf95 285px);
+        }
+        #dashboard-minidonut-card {
+            background: #ffffff;
+        }
         #dashboard-overall-card::before,
         #dashboard-minidonut-card::before {
             content: '';
@@ -49,6 +56,11 @@
             opacity: 0.15;
             z-index: -1;
             pointer-events: none;
+        }
+        #dashboard-overall-card::before {
+            background-position: center bottom 15px;
+            background-size: 150px auto;
+            opacity: 0.28;
         }
 
         /* PRINT & EXPORT PDF A4 STYLING OPTIMIZATIONS */
@@ -296,7 +308,7 @@
 
             <!-- Charts Section -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div id="dashboard-overall-card" class="bg-white p-3 rounded-xl shadow-sm border border-slate-200/80 flex flex-col items-center justify-center text-center space-y-1.5">
+                <div id="dashboard-overall-card" class="p-3 rounded-xl shadow-sm border border-slate-200/80 flex flex-col items-center justify-start text-center space-y-1.5">
                     <h3 class="font-bold text-slate-800 text-xs">เปอร์เซ็นต์ผลงานรวมทุกโครงการ</h3>
                     <div class="relative w-28 h-28 flex items-center justify-center">
                         <canvas id="overallProgressChart"></canvas>
