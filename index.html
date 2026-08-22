@@ -39,7 +39,7 @@
             aside, header, nav, .no-print, button { 
                 display: none !important; 
             }
-            body, main, #view-reports, .print-area { 
+            body, main, #view-reports, #view-fame, .print-area {
                 background: white !important; 
                 padding: 0 !important; 
                 margin: 0 !important; 
@@ -159,6 +159,10 @@
                 <button onclick="switchTab('reports')" id="nav-reports" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition">
                     <i class="fa-solid fa-file-invoice w-5 text-center text-sm"></i>
                     <span>รายงานสรุปผล (Reports)</span>
+                </button>
+                <button onclick="switchTab('fame')" id="nav-fame" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-compass w-5 text-center text-sm"></i>
+                    <span>รายงาน F.A.M.E. (รายสัปดาห์)</span>
                 </button>
             </nav>
         </div>
@@ -879,6 +883,72 @@
                         <div class="border-t border-slate-400 w-48 mx-auto pt-1 font-semibold">ลงชื่อ ................................................</div>
                         <div class="text-[11px] text-slate-400 mt-0.5">( วิศวกรโครงการ / PM )</div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: F.A.M.E. WEEKLY REPORT -->
+        <div id="view-fame" class="hidden space-y-6">
+            <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-3 no-print">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm">รายงานสรุปผลประจำสัปดาห์ — กรอบ F.A.M.E.</h3>
+                        <p class="text-xs text-slate-500">Foresee – Assure – Monitor – Enhance : บริหารจัดการงานก่อสร้างเชิงรุก</p>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <label class="font-semibold text-slate-600">โครงการ:</label>
+                        <select id="fame-project-select" onchange="renderFameReportView()" class="border border-slate-200 rounded-xl px-3 py-1.5 font-medium outline-none focus:ring-2 focus:ring-blue-500"></select>
+                        <button onclick="window.print()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5">
+                            <i class="fa-solid fa-print"></i><span>พิมพ์รายงาน</span>
+                        </button>
+                    </div>
+                </div>
+                <p id="fame-week-range" class="text-[11px] text-slate-400"></p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3 print-avoid-break">
+                    <div class="flex items-center gap-2 border-b border-slate-100 pb-2.5">
+                        <div class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-binoculars text-sm"></i></div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">1. Foresee — คาดการณ์ล่วงหน้า</h4>
+                            <p class="text-[10px] text-slate-400">ความเสี่ยงล่าช้า / วัสดุใกล้ครบกำหนด / แผนสัปดาห์หน้า</p>
+                        </div>
+                    </div>
+                    <div id="fame-foresee-content" class="space-y-3"></div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3 print-avoid-break">
+                    <div class="flex items-center gap-2 border-b border-slate-100 pb-2.5">
+                        <div class="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-shield-halved text-sm"></i></div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">2. Assure — ควบคุมมาตรฐาน</h4>
+                            <p class="text-[10px] text-slate-400">สรุปสเปควัสดุ/ผู้รับเหมา / สถานะ Defect</p>
+                        </div>
+                    </div>
+                    <div id="fame-assure-content" class="space-y-3"></div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3 print-avoid-break">
+                    <div class="flex items-center gap-2 border-b border-slate-100 pb-2.5">
+                        <div class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-chart-line text-sm"></i></div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">3. Monitor — ติดตามการปฏิบัติงาน</h4>
+                            <p class="text-[10px] text-slate-400">PLAN vs ACT / งานที่บันทึกสัปดาห์นี้ / สถานะสั่งซื้อวัสดุ</p>
+                        </div>
+                    </div>
+                    <div id="fame-monitor-content" class="space-y-3"></div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3 print-avoid-break">
+                    <div class="flex items-center gap-2 border-b border-slate-100 pb-2.5">
+                        <div class="w-8 h-8 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-arrow-trend-up text-sm"></i></div>
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">4. Enhance — ปรับปรุงต่อเนื่อง</h4>
+                            <p class="text-[10px] text-slate-400">Defect ที่แก้ไขสำเร็จ (Corrective Action) / บทเรียนประจำสัปดาห์</p>
+                        </div>
+                    </div>
+                    <div id="fame-enhance-content" class="space-y-3"></div>
                 </div>
             </div>
         </div>
@@ -1895,6 +1965,7 @@
         let issuesData = [];
         let procurementsData = [];
         let materialSpecsData = [];
+        let fameNotesData = [];
         let currentUser = null;
         let chartInstance = null;
         let projectChartInstances = {};
@@ -2090,6 +2161,26 @@
                     status: s(r.status),
                     note: s(r.note),
                     sortOrder: Number(r.sort_order) || 0
+                })
+            },
+
+            fameNotes: {
+                table: 'fame_notes',
+                get: () => fameNotesData,
+                set: v => { fameNotesData = v; },
+                toRow: n => ({
+                    id: n.id,
+                    project_id: n.projectId,
+                    week_start: n.weekStart,
+                    note: s(n.note),
+                    updated_by: s(n.updatedBy)
+                }),
+                fromRow: r => ({
+                    id: r.id,
+                    projectId: r.project_id,
+                    weekStart: s(r.week_start),
+                    note: s(r.note),
+                    updatedBy: s(r.updated_by)
                 })
             }
         };
@@ -2714,7 +2805,7 @@
         }
 
         function switchTab(tabName) {
-            const views = ['dashboard', 'projects', 'construction-plan', 'record-seq', 'pm-approval', 'seq-history', 'photos', 'procurement', 'materials', 'issues', 'reports'];
+            const views = ['dashboard', 'projects', 'construction-plan', 'record-seq', 'pm-approval', 'seq-history', 'photos', 'procurement', 'materials', 'issues', 'reports', 'fame'];
             views.forEach(v => {
                 const el = document.getElementById(`view-${v}`);
                 if (el) el.classList.add('hidden');
@@ -2748,7 +2839,8 @@
                 'procurement': 'แผนรายการสั่งซื้อวัสดุ (กำหนดวันสั่งล่วงหน้าได้)',
                 'materials': 'สรุปวัสดุ/ผู้รับเหมาแยกงาน — BY SUB / BY OWNER',
                 'issues': 'รายการแจ้งปัญหา / งานแก้ไข (Defects)',
-                'reports': 'รายงานสรุปผลการก่อสร้างรายโครงการ/แปลงบ้าน'
+                'reports': 'รายงานสรุปผลการก่อสร้างรายโครงการ/แปลงบ้าน',
+                'fame': 'รายงานสรุปผลประจำสัปดาห์ตามกรอบ F.A.M.E. (Foresee – Assure – Monitor – Enhance)'
             };
 
             const titleEl = document.getElementById('current-view-title');
@@ -2795,6 +2887,9 @@
 
                 const savedMaterialSpecs = localStorage.getItem('bt_material_specs');
                 materialSpecsData = savedMaterialSpecs ? JSON.parse(savedMaterialSpecs) : [];
+
+                const savedFameNotes = localStorage.getItem('bt_fame_notes');
+                fameNotesData = savedFameNotes ? JSON.parse(savedFameNotes) : [];
 
                 // กันข้อมูลเก่าที่ยังฝังรูป base64 ค้างอยู่ในเครื่อง — ล้างทิ้งอัตโนมัติ
                 stripEmbeddedBase64Photos();
@@ -2872,6 +2967,7 @@
             localStorage.setItem('bt_issues', JSON.stringify(issuesData));
             localStorage.setItem('bt_procurements', JSON.stringify(procurementsData));
             localStorage.setItem('bt_material_specs', JSON.stringify(materialSpecsData));
+            localStorage.setItem('bt_fame_notes', JSON.stringify(fameNotesData));
         }
 
         function saveDataToDatabase() {
@@ -3809,6 +3905,232 @@
             return { text: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200', label: 'ยังไม่เริ่ม' };
         }
 
+        // รายงานสรุปผลประจำสัปดาห์ตามกรอบ F.A.M.E. (Foresee-Assure-Monitor-Enhance) — ต่อโครงการ ต่อสัปดาห์ปัจจุบัน
+        function renderFameReportView() {
+            const selectEl = document.getElementById('fame-project-select');
+            if (!selectEl) return;
+
+            const currentVal = selectEl.value;
+            const options = projectsData.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            if (selectEl.innerHTML !== options) {
+                selectEl.innerHTML = options;
+                selectEl.value = projectsData.some(p => p.id === currentVal) ? currentVal : (projectsData[0]?.id || '');
+            }
+            const projId = selectEl.value;
+            const project = projectsData.find(p => p.id === projId);
+
+            const foreseeEl = document.getElementById('fame-foresee-content');
+            const assureEl = document.getElementById('fame-assure-content');
+            const monitorEl = document.getElementById('fame-monitor-content');
+            const enhanceEl = document.getElementById('fame-enhance-content');
+            const weekRangeEl = document.getElementById('fame-week-range');
+
+            if (!project) {
+                [foreseeEl, assureEl, monitorEl, enhanceEl].forEach(el => { if (el) el.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">ยังไม่มีโครงการในระบบ</p>'; });
+                if (weekRangeEl) weekRangeEl.textContent = '';
+                return;
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const thisMonday = getMondayOfWeek(today);
+            const thisSunday = addDaysToDate(thisMonday, 6);
+            const nextMonday = addDaysToDate(thisMonday, 7);
+            const nextSunday = addDaysToDate(thisMonday, 13);
+            const inRange = (dateStr, start, end) => dateStr && dateStr >= toISODateStr(start) && dateStr <= toISODateStr(end);
+            const todayStr = toISODateStr(today);
+
+            if (weekRangeEl) weekRangeEl.textContent = `สัปดาห์นี้: ${toISODateStr(thisMonday)} ถึง ${toISODateStr(thisSunday)} (โครงการ: ${project.name})`;
+
+            const unitStatusList = getUnitPlanStatusList(projId, today);
+            const plannedEvents = getPlannedSeqEvents(projId);
+            const actualEvents = getActualSeqEvents(projId);
+            const projIssues = issuesData.filter(i => i.projectId === projId);
+
+            // ---------- 1) FORESEE ----------
+            const atRiskUnits = unitStatusList.filter(u => {
+                if (u.actualDone >= u.totalSeq) return false;
+                const pct = u.totalSeq > 0 ? Math.round((u.actualDone / u.totalSeq) * 100) : 0;
+                return getUnitStatusColor(pct, u.startDate, u.endDate).label === 'ล่าช้า';
+            });
+
+            const warnDateStr = toISODateStr(addDaysToDate(today, 7));
+            const urgentProcurements = procurementsData
+                .filter(m => m.projectId === projId && m.status !== 'delivered' && m.status !== 'ordered' && m.orderDueDate && m.orderDueDate <= warnDateStr)
+                .sort((a, b) => (a.orderDueDate || '').localeCompare(b.orderDueDate || ''));
+
+            const nextWeekPlanned = plannedEvents.filter(e => inRange(e.plannedDate, nextMonday, nextSunday));
+            const nextWeekByUnit = new Map();
+            nextWeekPlanned.forEach(e => {
+                if (!nextWeekByUnit.has(e.unitId)) nextWeekByUnit.set(e.unitId, { unitName: e.unitName, seqList: [] });
+                nextWeekByUnit.get(e.unitId).seqList.push(e.seqIndex);
+            });
+
+            if (foreseeEl) {
+                foreseeEl.innerHTML = `
+                    <div>
+                        <div class="text-[11px] font-semibold text-slate-600 mb-1.5">🚩 แปลงที่เสี่ยงล่าช้ากว่าแผน (${atRiskUnits.length})</div>
+                        ${atRiskUnits.length > 0 ? `<div class="space-y-1.5">${atRiskUnits.map(u => `
+                            <div class="flex items-center justify-between bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 text-[11px]">
+                                <span class="font-bold text-slate-800">${u.unitName}</span>
+                                <span class="text-rose-600 font-semibold">${u.actualDone}/${u.totalSeq} Sequence</span>
+                            </div>
+                        `).join('')}</div>` : '<p class="text-xs text-emerald-600"><i class="fa-solid fa-circle-check mr-1"></i>ไม่มีแปลงเสี่ยงล่าช้า</p>'}
+                    </div>
+                    <div>
+                        <div class="text-[11px] font-semibold text-slate-600 mb-1.5">📦 วัสดุใกล้/เลยกำหนดสั่งซื้อ (${urgentProcurements.length})</div>
+                        ${urgentProcurements.length > 0 ? `<div class="space-y-1.5">${urgentProcurements.map(m => `
+                            <div class="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-[11px]">
+                                <span class="font-bold text-slate-800">${m.name}</span>
+                                <span class="text-amber-600 font-semibold">${m.orderDueDate < todayStr ? 'เลยกำหนดแล้ว' : `กำหนด ${m.orderDueDate}`}</span>
+                            </div>
+                        `).join('')}</div>` : '<p class="text-xs text-emerald-600"><i class="fa-solid fa-circle-check mr-1"></i>ไม่มีรายการเร่งด่วน</p>'}
+                    </div>
+                    <div>
+                        <div class="text-[11px] font-semibold text-slate-600 mb-1.5">🗓️ แผนงานสัปดาห์หน้า (${nextWeekPlanned.length} Sequence)</div>
+                        ${nextWeekByUnit.size > 0 ? `<div class="space-y-1.5">${Array.from(nextWeekByUnit.values()).map(u => `
+                            <div class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[11px]">
+                                <span class="font-bold text-slate-800">${u.unitName}</span>
+                                <span class="text-slate-500"> — Sequence ${u.seqList.sort((a, b) => a - b).join(', ')}</span>
+                            </div>
+                        `).join('')}</div>` : '<p class="text-xs text-slate-400">ไม่มีแผนงานในสัปดาห์หน้า</p>'}
+                    </div>
+                `;
+            }
+
+            // ---------- 2) ASSURE ----------
+            const projMaterialSpecs = materialSpecsData.filter(m => m.projectId === projId);
+            const specDone = projMaterialSpecs.filter(m => m.status === 'done').length;
+            const openIssues = projIssues.filter(i => i.status !== 'resolved');
+
+            if (assureEl) {
+                assureEl.innerHTML = `
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                            <div class="text-[10px] text-emerald-600 font-semibold uppercase">สรุปสเปควัสดุ/ผู้รับเหมาแล้ว</div>
+                            <div class="text-xl font-extrabold text-emerald-700">${specDone} / ${projMaterialSpecs.length}</div>
+                        </div>
+                        <div class="bg-rose-50 border border-rose-200 rounded-xl p-3 text-center">
+                            <div class="text-[10px] text-rose-600 font-semibold uppercase">Defect ค้างแก้ไข</div>
+                            <div class="text-xl font-extrabold text-rose-700">${openIssues.length} / ${projIssues.length}</div>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <div class="text-[11px] font-semibold text-slate-600 mb-1.5">รายการ Defect ที่ยังเปิดอยู่</div>
+                        ${openIssues.length > 0 ? `<div class="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">${openIssues.map(i => `
+                            <div class="flex items-center justify-between bg-rose-50/60 border border-rose-100 rounded-lg px-3 py-2 text-[11px]">
+                                <span class="font-semibold text-slate-800">${i.title}</span>
+                                <span class="text-slate-400">${i.reportDate || '-'}</span>
+                            </div>
+                        `).join('')}</div>` : '<p class="text-xs text-slate-400">ไม่มี Defect ค้างอยู่</p>'}
+                    </div>
+                `;
+            }
+
+            // ---------- 3) MONITOR ----------
+            const thisWeekPlanned = plannedEvents.filter(e => inRange(e.plannedDate, thisMonday, thisSunday));
+            const thisWeekActual = actualEvents.filter(e => inRange(e.actualDate, thisMonday, thisSunday));
+            const weekPct = thisWeekPlanned.length > 0 ? Math.round((thisWeekActual.length / thisWeekPlanned.length) * 100) : 0;
+            const weekPctColor = weekPct >= 100 ? 'text-emerald-600' : (weekPct >= 50 ? 'text-amber-600' : 'text-rose-600');
+
+            const procStatusCounts = { pending: 0, ordered: 0, delivered: 0 };
+            procurementsData.filter(m => m.projectId === projId).forEach(m => {
+                if (m.status === 'delivered') procStatusCounts.delivered++;
+                else if (m.status === 'ordered') procStatusCounts.ordered++;
+                else procStatusCounts.pending++;
+            });
+
+            if (monitorEl) {
+                monitorEl.innerHTML = `
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
+                            <div class="text-[9px] text-slate-500 font-semibold uppercase">แผน (PLAN)</div>
+                            <div class="text-lg font-extrabold text-slate-800">${thisWeekPlanned.length}</div>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-2.5 text-center">
+                            <div class="text-[9px] text-blue-600 font-semibold uppercase">ทำได้จริง (ACT)</div>
+                            <div class="text-lg font-extrabold text-blue-700">${thisWeekActual.length}</div>
+                        </div>
+                        <div class="bg-gradient-to-br ${weekPct >= 100 ? 'from-emerald-50 to-emerald-100 border-emerald-200' : (weekPct >= 50 ? 'from-amber-50 to-amber-100 border-amber-200' : 'from-rose-50 to-rose-100 border-rose-200')} border rounded-xl p-2.5 text-center">
+                            <div class="text-[9px] font-semibold uppercase ${weekPctColor}">คืบหน้าตามแผน</div>
+                            <div class="text-lg font-extrabold ${weekPctColor}">${weekPct}%</div>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <div class="text-[11px] font-semibold text-slate-600 mb-1.5">งานที่บันทึกและอนุมัติแล้วสัปดาห์นี้ (${thisWeekActual.length})</div>
+                        ${thisWeekActual.length > 0 ? `<div class="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">${thisWeekActual.map(e => `
+                            <div class="flex items-center justify-between bg-blue-50/60 border border-blue-100 rounded-lg px-3 py-2 text-[11px]">
+                                <span class="font-semibold text-slate-800">${e.unitName} — Sequence ${e.seqIndex}</span>
+                                <span class="text-slate-400">${e.actualDate}</span>
+                            </div>
+                        `).join('')}</div>` : '<p class="text-xs text-slate-400">ยังไม่มีงานบันทึกในสัปดาห์นี้</p>'}
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 mt-2">
+                        <div class="bg-slate-50 rounded-lg p-2 text-center">
+                            <div class="text-[9px] text-slate-500">รอสั่งซื้อ</div>
+                            <div class="font-bold text-slate-700 text-sm">${procStatusCounts.pending}</div>
+                        </div>
+                        <div class="bg-amber-50 rounded-lg p-2 text-center">
+                            <div class="text-[9px] text-amber-600">สั่งแล้ว</div>
+                            <div class="font-bold text-amber-700 text-sm">${procStatusCounts.ordered}</div>
+                        </div>
+                        <div class="bg-emerald-50 rounded-lg p-2 text-center">
+                            <div class="text-[9px] text-emerald-600">ถึงหน้างานแล้ว</div>
+                            <div class="font-bold text-emerald-700 text-sm">${procStatusCounts.delivered}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // ---------- 4) ENHANCE ----------
+            const resolvedThisWeek = projIssues.filter(i => i.status === 'resolved' && inRange(i.resolvedDate, thisMonday, thisSunday));
+            const weekStartStr = toISODateStr(thisMonday);
+            const existingNote = fameNotesData.find(n => n.projectId === projId && n.weekStart === weekStartStr);
+
+            if (enhanceEl) {
+                enhanceEl.innerHTML = `
+                    <div>
+                        <div class="text-[11px] font-semibold text-slate-600 mb-1.5">✅ Defect ที่แก้ไขสำเร็จสัปดาห์นี้ (${resolvedThisWeek.length})</div>
+                        ${resolvedThisWeek.length > 0 ? `<div class="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar">${resolvedThisWeek.map(i => `
+                            <div class="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-[11px]">
+                                <div class="font-bold text-slate-800">${i.title}</div>
+                                ${i.resolutionNotes ? `<div class="text-slate-500 mt-0.5">แก้ไข: ${i.resolutionNotes}</div>` : ''}
+                            </div>
+                        `).join('')}</div>` : '<p class="text-xs text-slate-400">ยังไม่มี Defect ที่แก้ไขเสร็จในสัปดาห์นี้</p>'}
+                    </div>
+                    <div class="mt-2">
+                        <div class="text-[11px] font-semibold text-slate-600 mb-1.5">📝 บทเรียน/ข้อเสนอแนะประจำสัปดาห์นี้</div>
+                        <textarea id="fame-lesson-textarea" rows="4" placeholder="สรุปบทเรียนหรือแนวทางปรับปรุงจากสัปดาห์นี้..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-purple-500">${existingNote ? existingNote.note : ''}</textarea>
+                        <button onclick="saveFameNote('${projId}', '${weekStartStr}')" class="no-print mt-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm">บันทึกบทเรียน</button>
+                        ${existingNote ? `<p class="text-[10px] text-slate-400 mt-1">บันทึกล่าสุดโดย ${existingNote.updatedBy || '-'}</p>` : ''}
+                    </div>
+                `;
+            }
+        }
+
+        function saveFameNote(projectId, weekStart) {
+            const textarea = document.getElementById('fame-lesson-textarea');
+            if (!textarea) return;
+            const note = textarea.value.trim();
+
+            const existing = fameNotesData.find(n => n.projectId === projectId && n.weekStart === weekStart);
+            if (existing) {
+                existing.note = note;
+                existing.updatedBy = currentUser ? currentUser.name : 'ผู้ใช้งาน';
+            } else {
+                fameNotesData.push({
+                    id: `FAME-${Date.now().toString().slice(-4)}-${Math.floor(Math.random() * 1000)}`,
+                    projectId,
+                    weekStart,
+                    note,
+                    updatedBy: currentUser ? currentUser.name : 'ผู้ใช้งาน'
+                });
+            }
+            saveDataToDatabase();
+            renderFameReportView();
+            showNotification('บันทึกบทเรียนประจำสัปดาห์เรียบร้อยแล้ว');
+        }
+
         function renderConstructionPlanView() {
             const filterEl = document.getElementById('plan-project-filter');
             if (!filterEl) return;
@@ -4125,6 +4447,7 @@
             renderSequenceHistoryTable();
             renderPhotosGallery();
             renderReportView();
+            renderFameReportView();
         }
 
         function updatePendingApprovalBadge() {
