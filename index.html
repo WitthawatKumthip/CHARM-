@@ -690,6 +690,10 @@
                             <i class="fa-solid fa-file-excel"></i>
                             <span>นำเข้า Excel</span>
                         </button>
+                        <button onclick="exportMaterialSpecsToExcel()" title="ดาวน์โหลดรายการปัจจุบันของโครงการนี้เป็นไฟล์ Excel" class="bg-teal-600 hover:bg-teal-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 shrink-0">
+                            <i class="fa-solid fa-download"></i>
+                            <span>ดาวน์โหลด Excel</span>
+                        </button>
                         <button id="btn-add-material-spec" onclick="openAddMaterialSpecModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 shrink-0">
                             <i class="fa-solid fa-plus"></i>
                             <span>เพิ่มรายการ</span>
@@ -712,13 +716,26 @@
                     </div>
                 </div>
 
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+                        <input type="text" id="materials-search-input" oninput="renderMaterialsView()" placeholder="ค้นหารายการ, ยี่ห้อ/ผู้รับจ้าง, ผู้รับผิดชอบ..." class="w-full border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <select id="materials-status-filter" onchange="renderMaterialsView()" class="border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="ALL">ทุกสถานะ</option>
+                        <option value="done">สรุปแล้ว</option>
+                        <option value="pending">ยังไม่สรุป</option>
+                        <option value="overdue">เลยกำหนดสรุป</option>
+                    </select>
+                </div>
+
                 <div id="materials-spec-table-container" class="space-y-6"></div>
             </div>
         </div>
 
         <!-- Add/Edit Material Spec Modal -->
         <div id="material-spec-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[92vh] overflow-y-auto custom-scrollbar">
                 <div class="flex justify-between items-center border-b border-slate-100 pb-3">
                     <h3 id="material-spec-form-title" class="font-bold text-slate-800 text-sm">เพิ่มรายการสรุปวัสดุ</h3>
                     <button onclick="closeModal('material-spec-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-base"></i></button>
@@ -727,7 +744,7 @@
                 <div class="space-y-3 text-xs">
                     <div>
                         <label class="block font-semibold text-slate-600 mb-1">โครงการ *</label>
-                        <select id="material-spec-project-select" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                        <select id="material-spec-project-select" onchange="onMaterialSpecProjectChange()" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"></select>
                     </div>
                     <div>
                         <label class="block font-semibold text-slate-600 mb-1">รูปแบบ *</label>
@@ -748,16 +765,33 @@
                         <label class="block font-semibold text-slate-600 mb-1">ผู้รับผิดชอบ</label>
                         <input type="text" id="material-spec-responsible-input" placeholder="เช่น แมน, พี่ชมพู" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
-                    <div>
-                        <label class="block font-semibold text-slate-600 mb-1">สถานะ *</label>
-                        <select id="material-spec-status-select" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 font-bold">
-                            <option value="pending">ยังไม่สรุป</option>
-                            <option value="done">สรุปแล้ว</option>
-                        </select>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">สถานะ *</label>
+                            <select id="material-spec-status-select" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 font-bold">
+                                <option value="pending">ยังไม่สรุป</option>
+                                <option value="done">สรุปแล้ว</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">กำหนดสรุป</label>
+                            <input type="date" id="material-spec-duedate-input" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
                     </div>
                     <div>
                         <label class="block font-semibold text-slate-600 mb-1">หมายเหตุ</label>
                         <textarea id="material-spec-note-input" rows="2" placeholder="เช่น ก็อก+อ่าง+FD เรียกของเข้า 25/7" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">เชื่อมกับ Defect ที่เกี่ยวข้อง</label>
+                        <select id="material-spec-linked-issue-select" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="">-- ไม่เชื่อมกับ Defect --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">ไฟล์แนบ (ใบเสนอราคา / สเปควัสดุ)</label>
+                        <input type="file" id="material-spec-attachment-input" multiple accept=".pdf,image/*" class="w-full text-[11px] border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
+                        <div id="material-spec-attachment-list" class="mt-2 space-y-1"></div>
                     </div>
                 </div>
                 <div class="flex justify-between items-center pt-3 border-t border-slate-100">
@@ -2189,7 +2223,10 @@
                     responsible: s(m.responsible),
                     status: s(m.status),
                     note: s(m.note),
-                    sort_order: Number(m.sortOrder) || 0
+                    sort_order: Number(m.sortOrder) || 0,
+                    due_date: m.dueDate || null,
+                    linked_issue_id: m.linkedIssueId || null,
+                    attachments: Array.isArray(m.attachments) ? m.attachments : []
                 }),
                 fromRow: r => ({
                     id: r.id,
@@ -2200,7 +2237,10 @@
                     responsible: s(r.responsible),
                     status: s(r.status),
                     note: s(r.note),
-                    sortOrder: Number(r.sort_order) || 0
+                    sortOrder: Number(r.sort_order) || 0,
+                    dueDate: r.due_date || null,
+                    linkedIssueId: r.linked_issue_id || null,
+                    attachments: Array.isArray(r.attachments) ? r.attachments : []
                 })
             },
 
@@ -2321,6 +2361,40 @@
         }
 
         // บีบอัดไฟล์ + อัปโหลดขึ้น Cloud ในขั้นตอนเดียว
+        // อัปโหลดไฟล์ทั่วไป (PDF/รูป) ขึ้น Supabase Storage แล้วคืนค่า Public URL — ใช้กับไฟล์แนบที่ไม่ใช่รูปถ่ายหน้างาน (เช่น ใบเสนอราคา)
+        // ถ้ายังไม่ได้ตั้งค่า Cloud -> แปลงเป็น data URL เก็บแบบ Local แทน
+        async function uploadGenericFileToCloud(file, folder = 'attachments') {
+            const readAsDataUrl = () => new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(file);
+            });
+
+            const client = getSupabaseClient();
+            if (!client) return await readAsDataUrl();
+
+            const ext = (file.name.split('.').pop() || 'dat').toLowerCase();
+            const rand = Math.random().toString(36).slice(2, 8);
+            const path = `${folder}/${Date.now()}-${rand}.${ext}`;
+            const bucket = getStorageBucket();
+
+            try {
+                const { error } = await client.storage.from(bucket).upload(path, file, {
+                    contentType: file.type || 'application/octet-stream',
+                    cacheControl: '31536000',
+                    upsert: false
+                });
+                if (error) throw error;
+
+                const { data } = client.storage.from(bucket).getPublicUrl(path);
+                return (data && data.publicUrl) ? data.publicUrl : await readAsDataUrl();
+            } catch (err) {
+                console.error('Generic file upload failed (fallback to local data URL):', err);
+                return await readAsDataUrl();
+            }
+        }
+
         async function processImageForSave(file, folder = 'general') {
             const dataUrl = await compressImageFile(file, 1200, 1200, 0.75);
             return await uploadImageToCloud(dataUrl, folder);
@@ -4068,6 +4142,7 @@
             // ---------- 2) ASSURE ----------
             const projMaterialSpecs = materialSpecsData.filter(m => m.projectId === projId);
             const specDone = projMaterialSpecs.filter(m => m.status === 'done').length;
+            const specOverdue = projMaterialSpecs.filter(m => m.status !== 'done' && m.dueDate && m.dueDate < todayStr);
             const openIssues = projIssues.filter(i => i.status !== 'resolved');
 
             if (assureEl) {
@@ -4082,6 +4157,11 @@
                             <div class="text-xl font-extrabold text-rose-700">${openIssues.length} / ${projIssues.length}</div>
                         </div>
                     </div>
+                    ${specOverdue.length > 0 ? `
+                    <div class="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-[11px] text-amber-700 font-semibold">
+                        <i class="fa-solid fa-triangle-exclamation mr-1"></i>สเปควัสดุที่เลยกำหนดสรุปแล้วยังไม่สรุป (${specOverdue.length}): ${specOverdue.map(m => m.name).join(', ')}
+                    </div>
+                    ` : ''}
                     <div class="mt-2">
                         <div class="text-[11px] font-semibold text-slate-600 mb-1.5">รายการ Defect ที่ยังเปิดอยู่</div>
                         ${openIssues.length > 0 ? `<div class="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">${openIssues.map(i => `
@@ -6227,6 +6307,7 @@
             const canEditMaterials = !!currentUser && currentUser.role === 'ADMIN';
 
             const items = materialSpecsData.filter(m => m.projectId === projId);
+            const projIssueMap = new Map((projectsData.find(p => p.id === projId) ? issuesData.filter(i => i.projectId === projId) : []).map(i => [i.id, i]));
 
             const totalCountEl = document.getElementById('mat-stat-total-count');
             const doneCountEl = document.getElementById('mat-stat-done-count');
@@ -6236,10 +6317,26 @@
             if (doneCountEl) doneCountEl.textContent = doneCount;
             if (pendingCountEl) pendingCountEl.textContent = items.length - doneCount;
 
+            const todayStr = toISODateStr(new Date());
+            const isOverdue = m => m.status !== 'done' && m.dueDate && m.dueDate < todayStr;
+
+            const searchTerm = (document.getElementById('materials-search-input')?.value || '').trim().toLowerCase();
+            const statusFilter = document.getElementById('materials-status-filter')?.value || 'ALL';
+            const filteredItems = items.filter(m => {
+                if (searchTerm) {
+                    const haystack = `${m.name || ''} ${m.brand || ''} ${m.responsible || ''}`.toLowerCase();
+                    if (!haystack.includes(searchTerm)) return false;
+                }
+                if (statusFilter === 'done' && m.status !== 'done') return false;
+                if (statusFilter === 'pending' && m.status === 'done') return false;
+                if (statusFilter === 'overdue' && !isOverdue(m)) return false;
+                return true;
+            });
+
             const categories = ['BY SUB', 'BY OWNER'];
             let html = '';
             categories.forEach(cat => {
-                const catItems = items
+                const catItems = filteredItems
                     .filter(m => (m.category || 'BY SUB') === cat)
                     .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
@@ -6255,18 +6352,40 @@
                                         <th class="py-2.5 px-3">ยี่ห้อ / ผู้รับจ้าง</th>
                                         <th class="py-2.5 px-3">ผู้รับผิดชอบ</th>
                                         <th class="py-2.5 px-3">หมายเหตุ</th>
+                                        <th class="py-2.5 px-3">กำหนดสรุป</th>
+                                        <th class="py-2.5 px-3">Defect เชื่อม</th>
+                                        <th class="py-2.5 px-3 text-center">แนบ</th>
                                         <th class="py-2.5 px-3 text-center">สถานะ</th>
                                         <th class="py-2.5 px-3 text-right">จัดการ</th>
                                     </tr>
                                 </thead>
                                 <tbody class="text-xs divide-y divide-slate-100 text-slate-700">
-                                    ${catItems.map((m, idx) => `
+                                    ${catItems.map((m, idx) => {
+                                        const linkedIssue = m.linkedIssueId ? projIssueMap.get(m.linkedIssueId) : null;
+                                        const overdue = isOverdue(m);
+                                        const attachCount = Array.isArray(m.attachments) ? m.attachments.length : 0;
+                                        return `
                                         <tr class="hover:bg-slate-50 transition ${m.status === 'done' ? 'bg-emerald-50/50' : ''}">
                                             <td class="py-2.5 px-3 text-slate-400">${idx + 1}</td>
                                             <td class="py-2.5 px-3 font-semibold text-slate-800">${m.name}</td>
                                             <td class="py-2.5 px-3">${m.brand || '-'}</td>
                                             <td class="py-2.5 px-3">${m.responsible || '-'}</td>
                                             <td class="py-2.5 px-3 text-rose-600">${m.note || ''}</td>
+                                            <td class="py-2.5 px-3">
+                                                ${m.dueDate
+                                                    ? `<span class="${overdue ? 'text-rose-600 font-bold' : 'text-slate-500'}">${m.dueDate}${overdue ? ' (เลยกำหนด)' : ''}</span>`
+                                                    : '<span class="text-slate-300">-</span>'}
+                                            </td>
+                                            <td class="py-2.5 px-3">
+                                                ${linkedIssue
+                                                    ? `<button onclick="switchTab('issues')" title="${linkedIssue.title}" class="text-blue-600 hover:underline text-[11px] font-semibold truncate max-w-[120px] inline-block align-bottom"><i class="fa-solid fa-triangle-exclamation mr-1"></i>${linkedIssue.title}</button>`
+                                                    : '<span class="text-slate-300">-</span>'}
+                                            </td>
+                                            <td class="py-2.5 px-3 text-center">
+                                                ${attachCount > 0
+                                                    ? `<span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[10px] font-bold"><i class="fa-solid fa-paperclip mr-0.5"></i>${attachCount}</span>`
+                                                    : '<span class="text-slate-300">-</span>'}
+                                            </td>
                                             <td class="py-2.5 px-3 text-center">
                                                 ${m.status === 'done'
                                                     ? '<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold">สรุปแล้ว</span>'
@@ -6278,7 +6397,7 @@
                                                     : `<span class="text-slate-300 text-[10px] italic"><i class="fa-solid fa-lock"></i></span>`}
                                             </td>
                                         </tr>
-                                    `).join('') || `<tr><td colspan="7" class="py-4 text-center text-slate-400">ยังไม่มีรายการในหมวดนี้</td></tr>`}
+                                    `;}).join('') || `<tr><td colspan="10" class="py-4 text-center text-slate-400">ยังไม่มีรายการในหมวดนี้</td></tr>`}
                                 </tbody>
                             </table>
                         </div>
@@ -6290,6 +6409,45 @@
         }
 
         // นำเข้าไฟล์ Excel มาแทนที่รายการสรุปวัสดุ/ผู้รับเหมาเดิมทั้งหมดของโครงการที่เลือกไว้ (ลบของเก่าทิ้งทุกครั้งที่นำเข้าใหม่)
+        // ดาวน์โหลดรายการสรุปวัสดุ/ผู้รับเหมาปัจจุบันของโครงการที่เลือกไว้ เป็นไฟล์ Excel
+        function exportMaterialSpecsToExcel() {
+            const projId = document.getElementById('materials-project-select')?.value;
+            const project = projectsData.find(p => p.id === projId);
+            if (!projId || !project) {
+                showNotification('กรุณาเลือกโครงการก่อนดาวน์โหลด', 'rose');
+                return;
+            }
+
+            const items = materialSpecsData
+                .filter(m => m.projectId === projId)
+                .sort((a, b) => {
+                    const catCompare = (a.category || 'BY SUB').localeCompare(b.category || 'BY SUB');
+                    if (catCompare !== 0) return catCompare;
+                    return (a.sortOrder || 0) - (b.sortOrder || 0);
+                });
+
+            if (items.length === 0) {
+                showNotification('ยังไม่มีรายการในโครงการนี้ให้ดาวน์โหลด', 'amber');
+                return;
+            }
+
+            const rows = items.map(m => ({
+                'หมวด': m.category || 'BY SUB',
+                'รายการ': m.name || '',
+                'ยี่ห้อ / ผู้รับจ้าง': m.brand || '',
+                'ผู้รับผิดชอบ': m.responsible || '',
+                'หมายเหตุ': m.note || '',
+                'กำหนดสรุป': m.dueDate || '',
+                'สถานะ': m.status === 'done' ? 'สรุปแล้ว' : 'ยังไม่สรุป'
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'สรุปวัสดุ');
+            const safeProjectName = project.name.replace(/[\\/:*?"<>|]/g, '-');
+            XLSX.writeFile(wb, `สรุปวัสดุ-ผู้รับเหมา-${safeProjectName}.xlsx`);
+        }
+
         function importMaterialSpecsFromExcel(event) {
             if (!currentUser || currentUser.role !== 'ADMIN') {
                 showNotification('เฉพาะ ADMIN เท่านั้นที่นำเข้าข้อมูลจาก Excel ได้', 'rose');
@@ -6316,7 +6474,7 @@
             reader.onload = function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
@@ -6325,7 +6483,7 @@
                         for (const k of keys) {
                             const kNorm = k.replace(/\s+/g, '');
                             if (keywords.some(kw => kNorm.includes(kw))) {
-                                return String(row[k] ?? '').trim();
+                                return row[k];
                             }
                         }
                         return '';
@@ -6333,15 +6491,17 @@
 
                     const newItems = [];
                     rows.forEach((row, idx) => {
-                        const name = findColumnValue(row, ['รายการ', 'ชื่องาน', 'ชื่อวัสดุ']);
+                        const name = String(findColumnValue(row, ['รายการ', 'ชื่องาน', 'ชื่อวัสดุ']) ?? '').trim();
                         if (!name) return;
-                        const categoryRaw = findColumnValue(row, ['หมวด', 'ประเภท']);
+                        const categoryRaw = String(findColumnValue(row, ['หมวด', 'ประเภท']) ?? '').trim();
                         const category = categoryRaw.toUpperCase().includes('OWNER') ? 'BY OWNER' : 'BY SUB';
-                        const brand = findColumnValue(row, ['ยี่ห้อ', 'ผู้รับจ้าง', 'ผู้รับเหมา']);
-                        const responsible = findColumnValue(row, ['ผู้รับผิดชอบ']);
-                        const note = findColumnValue(row, ['หมายเหตุ']);
-                        const statusRaw = findColumnValue(row, ['สถานะ']);
+                        const brand = String(findColumnValue(row, ['ยี่ห้อ', 'ผู้รับจ้าง', 'ผู้รับเหมา']) ?? '').trim();
+                        const responsible = String(findColumnValue(row, ['ผู้รับผิดชอบ']) ?? '').trim();
+                        const note = String(findColumnValue(row, ['หมายเหตุ']) ?? '').trim();
+                        const statusRaw = String(findColumnValue(row, ['สถานะ']) ?? '').trim();
                         const status = /สรุปแล้ว|done|เสร็จ|true|✓|yes/i.test(statusRaw) ? 'done' : 'pending';
+                        const dueDateRaw = findColumnValue(row, ['กำหนดสรุป', 'วันครบกำหนด', 'กำหนดส่ง', 'duedate']);
+                        const dueDate = dueDateRaw instanceof Date ? toISODateStr(dueDateRaw) : (String(dueDateRaw || '').trim() || null);
 
                         newItems.push({
                             id: `MATSPEC-${Date.now()}-${idx}`,
@@ -6352,6 +6512,9 @@
                             responsible,
                             note,
                             status,
+                            dueDate,
+                            linkedIssueId: null,
+                            attachments: [],
                             sortOrder: idx
                         });
                     });
@@ -6378,6 +6541,41 @@
             reader.readAsArrayBuffer(file);
         }
 
+        // รายการไฟล์แนบของรายการที่กำลังเพิ่ม/แก้ไขอยู่ในโมดัล (เก็บพักไว้ก่อนกดบันทึก)
+        let materialSpecEditAttachments = [];
+
+        function renderMaterialSpecAttachmentList() {
+            const container = document.getElementById('material-spec-attachment-list');
+            if (!container) return;
+            if (materialSpecEditAttachments.length === 0) {
+                container.innerHTML = '<p class="text-[10px] text-slate-400">ยังไม่มีไฟล์แนบ</p>';
+                return;
+            }
+            container.innerHTML = materialSpecEditAttachments.map((att, idx) => `
+                <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
+                    <a href="${att.url}" target="_blank" rel="noopener" class="text-blue-600 hover:underline truncate max-w-[240px]"><i class="fa-solid fa-paperclip mr-1"></i>${att.name}</a>
+                    <button type="button" onclick="removeMaterialSpecAttachment(${idx})" class="text-rose-500 hover:text-rose-700 ml-2 shrink-0"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            `).join('');
+        }
+
+        function removeMaterialSpecAttachment(idx) {
+            materialSpecEditAttachments.splice(idx, 1);
+            renderMaterialSpecAttachmentList();
+        }
+
+        // อัปเดตตัวเลือก Defect ที่เชื่อมได้ ให้ตรงกับโครงการที่เลือกไว้ในโมดัล
+        function onMaterialSpecProjectChange() {
+            const projId = document.getElementById('material-spec-project-select')?.value;
+            const linkedSelect = document.getElementById('material-spec-linked-issue-select');
+            if (!linkedSelect) return;
+            const prevValue = linkedSelect.value;
+            const projIssues = issuesData.filter(i => i.projectId === projId);
+            linkedSelect.innerHTML = '<option value="">-- ไม่เชื่อมกับ Defect --</option>' +
+                projIssues.map(i => `<option value="${i.id}">${i.title} (${i.status === 'resolved' ? 'แก้ไขแล้ว' : 'ค้างแก้ไข'})</option>`).join('');
+            if (projIssues.some(i => i.id === prevValue)) linkedSelect.value = prevValue;
+        }
+
         function openAddMaterialSpecModal() {
             if (!currentUser || currentUser.role !== 'ADMIN') {
                 showNotification('เฉพาะ ADMIN เท่านั้นที่แก้ไขสรุปวัสดุ/ผู้รับเหมาได้', 'rose');
@@ -6395,6 +6593,12 @@
             document.getElementById('material-spec-responsible-input').value = '';
             document.getElementById('material-spec-status-select').value = 'pending';
             document.getElementById('material-spec-note-input').value = '';
+            document.getElementById('material-spec-duedate-input').value = '';
+            document.getElementById('material-spec-attachment-input').value = '';
+            materialSpecEditAttachments = [];
+            renderMaterialSpecAttachmentList();
+            onMaterialSpecProjectChange();
+            document.getElementById('material-spec-linked-issue-select').value = '';
             document.getElementById('material-spec-delete-btn').classList.add('hidden');
             openModal('material-spec-modal');
         }
@@ -6418,11 +6622,17 @@
             document.getElementById('material-spec-responsible-input').value = item.responsible || '';
             document.getElementById('material-spec-status-select').value = item.status || 'pending';
             document.getElementById('material-spec-note-input').value = item.note || '';
+            document.getElementById('material-spec-duedate-input').value = item.dueDate || '';
+            document.getElementById('material-spec-attachment-input').value = '';
+            materialSpecEditAttachments = Array.isArray(item.attachments) ? [...item.attachments] : [];
+            renderMaterialSpecAttachmentList();
+            onMaterialSpecProjectChange();
+            document.getElementById('material-spec-linked-issue-select').value = item.linkedIssueId || '';
             document.getElementById('material-spec-delete-btn').classList.remove('hidden');
             openModal('material-spec-modal');
         }
 
-        function saveMaterialSpec() {
+        async function saveMaterialSpec() {
             if (!currentUser || currentUser.role !== 'ADMIN') {
                 showNotification('เฉพาะ ADMIN เท่านั้นที่แก้ไขสรุปวัสดุ/ผู้รับเหมาได้', 'rose');
                 return;
@@ -6435,10 +6645,23 @@
             const responsible = document.getElementById('material-spec-responsible-input').value.trim();
             const status = document.getElementById('material-spec-status-select').value;
             const note = document.getElementById('material-spec-note-input').value.trim();
+            const dueDate = document.getElementById('material-spec-duedate-input').value || null;
+            const linkedIssueId = document.getElementById('material-spec-linked-issue-select').value || null;
 
             if (!projectId || !name) {
                 showNotification('กรุณาระบุโครงการและชื่อรายการ', 'rose');
                 return;
+            }
+
+            const fileInput = document.getElementById('material-spec-attachment-input');
+            let attachments = [...materialSpecEditAttachments];
+            if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                showNotification('กำลังอัปโหลดไฟล์แนบ โปรดรอสักครู่...', 'amber');
+                const newFiles = Array.from(fileInput.files);
+                for (const f of newFiles) {
+                    const url = await uploadGenericFileToCloud(f, 'material-specs');
+                    if (url) attachments.push({ name: f.name, url });
+                }
             }
 
             if (id) {
@@ -6451,6 +6674,9 @@
                     item.responsible = responsible;
                     item.status = status;
                     item.note = note;
+                    item.dueDate = dueDate;
+                    item.linkedIssueId = linkedIssueId;
+                    item.attachments = attachments;
                 }
                 showNotification('แก้ไขรายการสรุปวัสดุเรียบร้อย');
             } else {
@@ -6465,6 +6691,9 @@
                     responsible,
                     status,
                     note,
+                    dueDate,
+                    linkedIssueId,
+                    attachments,
                     sortOrder: maxOrder + 1
                 });
                 showNotification('เพิ่มรายการสรุปวัสดุเรียบร้อย');
