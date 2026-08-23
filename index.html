@@ -301,7 +301,7 @@
             <!-- Charts Section -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div id="dashboard-overall-card" class="rounded-xl shadow-sm border border-slate-200/80 flex flex-col overflow-hidden">
-                    <img src="charm-watermark.png" alt="CHARM" class="w-full h-16 object-cover">
+                    <img src="charm-watermark.png" alt="CHARM" class="w-full h-28 object-cover">
                     <div class="flex-1 bg-white flex flex-col items-center justify-center text-center space-y-1.5 py-3">
                         <h3 class="font-bold text-slate-800 text-xs">เปอร์เซ็นต์ผลงานรวมทุกโครงการ</h3>
                         <div class="relative w-28 h-28 flex items-center justify-center">
@@ -4037,12 +4037,14 @@
                     </div>
                     <div>
                         <div class="text-[11px] font-semibold text-slate-600 mb-1.5">📦 วัสดุใกล้/เลยกำหนดสั่งซื้อ (${urgentProcurements.length})</div>
-                        ${urgentProcurements.length > 0 ? `<div class="space-y-1.5">${urgentProcurements.map(m => `
+                        ${urgentProcurements.length > 0 ? `<div class="space-y-1.5">${urgentProcurements.map(m => {
+                            const unitName = project.units?.find(u => u.id === m.unitId)?.name || '-';
+                            return `
                             <div class="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-[11px]">
-                                <span class="font-bold text-slate-800">${m.name}</span>
+                                <span class="font-bold text-slate-800"><span class="text-blue-600">[${unitName}]</span> ${m.name}</span>
                                 <span class="text-amber-600 font-semibold">${m.orderDueDate < todayStr ? 'เลยกำหนดแล้ว' : `กำหนด ${m.orderDueDate}`}</span>
                             </div>
-                        `).join('')}</div>` : '<p class="text-xs text-emerald-600"><i class="fa-solid fa-circle-check mr-1"></i>ไม่มีรายการเร่งด่วน</p>'}
+                        `;}).join('')}</div>` : '<p class="text-xs text-emerald-600"><i class="fa-solid fa-circle-check mr-1"></i>ไม่มีรายการเร่งด่วน</p>'}
                     </div>
                     <div>
                         <div class="text-[11px] font-semibold text-slate-600 mb-1.5">🗓️ แผนงานสัปดาห์หน้า (${nextWeekPlanned.length} Sequence)</div>
