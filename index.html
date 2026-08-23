@@ -12,6 +12,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Supabase JS Client for Cloud Database -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- SheetJS for reading Excel files (นำเข้าไฟล์ .xlsx/.xls) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Google Fonts Inter & Prompt -->
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -683,6 +685,11 @@
                     <div class="flex items-center gap-2 text-xs">
                         <label class="font-semibold text-slate-600">โครงการ:</label>
                         <select id="materials-project-select" onchange="renderMaterialsView()" class="border border-slate-200 rounded-xl px-3 py-1.5 font-medium outline-none focus:ring-2 focus:ring-blue-500"></select>
+                        <input type="file" id="material-spec-excel-input" accept=".xlsx,.xls" class="hidden" onchange="importMaterialSpecsFromExcel(event)">
+                        <button onclick="document.getElementById('material-spec-excel-input').click()" title="นำเข้าไฟล์ Excel จะลบรายการเดิมของโครงการนี้ทิ้งแล้วแทนที่ด้วยข้อมูลในไฟล์" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 shrink-0">
+                            <i class="fa-solid fa-file-excel"></i>
+                            <span>นำเข้า Excel</span>
+                        </button>
                         <button id="btn-add-material-spec" onclick="openAddMaterialSpecModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 shrink-0">
                             <i class="fa-solid fa-plus"></i>
                             <span>เพิ่มรายการ</span>
@@ -6280,6 +6287,95 @@
             });
 
             container.innerHTML = html;
+        }
+
+        // นำเข้าไฟล์ Excel มาแทนที่รายการสรุปวัสดุ/ผู้รับเหมาเดิมทั้งหมดของโครงการที่เลือกไว้ (ลบของเก่าทิ้งทุกครั้งที่นำเข้าใหม่)
+        function importMaterialSpecsFromExcel(event) {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่นำเข้าข้อมูลจาก Excel ได้', 'rose');
+                event.target.value = '';
+                return;
+            }
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const projId = document.getElementById('materials-project-select')?.value;
+            const project = projectsData.find(p => p.id === projId);
+            if (!projId || !project) {
+                showNotification('กรุณาเลือกโครงการก่อนนำเข้าไฟล์', 'rose');
+                event.target.value = '';
+                return;
+            }
+
+            if (!confirm(`นำเข้าไฟล์นี้จะลบรายการสรุปวัสดุ/ผู้รับเหมาเดิมทั้งหมดของโครงการ "${project.name}" แล้วแทนที่ด้วยข้อมูลจากไฟล์ Excel ยืนยันหรือไม่?`)) {
+                event.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+                    const findColumnValue = (row, keywords) => {
+                        const keys = Object.keys(row);
+                        for (const k of keys) {
+                            const kNorm = k.replace(/\s+/g, '');
+                            if (keywords.some(kw => kNorm.includes(kw))) {
+                                return String(row[k] ?? '').trim();
+                            }
+                        }
+                        return '';
+                    };
+
+                    const newItems = [];
+                    rows.forEach((row, idx) => {
+                        const name = findColumnValue(row, ['รายการ', 'ชื่องาน', 'ชื่อวัสดุ']);
+                        if (!name) return;
+                        const categoryRaw = findColumnValue(row, ['หมวด', 'ประเภท']);
+                        const category = categoryRaw.toUpperCase().includes('OWNER') ? 'BY OWNER' : 'BY SUB';
+                        const brand = findColumnValue(row, ['ยี่ห้อ', 'ผู้รับจ้าง', 'ผู้รับเหมา']);
+                        const responsible = findColumnValue(row, ['ผู้รับผิดชอบ']);
+                        const note = findColumnValue(row, ['หมายเหตุ']);
+                        const statusRaw = findColumnValue(row, ['สถานะ']);
+                        const status = /สรุปแล้ว|done|เสร็จ|true|✓|yes/i.test(statusRaw) ? 'done' : 'pending';
+
+                        newItems.push({
+                            id: `MATSPEC-${Date.now()}-${idx}`,
+                            projectId: projId,
+                            category,
+                            name,
+                            brand,
+                            responsible,
+                            note,
+                            status,
+                            sortOrder: idx
+                        });
+                    });
+
+                    if (newItems.length === 0) {
+                        showNotification('ไม่พบข้อมูลที่นำเข้าได้ในไฟล์นี้ กรุณาตรวจสอบว่ามีคอลัมน์ "รายการ" อยู่ในไฟล์', 'rose');
+                        event.target.value = '';
+                        return;
+                    }
+
+                    materialSpecsData = materialSpecsData.filter(m => m.projectId !== projId);
+                    materialSpecsData.push(...newItems);
+
+                    saveDataToDatabase();
+                    refreshAllViews();
+                    showNotification(`นำเข้าข้อมูลจาก Excel สำเร็จ ${newItems.length} รายการ (แทนที่ข้อมูลเดิมของโครงการนี้แล้ว)`);
+                } catch (err) {
+                    console.error('Excel import error:', err);
+                    showNotification('เกิดข้อผิดพลาดในการอ่านไฟล์ Excel กรุณาตรวจสอบไฟล์', 'rose');
+                } finally {
+                    event.target.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
         }
 
         function openAddMaterialSpecModal() {
