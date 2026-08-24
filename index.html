@@ -408,7 +408,7 @@
         </div>
 
         <!-- VIEW: CONSTRUCTION PLAN (สัปดาห์/เดือน ที่ผ่านมา-นี้-หน้า) -->
-        <div id="view-construction-plan" class="hidden space-y-6">
+        <div id="view-construction-plan" class="hidden space-y-6 !mt-2">
             <div class="sticky top-0 z-20 bg-white rounded-2xl shadow-md border border-slate-200/80 p-4 space-y-3">
                 <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                     <div>
@@ -420,7 +420,7 @@
                         <select id="plan-project-filter" onchange="renderConstructionPlanView()" class="border border-slate-200 rounded-xl px-3 py-1.5 font-medium outline-none focus:ring-2 focus:ring-blue-500"></select>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 lg:grid-cols-[1.3fr_0.8fr_1.1fr] gap-4">
+                <div class="grid grid-cols-1 lg:grid-cols-[1.4fr_0.5fr_1.2fr] gap-4">
                     <div id="plan-masterplan-area"></div>
                     <div id="plan-overall-summary"></div>
                     <div id="plan-excel-embed-area"></div>
@@ -3844,8 +3844,8 @@
                         </div>
                     </div>
 
-                    <div class="relative w-full rounded-xl overflow-hidden border-2 border-slate-200 bg-slate-900 shadow-lg select-none">
-                        <img src="${planSrc}" class="w-full h-auto min-h-[140px] max-h-[220px] object-contain opacity-90 mx-auto">
+                    <div id="plan-masterplan-frame" class="relative w-full h-[220px] rounded-xl overflow-hidden border-2 border-slate-200 bg-slate-900 shadow-lg select-none">
+                        <img id="plan-masterplan-image" src="${planSrc}" onload="repositionPlanMasterPlanPins()" class="w-full h-full object-contain opacity-90 mx-auto">
                         ${project.units ? project.units.filter(u => u.pinX !== undefined && u.pinY !== undefined).map(u => {
                             const uProg = calculateUnitProgress(project.id, u.id);
                             const uStatus = calculateUnitStatus(u, uProg);
@@ -3864,11 +3864,11 @@
                             }
 
                             return `
-                                <div class="absolute pin-marker z-20" style="left: ${u.pinX}%; top: ${u.pinY}%;" title="${u.name} (${statusLabel})">
-                                    <div class="${pinColor} border rounded-full px-0.5 py-[1px] sm:px-1.5 sm:py-0.5 text-[5px] sm:text-[7px] font-extrabold flex items-center gap-0.5 shadow-md whitespace-nowrap">
-                                        <i class="fa-solid fa-house text-[4px] sm:text-[6px]"></i>
+                                <div class="absolute pin-marker z-20" data-pin-x="${u.pinX}" data-pin-y="${u.pinY}" style="left: ${u.pinX}%; top: ${u.pinY}%;" title="${u.name} (${statusLabel})">
+                                    <div class="${pinColor} border rounded-full px-0.5 py-[0.5px] sm:px-1 sm:py-[1px] text-[4px] sm:text-[5.5px] font-extrabold flex items-center gap-0.5 shadow-md whitespace-nowrap">
+                                        <i class="fa-solid fa-house text-[3px] sm:text-[4.5px]"></i>
                                         <span>${u.name}</span>
-                                        <span class="hidden sm:inline-block bg-black/30 rounded-full px-0.5 text-[6px]">${uProg}%</span>
+                                        <span class="hidden sm:inline-block bg-black/30 rounded-full px-0.5 text-[4.5px]">${uProg}%</span>
                                     </div>
                                 </div>
                             `;
@@ -3876,6 +3876,26 @@
                     </div>
                 </div>
             `;
+            repositionPlanMasterPlanPins();
+        }
+
+        // แก้ตำแหน่งหมุดในผังย่อของหน้าแผนงาน ให้ตรงกับรูปจริงเสมอ แม้กรอบจะถูกตัดขอบ (letterbox) เพราะสัดส่วนรูปไม่ตรงกับกรอบขนาดคงที่
+        function repositionPlanMasterPlanPins() {
+            const frame = document.getElementById('plan-masterplan-frame');
+            const img = document.getElementById('plan-masterplan-image');
+            if (!frame || !img || !img.naturalWidth) return;
+
+            const frameRect = frame.getBoundingClientRect();
+            const box = getContainedImageBox(img.naturalWidth, img.naturalHeight, frameRect.width, frameRect.height);
+
+            frame.querySelectorAll('.pin-marker[data-pin-x]').forEach(pin => {
+                const imgPctX = parseFloat(pin.dataset.pinX);
+                const imgPctY = parseFloat(pin.dataset.pinY);
+                const frameLeftPx = box.offsetX + (imgPctX / 100) * box.width;
+                const frameTopPx = box.offsetY + (imgPctY / 100) * box.height;
+                pin.style.left = `${(frameLeftPx / frameRect.width) * 100}%`;
+                pin.style.top = `${(frameTopPx / frameRect.height) * 100}%`;
+            });
         }
 
         // พื้นที่ฝัง Excel Online แบบสด (ต่อโครงการ) — เห็นตัวเลขเปลี่ยนตามไฟล์จริงเพราะเป็น iframe ตรงไปที่ไฟล์
