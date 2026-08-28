@@ -7604,6 +7604,15 @@
             tbody.innerHTML = html || '<tr><td colspan="7" class="py-4 text-center text-slate-400">ยังไม่มีข้อมูลโครงการก่อสร้าง</td></tr>';
         }
 
+        // เปิด/ปิดกล่องแสดงกำหนดจบของแปลงบ้านทั้งหมดในโครงการนั้น — ดูได้ทุกสิทธิ์ คลิกเดียวเห็นครบทุกแปลงเลย
+        function toggleUnitEndDatesPanel(projectId) {
+            const panel = document.getElementById(`unit-enddates-panel-${projectId}`);
+            if (!panel) return;
+            const wasHidden = panel.classList.contains('hidden');
+            document.querySelectorAll('[id^="unit-enddates-panel-"]').forEach(p => p.classList.add('hidden'));
+            if (wasHidden) panel.classList.remove('hidden');
+        }
+
         function renderAllProjectsTable() {
             const tbody = document.getElementById('all-projects-table-body');
             if (!tbody) return;
@@ -7635,10 +7644,20 @@
                         </td>
                         <td class="py-3 px-3 text-slate-500">${p.startDate || '-'} ถึง ${p.endDate || '-'}</td>
                         <td class="py-3 px-3">
-                            <select class="w-full max-w-[220px] border border-slate-200 rounded-lg px-2 py-1 text-[11px] outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">-- แปลงทั้งหมด (${(p.units || []).length}) --</option>
-                                ${(p.units || []).map(u => `<option value="${u.id}">${u.name} — กำหนดจบ ${u.endDate || 'ยังไม่กำหนด'}</option>`).join('')}
-                            </select>
+                            <div class="relative inline-block">
+                                <button type="button" onclick="toggleUnitEndDatesPanel('${p.id}')" class="border border-slate-200 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5">
+                                    <span>แปลงทั้งหมด (${(p.units || []).length})</span>
+                                    <i class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i>
+                                </button>
+                                <div id="unit-enddates-panel-${p.id}" class="hidden absolute z-30 mt-1 left-0 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-2 space-y-0.5 max-h-56 overflow-y-auto custom-scrollbar">
+                                    ${(p.units || []).map(u => `
+                                        <div class="flex items-center justify-between text-[11px] px-2 py-1.5 rounded-lg hover:bg-slate-50">
+                                            <span class="font-semibold text-slate-700">${u.name}</span>
+                                            <span class="text-slate-500">${u.endDate || 'ยังไม่กำหนด'}</span>
+                                        </div>
+                                    `).join('') || '<div class="text-[11px] text-slate-400 text-center py-2">ยังไม่มีแปลงบ้าน</div>'}
+                                </div>
+                            </div>
                         </td>
                         <td class="py-3 px-3 text-right space-x-1">
                             ${currentUser && currentUser.role === 'ADMIN' ? `
