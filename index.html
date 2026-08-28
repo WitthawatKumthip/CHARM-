@@ -7635,13 +7635,10 @@
                         </td>
                         <td class="py-3 px-3 text-slate-500">${p.startDate || '-'} ถึง ${p.endDate || '-'}</td>
                         <td class="py-3 px-3">
-                            <div class="flex items-center gap-1.5">
-                                <select onchange="showUnitEndDate(this, '${p.id}')" class="border border-slate-200 rounded-lg px-2 py-1 text-[11px] outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="">-- เลือกแปลง --</option>
-                                    ${(p.units || []).map(u => `<option value="${u.id}">${u.name}</option>`).join('')}
-                                </select>
-                                <span id="unit-enddate-display-${p.id}" class="text-[11px] text-slate-500 font-semibold"></span>
-                            </div>
+                            <select class="w-full max-w-[220px] border border-slate-200 rounded-lg px-2 py-1 text-[11px] outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">-- แปลงทั้งหมด (${(p.units || []).length}) --</option>
+                                ${(p.units || []).map(u => `<option value="${u.id}">${u.name} — กำหนดจบ ${u.endDate || 'ยังไม่กำหนด'}</option>`).join('')}
+                            </select>
                         </td>
                         <td class="py-3 px-3 text-right space-x-1">
                             ${currentUser && currentUser.role === 'ADMIN' ? `
@@ -7654,18 +7651,6 @@
             });
 
             tbody.innerHTML = html || '<tr><td colspan="7" class="py-4 text-center text-slate-400">ยังไม่มีรายการโครงการ</td></tr>';
-        }
-
-        // ดูวันที่กำหนดจบของแปลงบ้านที่เลือก — ดูได้ทุกสิทธิ์ (Foreman ดูได้อย่างเดียว, การแก้ไขจริงยังต้องผ่าน "จัดการบ้าน" ซึ่งเฉพาะ ADMIN)
-        function showUnitEndDate(selectEl, projectId) {
-            const displayEl = document.getElementById(`unit-enddate-display-${projectId}`);
-            if (!displayEl) return;
-            const unitId = selectEl.value;
-            if (!unitId) { displayEl.textContent = ''; return; }
-
-            const project = projectsData.find(p => p.id === projectId);
-            const unit = project?.units?.find(u => u.id === unitId);
-            displayEl.textContent = unit?.endDate ? `กำหนดจบ: ${unit.endDate}` : 'ยังไม่กำหนดวันจบ';
         }
 
         function renderDashboardStatCards() {
