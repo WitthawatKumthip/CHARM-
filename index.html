@@ -398,6 +398,7 @@
                                 <th class="py-3 px-3">ผลงานรวม</th>
                                 <th class="py-3 px-3 text-center">สถานะ</th>
                                 <th class="py-3 px-3">ระยะเวลาสัญญา</th>
+                                <th class="py-3 px-3">กำหนดจบแต่ละแปลง</th>
                                 <th class="py-3 px-3 text-right">จัดการ</th>
                             </tr>
                         </thead>
@@ -7633,6 +7634,15 @@
                             <span class="px-2 py-1 rounded-full text-[10px] font-bold ${badgeClass}">${statusText}</span>
                         </td>
                         <td class="py-3 px-3 text-slate-500">${p.startDate || '-'} ถึง ${p.endDate || '-'}</td>
+                        <td class="py-3 px-3">
+                            <div class="flex items-center gap-1.5">
+                                <select onchange="showUnitEndDate(this, '${p.id}')" class="border border-slate-200 rounded-lg px-2 py-1 text-[11px] outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">-- เลือกแปลง --</option>
+                                    ${(p.units || []).map(u => `<option value="${u.id}">${u.name}</option>`).join('')}
+                                </select>
+                                <span id="unit-enddate-display-${p.id}" class="text-[11px] text-slate-500 font-semibold"></span>
+                            </div>
+                        </td>
                         <td class="py-3 px-3 text-right space-x-1">
                             ${currentUser && currentUser.role === 'ADMIN' ? `
                             <button onclick="openUnitsModal('${p.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-semibold"><i class="fa-solid fa-house mr-1"></i> จัดการบ้าน</button>
@@ -7643,7 +7653,19 @@
                 `;
             });
 
-            tbody.innerHTML = html || '<tr><td colspan="6" class="py-4 text-center text-slate-400">ยังไม่มีรายการโครงการ</td></tr>';
+            tbody.innerHTML = html || '<tr><td colspan="7" class="py-4 text-center text-slate-400">ยังไม่มีรายการโครงการ</td></tr>';
+        }
+
+        // ดูวันที่กำหนดจบของแปลงบ้านที่เลือก — ดูได้ทุกสิทธิ์ (Foreman ดูได้อย่างเดียว, การแก้ไขจริงยังต้องผ่าน "จัดการบ้าน" ซึ่งเฉพาะ ADMIN)
+        function showUnitEndDate(selectEl, projectId) {
+            const displayEl = document.getElementById(`unit-enddate-display-${projectId}`);
+            if (!displayEl) return;
+            const unitId = selectEl.value;
+            if (!unitId) { displayEl.textContent = ''; return; }
+
+            const project = projectsData.find(p => p.id === projectId);
+            const unit = project?.units?.find(u => u.id === unitId);
+            displayEl.textContent = unit?.endDate ? `กำหนดจบ: ${unit.endDate}` : 'ยังไม่กำหนดวันจบ';
         }
 
         function renderDashboardStatCards() {
