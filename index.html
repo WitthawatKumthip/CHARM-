@@ -429,8 +429,8 @@
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
-                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-timeline text-blue-500"></i> ไทม์ไลน์งานก่อสร้างตาม Sequence</h3>
-                <p class="text-xs text-slate-500">แสดงแผนแต่ละ Sequence ของทุกแปลงบ้าน ว่าเริ่มต้นและสิ้นสุดเมื่อไหร่ ตามแผนที่วางไว้ของโครงการนี้</p>
+                <h3 class="font-bold text-slate-800 text-[17px] flex items-center gap-2"><i class="fa-solid fa-timeline text-blue-500"></i> ไทม์ไลน์งานก่อสร้างตาม Sequence</h3>
+                <p class="text-sm text-slate-500">แสดงแผนแต่ละ Sequence ของทุกแปลงบ้าน ว่าเริ่มต้นและสิ้นสุดเมื่อไหร่ ตามแผนที่วางไว้ของโครงการนี้</p>
                 <div id="plan-gantt-chart"></div>
             </div>
 
@@ -4392,13 +4392,13 @@
                     const widthPct = Math.max(0.3, ((s.end - s.start) / rangeSpan) * 100);
                     const color = GANTT_COLORS[(s.seqIndex - 1) % GANTT_COLORS.length];
                     const seqName = masterSequences[s.seqIndex - 1] || `Sequence ${s.seqIndex}`;
-                    return `<div class="absolute top-1 h-5 rounded shadow-sm" style="left:${leftPct}%; width:${widthPct}%; background:${color}" title="Sequence ${s.seqIndex}: ${seqName} (${toISODateStr(new Date(s.start))} ถึง ${toISODateStr(new Date(s.end))})"></div>`;
+                    return `<div class="absolute top-[7px] h-[14px] rounded shadow-sm" style="left:${leftPct}%; width:${widthPct}%; background:${color}" title="Sequence ${s.seqIndex}: ${seqName} (${toISODateStr(new Date(s.start))} ถึง ${toISODateStr(new Date(s.end))})"></div>`;
                 }).join('');
                 return `<div class="relative h-7 border-b border-slate-100">${barsHtml}</div>`;
             }).join('');
 
             const legendHtml = Array.from({ length: totalSeq }, (_, idx) => `
-                <div class="flex items-center gap-1 text-[10px] text-slate-600">
+                <div class="flex items-center gap-1 text-xs text-slate-600">
                     <span class="w-2.5 h-2.5 rounded-sm inline-block shrink-0" style="background:${GANTT_COLORS[idx % GANTT_COLORS.length]}"></span>
                     <span>Seq ${idx + 1}: ${(masterSequences[idx] || `Sequence ${idx + 1}`).replace(/^Sequence\s*\d+[:\s]*/i, '')}</span>
                 </div>
