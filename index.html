@@ -152,6 +152,10 @@
                     <i class="fa-solid fa-calendar-week w-5 text-center text-sm"></i>
                     <span>แผนงานก่อสร้าง (Plan)</span>
                 </button>
+                <button onclick="switchTab('critical-path')" id="nav-critical-path" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-diagram-project w-5 text-center text-sm"></i>
+                    <span>Critical Path / Float</span>
+                </button>
                 <button onclick="switchTab('record-seq')" id="nav-record-seq" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition">
                     <i class="fa-solid fa-camera-retro w-5 text-center text-sm"></i>
                     <span>บันทึกรูปและงานตาม Sequence</span>
@@ -442,6 +446,123 @@
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
                     <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-calendar-plus text-indigo-500"></i> ภาพรวมเดือนหน้า</h3>
                     <div id="plan-next-month"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: CRITICAL PATH / FLOAT -->
+        <!-- ฟีเจอร์นี้อ่านโครงการ/แปลงบ้าน/Sequence เดิมแบบอ่านอย่างเดียวเท่านั้น ห้ามเขียนกลับข้อมูลเดิมเด็ดขาด -->
+        <!-- ข้อมูลทรัพยากร/คิวงานของฟีเจอร์นี้แยกเก็บต่างหาก (resourcesData) ไม่เชื่อมกับระบบ Sequence เดิม -->
+        <div id="view-critical-path" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-diagram-project text-blue-500"></i> Critical Path / Float — คิวเครื่องจักร/ทรัพยากรร่วม</h3>
+                        <p class="text-xs text-slate-500 mt-1">คำนวณแยกต่างหากจากหน้า "แผนงานก่อสร้าง (Plan)" — ใช้เมื่อหลายแปลงบ้านต้องแย่งใช้ทรัพยากรร่วมกัน (เช่น รถตอกเสาเข็ม) การแก้ไขที่นี่จะไม่กระทบข้อมูล Sequence เดิมเลย แต่จะอ่านรายชื่อแปลงบ้าน/โครงการล่าสุดเสมอ</p>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <label class="font-semibold text-slate-600">โครงการ:</label>
+                        <select id="cp-project-filter" onchange="renderCriticalPathView()" class="border border-slate-200 rounded-xl px-3 py-1.5 font-medium outline-none focus:ring-2 focus:ring-blue-500"></select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-slate-800 text-sm">ทรัพยากรร่วม/เครื่องจักร ของโครงการนี้</h3>
+                    <button id="cp-btn-add-resource" onclick="openAddResourceModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>เพิ่มทรัพยากรใหม่</span>
+                    </button>
+                </div>
+                <div id="cp-resource-list" class="space-y-3"></div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-route text-rose-500"></i> ผัง Gantt เส้นทางวิกฤต (Critical Path)</h3>
+                <p class="text-xs text-slate-500">แท่งที่มีขอบหนา/ป้าย "จุดวิกฤต" คือทรัพยากรที่เป็นตัวกำหนดวันเสร็จจริงของแปลงนั้น (Float = 0) ส่วนแท่งจางคือทรัพยากรที่เสร็จก่อน ยังมีเวลาเหลือ (Float)</p>
+                <div id="cp-gantt-chart"></div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
+                <button type="button" onclick="document.getElementById('cp-readiness-table').classList.toggle('hidden')" class="w-full flex items-center justify-between text-left">
+                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-table-list text-slate-500"></i> ตารางความพร้อมต่อแปลง (รายละเอียด Float)</h3>
+                    <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
+                </button>
+                <div id="cp-readiness-table" class="hidden"></div>
+            </div>
+        </div>
+
+        <!-- Add/Edit Critical Path Resource Modal -->
+        <div id="cp-resource-form-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[92vh] overflow-y-auto custom-scrollbar">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <h3 id="cp-resource-form-title" class="font-bold text-slate-800 text-sm">เพิ่มทรัพยากรใหม่</h3>
+                    <button onclick="closeModal('cp-resource-form-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-base"></i></button>
+                </div>
+                <input type="hidden" id="cp-resource-form-id">
+                <input type="hidden" id="cp-resource-form-project-id">
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">ชื่อทรัพยากร *</label>
+                        <input type="text" id="cp-resource-name-input" placeholder="เช่น รถตอกเสาเข็ม" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">อัตราทำงาน/วัน *</label>
+                            <input type="number" min="0.1" step="0.1" id="cp-resource-rate-input" placeholder="เช่น 10" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">หน่วยงาน</label>
+                            <input type="text" id="cp-resource-unitlabel-input" placeholder="เช่น ต้น/วัน" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">วันเริ่มทำงาน *</label>
+                            <input type="date" id="cp-resource-startdate-input" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">ปฏิทินทำงาน</label>
+                            <select id="cp-resource-calendar-input" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="MON_SAT">จันทร์-เสาร์ (หยุดอาทิตย์)</option>
+                                <option value="EVERY_DAY">ทำงานทุกวัน</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center pt-3 border-t border-slate-100">
+                    <button id="cp-resource-delete-btn" onclick="deleteResourceFromModal()" class="hidden px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-semibold">ลบทรัพยากร</button>
+                    <div class="flex space-x-2 ml-auto">
+                        <button onclick="closeModal('cp-resource-form-modal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-medium">ยกเลิก</button>
+                        <button onclick="saveResourceFormData()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm">บันทึก</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manage Queue Modal (per resource) -->
+        <div id="cp-queue-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4 max-h-[92vh] overflow-y-auto custom-scrollbar">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <h3 class="font-bold text-slate-800 text-sm">คิวงาน — <span id="cp-queue-modal-resource-name"></span></h3>
+                    <button onclick="closeModal('cp-queue-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-base"></i></button>
+                </div>
+                <input type="hidden" id="cp-queue-modal-resource-id">
+                <div id="cp-queue-list-container" class="space-y-2"></div>
+                <div class="border-t border-slate-100 pt-3 space-y-2 text-xs">
+                    <div class="font-semibold text-slate-600">+ เพิ่มแปลงเข้าคิว</div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <select id="cp-new-queue-unit-select" class="border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                        <select id="cp-new-queue-seq-select" class="border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="number" min="0.1" step="0.1" id="cp-new-queue-qty-input" placeholder="จำนวนงาน" class="flex-1 border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500">
+                        <button onclick="addQueueEntry()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs font-semibold">เพิ่มแถว</button>
+                    </div>
+                </div>
+                <div class="flex justify-end pt-3 border-t border-slate-100">
+                    <button onclick="closeModal('cp-queue-modal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-medium">ปิด</button>
                 </div>
             </div>
         </div>
@@ -2035,6 +2156,7 @@
         let procurementsData = [];
         let materialSpecsData = [];
         let fameNotesData = [];
+        let resourcesData = []; // ทรัพยากรร่วม/คิวงาน สำหรับเมนู Critical Path / Float — ข้อมูลใหม่แยกต่างหาก อ่านโครงการ/แปลงบ้านเดิมแบบอ่านอย่างเดียว ไม่เขียนกลับ
         let currentUser = null;
         let chartInstance = null;
         let projectChartInstances = {};
@@ -2256,6 +2378,37 @@
                     weekStart: s(r.week_start),
                     note: s(r.note),
                     updatedBy: s(r.updated_by)
+                })
+            },
+
+            // ทรัพยากรร่วม/คิวงาน สำหรับเมนู Critical Path / Float — คิวงาน (queue) ฝังอยู่ในตัวทรัพยากรเลย เหมือน units ฝังใน projects
+            resources: {
+                table: 'cp_resources',
+                get: () => resourcesData,
+                set: v => { resourcesData = v; },
+                toRow: res => ({
+                    id: res.id,
+                    project_id: res.projectId,
+                    name: s(res.name),
+                    unit_label: s(res.unitLabel),
+                    daily_rate: Number(res.dailyRate) || 0,
+                    calendar: s(res.calendar) || 'MON_SAT',
+                    start_date: d(res.startDate),
+                    active: res.active !== false,
+                    sort_order: Number(res.sortOrder) || 0,
+                    queue: Array.isArray(res.queue) ? res.queue : []
+                }),
+                fromRow: r => ({
+                    id: r.id,
+                    projectId: r.project_id,
+                    name: s(r.name),
+                    unitLabel: s(r.unit_label),
+                    dailyRate: Number(r.daily_rate) || 0,
+                    calendar: s(r.calendar) || 'MON_SAT',
+                    startDate: s(r.start_date),
+                    active: r.active !== false,
+                    sortOrder: Number(r.sort_order) || 0,
+                    queue: Array.isArray(r.queue) ? r.queue : []
                 })
             }
         };
@@ -2907,7 +3060,7 @@
         }
 
         function switchTab(tabName) {
-            const views = ['dashboard', 'projects', 'construction-plan', 'record-seq', 'pm-approval', 'seq-history', 'photos', 'procurement', 'materials', 'issues', 'reports', 'fame'];
+            const views = ['dashboard', 'projects', 'construction-plan', 'critical-path', 'record-seq', 'pm-approval', 'seq-history', 'photos', 'procurement', 'materials', 'issues', 'reports', 'fame'];
             views.forEach(v => {
                 const el = document.getElementById(`view-${v}`);
                 if (el) el.classList.add('hidden');
@@ -2934,6 +3087,7 @@
                 'dashboard': 'แดชบอร์ดภาพรวมการดำเนินงาน',
                 'projects': 'จัดการรายการโครงการและแปลงบ้าน',
                 'construction-plan': 'แผนงานก่อสร้าง — ทบทวนสัปดาห์ที่ผ่านมา วางแผนสัปดาห์/เดือนถัดไป',
+                'critical-path': 'Critical Path / Float — คิวเครื่องจักร/ทรัพยากรร่วม และเส้นทางวิกฤต',
                 'record-seq': 'บันทึกรูปและงานตาม Sequence',
                 'pm-approval': 'รายการบันทึกงานค้างรอ PM ตรวจสอบและอนุมัติ',
                 'seq-history': 'ประวัติวันแล้วเสร็จ Sequence',
@@ -2993,6 +3147,9 @@
                 const savedFameNotes = localStorage.getItem('bt_fame_notes');
                 fameNotesData = savedFameNotes ? JSON.parse(savedFameNotes) : [];
 
+                const savedResources = localStorage.getItem('bt_cp_resources');
+                resourcesData = savedResources ? JSON.parse(savedResources) : [];
+
                 // กันข้อมูลเก่าที่ยังฝังรูป base64 ค้างอยู่ในเครื่อง — ล้างทิ้งอัตโนมัติ
                 stripEmbeddedBase64Photos();
             } catch (err) {
@@ -3005,6 +3162,9 @@
                 sequenceRecords = JSON.parse(JSON.stringify(defaultSequenceRecords));
                 issuesData = JSON.parse(JSON.stringify(defaultIssues));
                 procurementsData = [];
+                materialSpecsData = [];
+                fameNotesData = [];
+                resourcesData = [];
             }
         }
 
@@ -3070,6 +3230,7 @@
             localStorage.setItem('bt_procurements', JSON.stringify(procurementsData));
             localStorage.setItem('bt_material_specs', JSON.stringify(materialSpecsData));
             localStorage.setItem('bt_fame_notes', JSON.stringify(fameNotesData));
+            localStorage.setItem('bt_cp_resources', JSON.stringify(resourcesData));
         }
 
         function saveDataToDatabase() {
@@ -3118,6 +3279,7 @@
                 sequenceRecords,
                 issuesData,
                 procurementsData,
+                resourcesData,
                 exportDate: new Date().toISOString()
             };
 
@@ -3263,6 +3425,12 @@
                     if (Array.isArray(data.masterMaterials || data.materialsMaster)) masterMaterials = data.masterMaterials || data.materialsMaster;
                     if (data.masterSubTasks || data.subTasks) masterSubTasks = data.masterSubTasks || data.subTasks;
                     if (Array.isArray(data.usersDatabase || data.users)) usersDatabase = data.usersDatabase || data.users;
+
+                    // 6. Critical Path resources (feature ใหม่ ไม่มีชื่อฟิลด์เก่าให้ต้องเทียบ)
+                    if (Array.isArray(data.resourcesData)) {
+                        resourcesData = data.resourcesData;
+                        parsedSectionCount++;
+                    }
 
                     if (parsedSectionCount === 0 && !Array.isArray(rawProjects)) {
                         showNotification('ไม่พบโครงสร้างข้อมูลก่อสร้างในไฟล์ .json นี้', 'amber');
@@ -4422,6 +4590,559 @@
             `;
         }
 
+        // ===================================================================
+        // CRITICAL PATH / FLOAT — คำนวณอิสระจากข้อมูลเดิม (อ่านโครงการ/แปลงบ้าน/Sequence แบบอ่านอย่างเดียวเท่านั้น)
+        // ห้ามเขียนกลับ projectsData / p.units / masterSequences เด็ดขาด — แก้ไขได้เฉพาะ resourcesData เท่านั้น
+        // ===================================================================
+
+        // เช็ควันทำงานตามปฏิทินของทรัพยากร (จันทร์-เสาร์ หยุดอาทิตย์ หรือทำงานทุกวัน)
+        function isWorkingDay(date, calendar) {
+            if (calendar === 'EVERY_DAY') return true;
+            return date.getDay() !== 0;
+        }
+
+        // บวกจำนวน "วันทำงาน" ไปข้างหน้าจากวันเริ่ม (นับวันเริ่มเป็นวันทำงานวันที่ 1 ถ้าวันนั้นเป็นวันทำงาน)
+        function addWorkingDays(startDate, workingDaysNeeded, calendar) {
+            if (workingDaysNeeded <= 0) return new Date(startDate.getTime());
+            let cur = new Date(startDate.getTime());
+            let daysCounted = 0;
+            while (true) {
+                if (isWorkingDay(cur, calendar)) {
+                    daysCounted++;
+                    if (daysCounted >= workingDaysNeeded) return cur;
+                }
+                cur = new Date(cur.getTime() + 24 * 60 * 60 * 1000);
+            }
+        }
+
+        // คำนวณวันเริ่ม-จบของแต่ละแถวคิวงาน โดยไล่สะสมงานตามลำดับคิว (เหมือนที่คำนวณให้ KARDEN แบบ manual มาก่อน)
+        function computeResourceQueueSchedule(resource) {
+            const rate = Number(resource.dailyRate) || 0;
+            const queue = Array.isArray(resource.queue) ? resource.queue : [];
+            const calendar = resource.calendar === 'EVERY_DAY' ? 'EVERY_DAY' : 'MON_SAT';
+            const startDate = resource.startDate ? new Date(resource.startDate) : null;
+            const results = [];
+            if (rate <= 0 || !startDate || isNaN(startDate.getTime())) return results;
+
+            let cumWork = 0;
+            queue.forEach(entry => {
+                const qty = Number(entry.workQty) || 0;
+                const prevCum = cumWork;
+                cumWork += qty;
+
+                const startDayIdx = Math.ceil((prevCum + 1) / rate);
+                const finishDayIdx = Math.max(Math.ceil(cumWork / rate), startDayIdx);
+
+                results.push({
+                    ...entry,
+                    startDate: addWorkingDays(startDate, startDayIdx, calendar),
+                    finishDate: addWorkingDays(startDate, finishDayIdx, calendar),
+                    workingDays: finishDayIdx - startDayIdx + 1
+                });
+            });
+            return results;
+        }
+
+        // คำนวณตารางเวลาของทุกทรัพยากร (ที่ active) ในโครงการนั้น
+        function computeAllResourceSchedules(projectId) {
+            const map = new Map();
+            resourcesData
+                .filter(r => r.projectId === projectId && r.active !== false)
+                .forEach(r => map.set(r.id, computeResourceQueueSchedule(r)));
+            return map;
+        }
+
+        // หา "วันที่พร้อมจริง" ของแต่ละแปลง+Sequence เมื่อมีทรัพยากรมากกว่า 1 ตัวป้อนงานเดียวกัน (เช่น รถตอก+รถกด ของ KARDEN)
+        // ทรัพยากรที่ทำให้ MAX คือตัว "วิกฤต" (Float = 0) ทรัพยากรอื่นที่เสร็จก่อนจะมี Float เท่ากับส่วนต่างวัน
+        function computeUnitReadiness(projectId) {
+            const schedules = computeAllResourceSchedules(projectId);
+            const resources = resourcesData.filter(r => r.projectId === projectId && r.active !== false);
+
+            const groups = new Map();
+            resources.forEach(res => {
+                const schedule = schedules.get(res.id) || [];
+                schedule.forEach(entry => {
+                    if (!entry.unitId || !entry.feedsSeq) return;
+                    const key = `${entry.unitId}::${entry.feedsSeq}`;
+                    if (!groups.has(key)) groups.set(key, []);
+                    groups.get(key).push({
+                        resourceId: res.id,
+                        resourceName: res.name,
+                        unitName: entry.unitName,
+                        startDate: entry.startDate,
+                        finishDate: entry.finishDate
+                    });
+                });
+            });
+
+            const result = [];
+            groups.forEach((contributors, key) => {
+                const [unitId, feedsSeqStr] = key.split('::');
+                const feedsSeq = Number(feedsSeqStr);
+                const maxFinishTime = Math.max(...contributors.map(c => c.finishDate.getTime()));
+                const contributorsWithFloat = contributors.map(c => ({
+                    ...c,
+                    floatDays: Math.round((maxFinishTime - c.finishDate.getTime()) / (24 * 60 * 60 * 1000)),
+                    critical: c.finishDate.getTime() === maxFinishTime
+                }));
+                result.push({
+                    unitId,
+                    unitName: contributors[0].unitName,
+                    feedsSeq,
+                    seqName: masterSequences[feedsSeq - 1] || `Sequence ${feedsSeq}`,
+                    readyDate: new Date(maxFinishTime),
+                    contributors: contributorsWithFloat
+                });
+            });
+            return result;
+        }
+
+        function renderCriticalPathView() {
+            const filterEl = document.getElementById('cp-project-filter');
+            if (!filterEl) return;
+
+            const currentVal = filterEl.value;
+            const options = projectsData.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            if (filterEl.innerHTML !== options) {
+                filterEl.innerHTML = options;
+                filterEl.value = projectsData.some(p => p.id === currentVal) ? currentVal : (projectsData[0]?.id || '');
+            }
+            const projId = filterEl.value;
+
+            renderResourceManagementPanel(projId);
+            renderCriticalPathGantt(projId);
+            renderUnitReadinessTable(projId);
+        }
+
+        function renderResourceManagementPanel(projectId) {
+            const container = document.getElementById('cp-resource-list');
+            if (!container) return;
+            const canEdit = !!currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'FOREMAN');
+            const addBtn = document.getElementById('cp-btn-add-resource');
+            if (addBtn) addBtn.classList.toggle('hidden', !canEdit || !projectId);
+
+            if (!projectId) {
+                container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">กรุณาเลือกโครงการก่อน</p>';
+                return;
+            }
+
+            const resources = resourcesData.filter(r => r.projectId === projectId).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+            if (resources.length === 0) {
+                container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">ยังไม่มีทรัพยากรร่วมของโครงการนี้ กด "เพิ่มทรัพยากรใหม่" เพื่อเริ่มต้น</p>';
+                return;
+            }
+
+            const schedules = computeAllResourceSchedules(projectId);
+            container.innerHTML = resources.map(r => {
+                const schedule = schedules.get(r.id) || [];
+                const totalWorkQty = (r.queue || []).reduce((sum, q) => sum + (Number(q.workQty) || 0), 0);
+                const finishDate = schedule.length > 0 ? toISODateStr(schedule[schedule.length - 1].finishDate) : '-';
+                const calendarLabel = r.calendar === 'EVERY_DAY' ? 'ทำงานทุกวัน' : 'จันทร์-เสาร์ (หยุดอาทิตย์)';
+                return `
+                    <div class="border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="flex-1 min-w-0">
+                            <div class="font-bold text-slate-800 text-sm">${r.name}${r.active === false ? ' <span class="text-[10px] text-slate-400 font-normal">(ปิดใช้งาน)</span>' : ''}</div>
+                            <div class="text-[11px] text-slate-500">อัตรา ${r.dailyRate} ${r.unitLabel || 'หน่วย'}/วัน · ${calendarLabel} · เริ่ม ${r.startDate || '-'}</div>
+                            <div class="text-[11px] text-slate-500">คิวงาน ${(r.queue || []).length} แถว รวม ${totalWorkQty} ${r.unitLabel || 'หน่วย'} · คำนวณเสร็จ ${finishDate}</div>
+                        </div>
+                        <div class="flex gap-2 shrink-0">
+                            <button onclick="openQueueModal('${r.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold"><i class="fa-solid fa-list-ol mr-1"></i>คิวงาน</button>
+                            ${canEdit ? `<button onclick="openEditResourceModal('${r.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1.5 rounded-lg text-xs font-semibold">แก้ไข</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openAddResourceModal() {
+            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'FOREMAN')) {
+                showNotification('เฉพาะ ADMIN/FOREMAN เท่านั้นที่จัดการทรัพยากรได้', 'rose');
+                return;
+            }
+            const projId = document.getElementById('cp-project-filter')?.value;
+            if (!projId) {
+                showNotification('กรุณาเลือกโครงการก่อน', 'rose');
+                return;
+            }
+            document.getElementById('cp-resource-form-title').textContent = 'เพิ่มทรัพยากรใหม่';
+            document.getElementById('cp-resource-form-id').value = '';
+            document.getElementById('cp-resource-form-project-id').value = projId;
+            document.getElementById('cp-resource-name-input').value = '';
+            document.getElementById('cp-resource-rate-input').value = '';
+            document.getElementById('cp-resource-unitlabel-input').value = '';
+            document.getElementById('cp-resource-startdate-input').value = '';
+            document.getElementById('cp-resource-calendar-input').value = 'MON_SAT';
+            document.getElementById('cp-resource-delete-btn').classList.add('hidden');
+            openModal('cp-resource-form-modal');
+        }
+
+        function openEditResourceModal(resourceId) {
+            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'FOREMAN')) {
+                showNotification('เฉพาะ ADMIN/FOREMAN เท่านั้นที่จัดการทรัพยากรได้', 'rose');
+                return;
+            }
+            const r = resourcesData.find(x => x.id === resourceId);
+            if (!r) return;
+            document.getElementById('cp-resource-form-title').textContent = 'แก้ไขทรัพยากร';
+            document.getElementById('cp-resource-form-id').value = r.id;
+            document.getElementById('cp-resource-form-project-id').value = r.projectId;
+            document.getElementById('cp-resource-name-input').value = r.name || '';
+            document.getElementById('cp-resource-rate-input').value = r.dailyRate || '';
+            document.getElementById('cp-resource-unitlabel-input').value = r.unitLabel || '';
+            document.getElementById('cp-resource-startdate-input').value = r.startDate || '';
+            document.getElementById('cp-resource-calendar-input').value = r.calendar || 'MON_SAT';
+            document.getElementById('cp-resource-delete-btn').classList.remove('hidden');
+            openModal('cp-resource-form-modal');
+        }
+
+        function saveResourceFormData() {
+            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'FOREMAN')) {
+                showNotification('เฉพาะ ADMIN/FOREMAN เท่านั้นที่จัดการทรัพยากรได้', 'rose');
+                return;
+            }
+            const id = document.getElementById('cp-resource-form-id').value;
+            const projectId = document.getElementById('cp-resource-form-project-id').value;
+            const name = document.getElementById('cp-resource-name-input').value.trim();
+            const dailyRate = Number(document.getElementById('cp-resource-rate-input').value);
+            const unitLabel = document.getElementById('cp-resource-unitlabel-input').value.trim();
+            const startDate = document.getElementById('cp-resource-startdate-input').value;
+            const calendar = document.getElementById('cp-resource-calendar-input').value;
+
+            if (!name || !dailyRate || dailyRate <= 0 || !startDate) {
+                showNotification('กรุณาระบุชื่อ, อัตราทำงาน/วัน (มากกว่า 0), และวันเริ่มทำงาน', 'rose');
+                return;
+            }
+
+            if (id) {
+                const r = resourcesData.find(x => x.id === id);
+                if (r) {
+                    r.name = name;
+                    r.dailyRate = dailyRate;
+                    r.unitLabel = unitLabel;
+                    r.startDate = startDate;
+                    r.calendar = calendar;
+                }
+                showNotification('แก้ไขทรัพยากรเรียบร้อยแล้ว');
+            } else {
+                const maxOrder = resourcesData.filter(x => x.projectId === projectId).reduce((m, x) => Math.max(m, x.sortOrder || 0), 0);
+                resourcesData.push({
+                    id: `RES-${Date.now()}`,
+                    projectId, name, dailyRate, unitLabel, startDate, calendar,
+                    active: true, sortOrder: maxOrder + 1, queue: []
+                });
+                showNotification('เพิ่มทรัพยากรใหม่เรียบร้อยแล้ว');
+            }
+
+            saveDataToDatabase();
+            refreshAllViews();
+            closeModal('cp-resource-form-modal');
+        }
+
+        function deleteResourceFromModal() {
+            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'FOREMAN')) {
+                showNotification('เฉพาะ ADMIN/FOREMAN เท่านั้นที่จัดการทรัพยากรได้', 'rose');
+                return;
+            }
+            const id = document.getElementById('cp-resource-form-id').value;
+            if (!id) return;
+            const r = resourcesData.find(x => x.id === id);
+            if (!r) return;
+            if (!confirm(`ลบทรัพยากร "${r.name}" พร้อมคิวงานทั้งหมดใช่หรือไม่?`)) return;
+            resourcesData = resourcesData.filter(x => x.id !== id);
+            saveDataToDatabase();
+            refreshAllViews();
+            closeModal('cp-resource-form-modal');
+            showNotification('ลบทรัพยากรเรียบร้อยแล้ว', 'amber');
+        }
+
+        function openQueueModal(resourceId) {
+            const r = resourcesData.find(x => x.id === resourceId);
+            if (!r) return;
+            document.getElementById('cp-queue-modal-resource-id').value = resourceId;
+            document.getElementById('cp-queue-modal-resource-name').textContent = r.name;
+
+            populateUnitPickerForQueue(r.projectId);
+            populateSeqPickerForQueue();
+            document.getElementById('cp-new-queue-qty-input').value = '';
+
+            renderQueueListInModal(resourceId);
+            openModal('cp-queue-modal');
+        }
+
+        // dropdown รายชื่อแปลงบ้านจริงของโครงการ (อ่านอย่างเดียว)
+        function populateUnitPickerForQueue(projectId) {
+            const sel = document.getElementById('cp-new-queue-unit-select');
+            if (!sel) return;
+            const project = projectsData.find(p => p.id === projectId);
+            const units = project?.units || [];
+            sel.innerHTML = units.map(u => `<option value="${u.id}">${u.name}</option>`).join('') || '<option value="">-- ไม่มีแปลงบ้าน --</option>';
+        }
+
+        // dropdown รายชื่อ Sequence จริงของระบบ (อ่านอย่างเดียว)
+        function populateSeqPickerForQueue() {
+            const sel = document.getElementById('cp-new-queue-seq-select');
+            if (!sel) return;
+            const totalSeq = masterSequences.length || 10;
+            let html = '';
+            for (let i = 1; i <= totalSeq; i++) {
+                const label = (masterSequences[i - 1] || '').replace(/^Sequence\s*\d+[:\s]*/i, '').slice(0, 20);
+                html += `<option value="${i}">Seq ${i}: ${label}</option>`;
+            }
+            sel.innerHTML = html;
+        }
+
+        function renderQueueListInModal(resourceId) {
+            const container = document.getElementById('cp-queue-list-container');
+            if (!container) return;
+            const r = resourcesData.find(x => x.id === resourceId);
+            if (!r) return;
+            const project = projectsData.find(p => p.id === r.projectId);
+            const unitNameMap = new Map((project?.units || []).map(u => [u.id, u.name]));
+
+            const queue = r.queue || [];
+            if (queue.length === 0) {
+                container.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">ยังไม่มีแปลงในคิวนี้</p>';
+                return;
+            }
+            container.innerHTML = queue.map((q, idx) => {
+                const liveUnitName = unitNameMap.get(q.unitId) || q.unitName || 'แปลงที่ถูกลบ';
+                const seqName = (masterSequences[q.feedsSeq - 1] || `Sequence ${q.feedsSeq}`).replace(/^Sequence\s*\d+[:\s]*/i, '');
+                return `
+                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs">
+                        <span class="font-bold text-slate-400 w-5">${idx + 1}</span>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-semibold text-slate-800 truncate">${liveUnitName}</div>
+                            <div class="text-[10px] text-slate-500 truncate">ป้อน Seq ${q.feedsSeq}: ${seqName} · ${q.workQty} หน่วย</div>
+                        </div>
+                        <button onclick="moveQueueEntry('${resourceId}','${q.id}',-1)" title="เลื่อนขึ้น" class="text-slate-400 hover:text-slate-700 px-1"><i class="fa-solid fa-arrow-up"></i></button>
+                        <button onclick="moveQueueEntry('${resourceId}','${q.id}',1)" title="เลื่อนลง" class="text-slate-400 hover:text-slate-700 px-1"><i class="fa-solid fa-arrow-down"></i></button>
+                        <button onclick="removeQueueEntry('${resourceId}','${q.id}')" title="ลบ" class="text-rose-500 hover:text-rose-700 px-1"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function addQueueEntry() {
+            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'FOREMAN')) {
+                showNotification('เฉพาะ ADMIN/FOREMAN เท่านั้นที่จัดการคิวงานได้', 'rose');
+                return;
+            }
+            const resourceId = document.getElementById('cp-queue-modal-resource-id').value;
+            const r = resourcesData.find(x => x.id === resourceId);
+            if (!r) return;
+
+            const unitId = document.getElementById('cp-new-queue-unit-select').value;
+            const feedsSeq = Number(document.getElementById('cp-new-queue-seq-select').value);
+            const workQty = Number(document.getElementById('cp-new-queue-qty-input').value);
+
+            if (!unitId || !feedsSeq || !workQty || workQty <= 0) {
+                showNotification('กรุณาเลือกแปลงบ้าน, Sequence, และระบุจำนวนงาน (มากกว่า 0)', 'rose');
+                return;
+            }
+
+            const project = projectsData.find(p => p.id === r.projectId);
+            const unit = project?.units?.find(u => u.id === unitId);
+
+            if (!r.queue) r.queue = [];
+            r.queue.push({
+                id: `Q-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                unitId, unitName: unit?.name || '', workQty, feedsSeq, note: ''
+            });
+
+            saveDataToDatabase();
+            refreshAllViews();
+            renderQueueListInModal(resourceId);
+            document.getElementById('cp-new-queue-qty-input').value = '';
+            showNotification('เพิ่มแปลงเข้าคิวเรียบร้อยแล้ว');
+        }
+
+        function removeQueueEntry(resourceId, queueEntryId) {
+            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'FOREMAN')) {
+                showNotification('เฉพาะ ADMIN/FOREMAN เท่านั้นที่จัดการคิวงานได้', 'rose');
+                return;
+            }
+            const r = resourcesData.find(x => x.id === resourceId);
+            if (!r) return;
+            r.queue = (r.queue || []).filter(q => q.id !== queueEntryId);
+            saveDataToDatabase();
+            refreshAllViews();
+            renderQueueListInModal(resourceId);
+        }
+
+        function moveQueueEntry(resourceId, queueEntryId, direction) {
+            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'FOREMAN')) {
+                showNotification('เฉพาะ ADMIN/FOREMAN เท่านั้นที่จัดการคิวงานได้', 'rose');
+                return;
+            }
+            const r = resourcesData.find(x => x.id === resourceId);
+            if (!r || !Array.isArray(r.queue)) return;
+            const idx = r.queue.findIndex(q => q.id === queueEntryId);
+            if (idx === -1) return;
+            const newIdx = idx + direction;
+            if (newIdx < 0 || newIdx >= r.queue.length) return;
+            const tmp = r.queue[idx];
+            r.queue[idx] = r.queue[newIdx];
+            r.queue[newIdx] = tmp;
+            saveDataToDatabase();
+            refreshAllViews();
+            renderQueueListInModal(resourceId);
+        }
+
+        const CP_GANTT_LABEL_PX = 90;
+
+        function renderCriticalPathGantt(projectId) {
+            const container = document.getElementById('cp-gantt-chart');
+            if (!container) return;
+            if (!projectId) {
+                container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">กรุณาเลือกโครงการก่อน</p>';
+                return;
+            }
+
+            const resources = resourcesData.filter(r => r.projectId === projectId && r.active !== false).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+            if (resources.length === 0) {
+                container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">ยังไม่มีทรัพยากรร่วมของโครงการนี้</p>';
+                return;
+            }
+
+            const schedules = computeAllResourceSchedules(projectId);
+            const readiness = computeUnitReadiness(projectId);
+            const criticalLookup = new Map();
+            readiness.forEach(item => {
+                item.contributors.forEach(c => {
+                    criticalLookup.set(`${item.unitId}::${item.feedsSeq}::${c.resourceId}`, { critical: c.critical, floatDays: c.floatDays });
+                });
+            });
+
+            const rows = [];
+            resources.forEach((res, resIdx) => {
+                const schedule = schedules.get(res.id) || [];
+                schedule.forEach(entry => {
+                    rows.push({
+                        resourceName: res.name,
+                        resourceColor: GANTT_COLORS[resIdx % GANTT_COLORS.length],
+                        unitName: entry.unitName,
+                        start: entry.startDate.getTime(),
+                        end: entry.finishDate.getTime(),
+                        feedsSeq: entry.feedsSeq,
+                        criticalInfo: criticalLookup.get(`${entry.unitId}::${entry.feedsSeq}::${res.id}`) || { critical: true, floatDays: 0 }
+                    });
+                });
+            });
+
+            if (rows.length === 0) {
+                container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">ยังไม่มีคิวงานให้แสดง — กด "คิวงาน" ในทรัพยากรด้านบนเพื่อเพิ่ม</p>';
+                return;
+            }
+
+            const allTimes = rows.flatMap(r => [r.start, r.end]);
+            const rangeMin = Math.min(...allTimes);
+            const rangeMax = Math.max(...allTimes);
+            const rangeSpan = Math.max(1, rangeMax - rangeMin);
+
+            const months = [];
+            let curMonth = new Date(rangeMin);
+            curMonth.setDate(1);
+            curMonth.setHours(0, 0, 0, 0);
+            while (curMonth.getTime() <= rangeMax) {
+                const leftPct = Math.max(0, ((curMonth.getTime() - rangeMin) / rangeSpan) * 100);
+                months.push({ label: curMonth.toLocaleDateString('th-TH', { month: 'short', year: '2-digit' }), leftPct });
+                curMonth = new Date(curMonth.getFullYear(), curMonth.getMonth() + 1, 1);
+            }
+            const monthLabelHtml = months.map(m => `<div class="absolute top-0 bottom-0 border-l border-slate-300 text-[9px] text-slate-400 pl-1 pt-1" style="left:${m.leftPct}%">${m.label}</div>`).join('');
+            const monthLineHtml = months.map(m => `<div class="absolute top-0 bottom-0 border-l-2 border-slate-300" style="left:${m.leftPct}%"></div>`).join('');
+
+            const labelColHtml = rows.map(r => `<div class="h-7 flex items-center justify-center text-[10px] font-semibold text-slate-700 border-b border-r border-slate-100 truncate px-1" title="${r.resourceName} — ${r.unitName}">${r.unitName}</div>`).join('');
+
+            const barRowsHtml = rows.map(r => {
+                const leftPct = ((r.start - rangeMin) / rangeSpan) * 100;
+                const widthPct = Math.max(0.3, ((r.end - r.start) / rangeSpan) * 100);
+                const isCritical = r.criticalInfo.critical;
+                const floatDays = r.criticalInfo.floatDays;
+                const barClass = isCritical ? 'ring-2 ring-rose-600 shadow-sm' : 'opacity-50';
+                const seqName = (masterSequences[r.feedsSeq - 1] || `Sequence ${r.feedsSeq}`).replace(/^Sequence\s*\d+[:\s]*/i, '');
+                const floatText = isCritical ? 'จุดวิกฤต (Float 0 วัน)' : `Float ${floatDays} วัน`;
+                return `
+                    <div class="relative h-7 border-b border-slate-100">
+                        <div class="absolute top-[7px] h-[14px] rounded ${barClass}" style="left:${leftPct}%; width:${widthPct}%; background:${r.resourceColor}" title="${r.resourceName} — ${r.unitName} — ป้อน Seq ${r.feedsSeq}: ${seqName} (${toISODateStr(new Date(r.start))} ถึง ${toISODateStr(new Date(r.end))}) — ${floatText}"></div>
+                    </div>
+                `;
+            }).join('');
+
+            const legendHtml = resources.map((res, idx) => `
+                <div class="flex items-center gap-1 text-xs text-slate-600">
+                    <span class="w-2.5 h-2.5 rounded-sm inline-block shrink-0" style="background:${GANTT_COLORS[idx % GANTT_COLORS.length]}"></span>
+                    <span>${res.name}</span>
+                </div>
+            `).join('') + `
+                <div class="flex items-center gap-1 text-xs text-slate-600">
+                    <span class="w-2.5 h-2.5 rounded-sm inline-block shrink-0 ring-2 ring-rose-600 bg-slate-300"></span>
+                    <span>จุดวิกฤต (Float 0)</span>
+                </div>
+            `;
+
+            container.innerHTML = `
+                <div class="flex flex-wrap gap-x-3 gap-y-1 mb-3 pb-3 border-b border-slate-100">${legendHtml}</div>
+                <div class="border border-slate-200 rounded-xl overflow-hidden">
+                    <div class="flex items-stretch bg-slate-50 border-b border-slate-200">
+                        <div class="shrink-0" style="width:${CP_GANTT_LABEL_PX}px"></div>
+                        <div class="relative h-6 flex-1 min-w-0">${monthLabelHtml}</div>
+                    </div>
+                    <div class="flex items-start max-h-96 overflow-y-auto custom-scrollbar">
+                        <div class="shrink-0 bg-white" style="width:${CP_GANTT_LABEL_PX}px">${labelColHtml}</div>
+                        <div class="relative flex-1 min-w-0">
+                            ${monthLineHtml}
+                            ${barRowsHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderUnitReadinessTable(projectId) {
+            const container = document.getElementById('cp-readiness-table');
+            if (!container) return;
+            if (!projectId) { container.innerHTML = ''; return; }
+
+            const readiness = computeUnitReadiness(projectId).sort((a, b) => a.readyDate - b.readyDate);
+            if (readiness.length === 0) {
+                container.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">ยังไม่มีข้อมูลให้แสดง</p>';
+                return;
+            }
+
+            const rowsHtml = readiness.map(item => {
+                const contributorsHtml = item.contributors
+                    .slice()
+                    .sort((a, b) => a.floatDays - b.floatDays)
+                    .map(c => `<div class="${c.critical ? 'font-bold text-rose-600' : 'text-slate-500'}">${c.resourceName}: ${toISODateStr(c.finishDate)} ${c.critical ? '(วิกฤต)' : `(Float ${c.floatDays} วัน)`}</div>`)
+                    .join('');
+                const seqLabel = item.seqName.replace(/^Sequence\s*\d+[:\s]*/i, '');
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="py-2 px-3 font-semibold text-slate-800">${item.unitName}</td>
+                        <td class="py-2 px-3 text-slate-600">Seq ${item.feedsSeq}: ${seqLabel}</td>
+                        <td class="py-2 px-3 font-bold text-slate-800">${toISODateStr(item.readyDate)}</td>
+                        <td class="py-2 px-3 text-[11px]">${contributorsHtml}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="overflow-x-auto custom-scrollbar mt-2">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 border-b border-slate-100 uppercase">
+                                <th class="py-2 px-3">แปลงบ้าน</th>
+                                <th class="py-2 px-3">Sequence ที่ป้อน</th>
+                                <th class="py-2 px-3">วันที่พร้อมจริง</th>
+                                <th class="py-2 px-3">ทรัพยากรที่เกี่ยวข้อง</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-xs divide-y divide-slate-100 text-slate-700">${rowsHtml}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
         function renderConstructionPlanView() {
             const filterEl = document.getElementById('plan-project-filter');
             if (!filterEl) return;
@@ -4701,6 +5422,7 @@
             renderIndividualProjectCharts();
             renderSitePlanView();
             renderConstructionPlanView();
+            renderCriticalPathView();
             renderDashboardProjectsTable();
             renderAllProjectsTable();
             renderRecordSequenceOverview();
