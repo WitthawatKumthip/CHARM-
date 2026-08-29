@@ -428,15 +428,10 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-4">
-                <div id="plan-unit-breakdown"></div>
-            </div>
-
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
-                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-calendar-day text-blue-500"></i> สัปดาห์นี้ — กำลังดำเนินการ</h3>
-                <div id="plan-this-week-summary"></div>
-                <div id="plan-this-week-breakdown"></div>
-                <div id="plan-this-week-detail"></div>
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-timeline text-blue-500"></i> ไทม์ไลน์งานก่อสร้างตาม Sequence</h3>
+                <p class="text-xs text-slate-500">แสดงแผนแต่ละ Sequence ของทุกแปลงบ้าน ว่าเริ่มต้นและสิ้นสุดเมื่อไหร่ ตามแผนที่วางไว้ของโครงการนี้</p>
+                <div id="plan-gantt-chart"></div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -4320,6 +4315,106 @@
             showNotification('บันทึกบทเรียนประจำสัปดาห์เรียบร้อยแล้ว');
         }
 
+        // ไทม์ไลน์งานก่อสร้างตาม Sequence — แถวละ 1 แปลงบ้าน แท่งสีคือแต่ละ Sequence เริ่ม-จบเมื่อไหร่ตามแผน
+        // แท่งของ Sequence ที่ i คือช่วงจากวันที่ตามแผนของ Sequence ก่อนหน้า ถึงวันที่ตามแผนของ Sequence นี้เอง
+        // (ใช้ getPlannedDateForSeq ตัวเดียวกับที่อื่นในระบบ เลยรองรับทั้งโมเดล Precast ปกติ และ seqDateOverrides แบบ KARDEN โดยอัตโนมัติ)
+        const GANTT_DAY_PX = 6;
+        const GANTT_LABEL_PX = 128;
+        const GANTT_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#EF4444', '#84CC16', '#6366F1', '#F97316'];
+
+        function renderPlanGanttChart(filterProjId) {
+            const container = document.getElementById('plan-gantt-chart');
+            if (!container) return;
+
+            const totalSeq = masterSequences.length || 10;
+            const projectsToUse = (filterProjId && filterProjId !== 'ALL') ? projectsData.filter(p => p.id === filterProjId) : projectsData;
+
+            const rows = [];
+            projectsToUse.forEach(p => {
+                (p.units || []).forEach(u => {
+                    if (!u.startDate || !u.endDate) return;
+                    const unitStart = new Date(u.startDate).getTime();
+                    const unitEnd = new Date(u.endDate).getTime();
+                    if (isNaN(unitStart) || isNaN(unitEnd) || unitEnd <= unitStart) return;
+
+                    const segments = [];
+                    let prevTime = unitStart;
+                    for (let i = 1; i <= totalSeq; i++) {
+                        const segEndDate = getPlannedDateForSeq(u, i, totalSeq);
+                        if (!segEndDate) continue;
+                        const segEndTime = segEndDate.getTime();
+                        if (segEndTime > prevTime) segments.push({ seqIndex: i, start: prevTime, end: segEndTime });
+                        prevTime = segEndTime;
+                    }
+                    if (segments.length > 0) rows.push({ projectName: p.name, unitName: u.name, segments });
+                });
+            });
+
+            if (rows.length === 0) {
+                container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">ยังไม่มีข้อมูลแปลงบ้านที่กำหนดวันเริ่ม-จบไว้</p>';
+                return;
+            }
+
+            const DAY_MS = 24 * 60 * 60 * 1000;
+            const allTimes = rows.flatMap(r => r.segments.flatMap(s => [s.start, s.end]));
+            const rangeMin = Math.min(...allTimes);
+            const rangeMax = Math.max(...allTimes);
+            const totalDays = Math.max(1, Math.ceil((rangeMax - rangeMin) / DAY_MS));
+            const chartWidthPx = totalDays * GANTT_DAY_PX;
+
+            const months = [];
+            let curMonth = new Date(rangeMin);
+            curMonth.setDate(1);
+            curMonth.setHours(0, 0, 0, 0);
+            while (curMonth.getTime() <= rangeMax) {
+                const offsetDays = Math.max(0, (curMonth.getTime() - rangeMin) / DAY_MS);
+                months.push({
+                    label: curMonth.toLocaleDateString('th-TH', { month: 'short', year: '2-digit' }),
+                    leftPx: offsetDays * GANTT_DAY_PX
+                });
+                curMonth = new Date(curMonth.getFullYear(), curMonth.getMonth() + 1, 1);
+            }
+            const monthGridHtml = months.map(m => `
+                <div class="absolute top-0 bottom-0 border-l border-slate-200 text-[9px] text-slate-400 pl-1 pt-1" style="left:${m.leftPx}px">${m.label}</div>
+            `).join('');
+
+            const rowsHtml = rows.map(r => {
+                const barsHtml = r.segments.map(s => {
+                    const leftPx = ((s.start - rangeMin) / DAY_MS) * GANTT_DAY_PX;
+                    const widthPx = Math.max(3, ((s.end - s.start) / DAY_MS) * GANTT_DAY_PX);
+                    const color = GANTT_COLORS[(s.seqIndex - 1) % GANTT_COLORS.length];
+                    const seqName = masterSequences[s.seqIndex - 1] || `Sequence ${s.seqIndex}`;
+                    return `<div class="absolute top-1 h-5 rounded shadow-sm" style="left:${leftPx}px; width:${widthPx}px; background:${color}" title="Sequence ${s.seqIndex}: ${seqName} (${toISODateStr(new Date(s.start))} ถึง ${toISODateStr(new Date(s.end))})"></div>`;
+                }).join('');
+                return `
+                    <div class="flex items-stretch border-b border-slate-100">
+                        <div class="shrink-0 py-1.5 px-2 text-[11px] font-semibold text-slate-700 bg-white sticky left-0 z-10 border-r border-slate-100 truncate" style="width:${GANTT_LABEL_PX}px" title="${r.projectName} — ${r.unitName}">${r.unitName}</div>
+                        <div class="relative h-7 shrink-0" style="width:${chartWidthPx}px">${barsHtml}</div>
+                    </div>
+                `;
+            }).join('');
+
+            const legendHtml = Array.from({ length: totalSeq }, (_, idx) => `
+                <div class="flex items-center gap-1 text-[10px] text-slate-600">
+                    <span class="w-2.5 h-2.5 rounded-sm inline-block shrink-0" style="background:${GANTT_COLORS[idx % GANTT_COLORS.length]}"></span>
+                    <span>Seq ${idx + 1}: ${(masterSequences[idx] || `Sequence ${idx + 1}`).replace(/^Sequence\s*\d+[:\s]*/i, '')}</span>
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="flex flex-wrap gap-x-3 gap-y-1 mb-3 pb-3 border-b border-slate-100">${legendHtml}</div>
+                <div class="overflow-x-auto custom-scrollbar border border-slate-200 rounded-xl">
+                    <div style="width:${GANTT_LABEL_PX + chartWidthPx}px">
+                        <div class="flex items-stretch bg-slate-50 border-b border-slate-200">
+                            <div class="shrink-0 sticky left-0 bg-slate-50 z-10" style="width:${GANTT_LABEL_PX}px"></div>
+                            <div class="relative h-6 shrink-0" style="width:${chartWidthPx}px">${monthGridHtml}</div>
+                        </div>
+                        <div class="max-h-96 overflow-y-auto custom-scrollbar">${rowsHtml}</div>
+                    </div>
+                </div>
+            `;
+        }
+
         function renderConstructionPlanView() {
             const filterEl = document.getElementById('plan-project-filter');
             if (!filterEl) return;
@@ -4350,6 +4445,7 @@
             const planViewProjId = filterProjId !== 'ALL' ? filterProjId : (projectsData[0]?.id || null);
             renderPlanMasterPlanSummary(planViewProjId);
             renderPlanExcelEmbedArea(planViewProjId);
+            renderPlanGanttChart(filterProjId);
 
             // ---------- 2-4) ภาพรวมแผนงานทั้งโครงการ + รายละเอียดต่อแปลง ----------
             const unitStatusList = getUnitPlanStatusList(filterProjId, today);
