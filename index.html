@@ -3732,6 +3732,35 @@
             const end = new Date(unit.endDate).getTime();
             if (isNaN(start) || isNaN(end) || end <= start) return null;
 
+            // ตารางวันที่กำหนดเองต่อ Sequence (ใช้เมื่อมีตารางเดินเครื่องจักร/คิวงานเฉพาะโครงการ เช่น คิวรถตอกเสาเข็มของ KARDEN)
+            // Sequence ที่ระบุไว้ตรงๆ ใช้วันที่นั้นเป๊ะ ส่วน Sequence ระหว่างกลางไล่เฉลี่ยระหว่าง 2 จุดที่ใกล้ที่สุด
+            // และ Sequence หลังจุดสุดท้ายไล่เฉลี่ยไปจนถึงวันจบแปลง (endDate) เหมือนช่วงท้ายของโมเดล Precast เดิม
+            if (unit.seqDateOverrides && typeof unit.seqDateOverrides === 'object') {
+                const anchors = Object.keys(unit.seqDateOverrides)
+                    .map(k => ({ seq: Number(k), time: new Date(unit.seqDateOverrides[k]).getTime() }))
+                    .filter(a => !isNaN(a.seq) && !isNaN(a.time))
+                    .sort((a, b) => a.seq - b.seq);
+
+                if (anchors.length > 0) {
+                    if (seqIndex <= anchors[0].seq) {
+                        return new Date(start + (anchors[0].time - start) * (seqIndex / anchors[0].seq));
+                    }
+                    for (let i = 0; i < anchors.length - 1; i++) {
+                        if (seqIndex >= anchors[i].seq && seqIndex <= anchors[i + 1].seq) {
+                            const span = anchors[i + 1].seq - anchors[i].seq;
+                            const ratio = span > 0 ? (seqIndex - anchors[i].seq) / span : 0;
+                            return new Date(anchors[i].time + (anchors[i + 1].time - anchors[i].time) * ratio);
+                        }
+                    }
+                    const last = anchors[anchors.length - 1];
+                    const remainingCount = totalSeq - last.seq;
+                    const remainingIdx = seqIndex - last.seq;
+                    return remainingCount > 0
+                        ? new Date(last.time + (end - last.time) * (remainingIdx / remainingCount))
+                        : new Date(last.time);
+                }
+            }
+
             const precastDays = Number(unit.precastDays) || 0;
             if (precastDays > 0 && totalSeq > PRECAST_PHASE_END_SEQ) {
                 const precastEnd = start + precastDays * 24 * 60 * 60 * 1000;
