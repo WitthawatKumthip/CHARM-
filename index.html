@@ -7604,13 +7604,20 @@
             tbody.innerHTML = html || '<tr><td colspan="7" class="py-4 text-center text-slate-400">ยังไม่มีข้อมูลโครงการก่อสร้าง</td></tr>';
         }
 
-        // เปิด/ปิดกล่องแสดงกำหนดจบของแปลงบ้านทั้งหมดในโครงการนั้น — ดูได้ทุกสิทธิ์ คลิกเดียวเห็นครบทุกแปลงเลย
+        // เปิด/ปิดแถวแสดงกำหนดจบของแปลงบ้านทั้งหมดในโครงการนั้น — ดูได้ทุกสิทธิ์ คลิกเดียวเห็นครบทุกแปลงเลย
+        // ใช้แถวตารางจริง (ไม่ใช่กล่องลอย) เพื่อให้แถวโครงการอื่นๆ ที่อยู่ด้านล่างเลื่อนลงไปให้ที่ ไม่ซ้อนทับกัน
         function toggleUnitEndDatesPanel(projectId) {
-            const panel = document.getElementById(`unit-enddates-panel-${projectId}`);
-            if (!panel) return;
-            const wasHidden = panel.classList.contains('hidden');
-            document.querySelectorAll('[id^="unit-enddates-panel-"]').forEach(p => p.classList.add('hidden'));
-            if (wasHidden) panel.classList.remove('hidden');
+            const row = document.getElementById(`unit-enddates-row-${projectId}`);
+            if (!row) return;
+            const wasHidden = row.classList.contains('hidden');
+
+            document.querySelectorAll('[id^="unit-enddates-row-"]').forEach(r => r.classList.add('hidden'));
+            document.querySelectorAll('[id^="unit-enddates-chevron-"]').forEach(c => c.classList.remove('rotate-180'));
+
+            if (wasHidden) {
+                row.classList.remove('hidden');
+                document.getElementById(`unit-enddates-chevron-${projectId}`)?.classList.add('rotate-180');
+            }
         }
 
         function renderAllProjectsTable() {
@@ -7644,26 +7651,28 @@
                         </td>
                         <td class="py-3 px-3 text-slate-500">${p.startDate || '-'} ถึง ${p.endDate || '-'}</td>
                         <td class="py-3 px-3">
-                            <div class="relative inline-block">
-                                <button type="button" onclick="toggleUnitEndDatesPanel('${p.id}')" class="border border-slate-200 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5">
-                                    <span>แปลงทั้งหมด (${(p.units || []).length})</span>
-                                    <i class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i>
-                                </button>
-                                <div id="unit-enddates-panel-${p.id}" class="hidden absolute z-30 mt-1 left-0 w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-2 space-y-0.5 max-h-56 overflow-y-auto custom-scrollbar">
-                                    ${(p.units || []).map(u => `
-                                        <div class="flex items-center justify-between text-[11px] px-2 py-1.5 rounded-lg hover:bg-slate-50">
-                                            <span class="font-semibold text-slate-700">${u.name}</span>
-                                            <span class="text-slate-500">${u.endDate || 'ยังไม่กำหนด'}</span>
-                                        </div>
-                                    `).join('') || '<div class="text-[11px] text-slate-400 text-center py-2">ยังไม่มีแปลงบ้าน</div>'}
-                                </div>
-                            </div>
+                            <button type="button" onclick="toggleUnitEndDatesPanel('${p.id}')" class="border border-slate-200 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5">
+                                <span>แปลงทั้งหมด (${(p.units || []).length})</span>
+                                <i id="unit-enddates-chevron-${p.id}" class="fa-solid fa-chevron-down text-[9px] text-slate-400 transition-transform"></i>
+                            </button>
                         </td>
                         <td class="py-3 px-3 text-right space-x-1">
                             ${currentUser && currentUser.role === 'ADMIN' ? `
                             <button onclick="openUnitsModal('${p.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-semibold"><i class="fa-solid fa-house mr-1"></i> จัดการบ้าน</button>
                             <button onclick="openEditProjectModal('${p.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-semibold">แก้ไข</button>
                             ` : '<span class="text-slate-300 text-[10px] italic"><i class="fa-solid fa-lock mr-1"></i>เฉพาะ ADMIN</span>'}
+                        </td>
+                    </tr>
+                    <tr id="unit-enddates-row-${p.id}" class="hidden bg-slate-50/60">
+                        <td colspan="7" class="px-3 pb-3 pt-0">
+                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 pt-2 border-t border-slate-200">
+                                ${(p.units || []).map(u => `
+                                    <div class="flex items-center justify-between text-[11px] bg-white border border-slate-200 rounded-lg px-2.5 py-1.5">
+                                        <span class="font-semibold text-slate-700">${u.name}</span>
+                                        <span class="text-slate-500">${u.endDate || 'ยังไม่กำหนด'}</span>
+                                    </div>
+                                `).join('') || '<div class="text-[11px] text-slate-400 text-center py-2 col-span-full">ยังไม่มีแปลงบ้าน</div>'}
+                            </div>
                         </td>
                     </tr>
                 `;
