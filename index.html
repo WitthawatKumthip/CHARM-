@@ -4318,9 +4318,10 @@
         // ไทม์ไลน์งานก่อสร้างตาม Sequence — แถวละ 1 แปลงบ้าน แท่งสีคือแต่ละ Sequence เริ่ม-จบเมื่อไหร่ตามแผน
         // แท่งของ Sequence ที่ i คือช่วงจากวันที่ตามแผนของ Sequence ก่อนหน้า ถึงวันที่ตามแผนของ Sequence นี้เอง
         // (ใช้ getPlannedDateForSeq ตัวเดียวกับที่อื่นในระบบ เลยรองรับทั้งโมเดล Precast ปกติ และ seqDateOverrides แบบ KARDEN โดยอัตโนมัติ)
-        const GANTT_DAY_PX = 6;
-        const GANTT_LABEL_PX = 128;
-        const GANTT_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#EF4444', '#84CC16', '#6366F1', '#F97316'];
+        // สเกลเป็น % ของความกว้างที่มี ไม่ใช่พิกเซลคงที่ต่อวัน เพื่อให้พอดีความกว้างหน้าจอเสมอ ไม่ต้องเลื่อนสกอร์บาร์แนวนอน
+        const GANTT_LABEL_PX = 56;
+        // เลือกให้สีที่อยู่ติดกัน (Sequence ถัดไป) ต่างวรรณะกันชัดเจน อ่านง่ายกว่าชุดสีเดิมที่มีสีใกล้เคียงกันอยู่ติดกัน (เช่น น้ำเงิน-ม่วงคราม, ส้ม 2 เฉด)
+        const GANTT_COLORS = ['#2563EB', '#DC2626', '#16A34A', '#9333EA', '#EA580C', '#0891B2', '#DB2777', '#CA8A04', '#4F46E5', '#65A30D'];
 
         function renderPlanGanttChart(filterProjId) {
             const container = document.getElementById('plan-gantt-chart');
@@ -4359,39 +4360,41 @@
             const allTimes = rows.flatMap(r => r.segments.flatMap(s => [s.start, s.end]));
             const rangeMin = Math.min(...allTimes);
             const rangeMax = Math.max(...allTimes);
-            const totalDays = Math.max(1, Math.ceil((rangeMax - rangeMin) / DAY_MS));
-            const chartWidthPx = totalDays * GANTT_DAY_PX;
+            const rangeSpan = Math.max(1, rangeMax - rangeMin);
 
             const months = [];
             let curMonth = new Date(rangeMin);
             curMonth.setDate(1);
             curMonth.setHours(0, 0, 0, 0);
             while (curMonth.getTime() <= rangeMax) {
-                const offsetDays = Math.max(0, (curMonth.getTime() - rangeMin) / DAY_MS);
+                const leftPct = Math.max(0, ((curMonth.getTime() - rangeMin) / rangeSpan) * 100);
                 months.push({
                     label: curMonth.toLocaleDateString('th-TH', { month: 'short', year: '2-digit' }),
-                    leftPx: offsetDays * GANTT_DAY_PX
+                    leftPct
                 });
                 curMonth = new Date(curMonth.getFullYear(), curMonth.getMonth() + 1, 1);
             }
-            const monthGridHtml = months.map(m => `
-                <div class="absolute top-0 bottom-0 border-l border-slate-200 text-[9px] text-slate-400 pl-1 pt-1" style="left:${m.leftPx}px">${m.label}</div>
+            const monthLabelHtml = months.map(m => `
+                <div class="absolute top-0 bottom-0 border-l border-slate-300 text-[9px] text-slate-400 pl-1 pt-1" style="left:${m.leftPct}%">${m.label}</div>
+            `).join('');
+            // เส้นตรงของแต่ละเดือน ลากยาวลงมาตลอดทุกแถว (ไม่ใช่แค่ในหัวตาราง) ให้เห็นชัดว่าแท่งไหนอยู่เดือนไหน
+            const monthLineHtml = months.map(m => `
+                <div class="absolute top-0 bottom-0 border-l-2 border-slate-300" style="left:${m.leftPct}%"></div>
             `).join('');
 
-            const rowsHtml = rows.map(r => {
+            const labelColHtml = rows.map(r => `
+                <div class="h-7 flex items-center justify-center text-[11px] font-semibold text-slate-700 border-b border-r border-slate-100 truncate px-1" title="${r.projectName} — ${r.unitName}">${r.unitName}</div>
+            `).join('');
+
+            const barRowsHtml = rows.map(r => {
                 const barsHtml = r.segments.map(s => {
-                    const leftPx = ((s.start - rangeMin) / DAY_MS) * GANTT_DAY_PX;
-                    const widthPx = Math.max(3, ((s.end - s.start) / DAY_MS) * GANTT_DAY_PX);
+                    const leftPct = ((s.start - rangeMin) / rangeSpan) * 100;
+                    const widthPct = Math.max(0.3, ((s.end - s.start) / rangeSpan) * 100);
                     const color = GANTT_COLORS[(s.seqIndex - 1) % GANTT_COLORS.length];
                     const seqName = masterSequences[s.seqIndex - 1] || `Sequence ${s.seqIndex}`;
-                    return `<div class="absolute top-1 h-5 rounded shadow-sm" style="left:${leftPx}px; width:${widthPx}px; background:${color}" title="Sequence ${s.seqIndex}: ${seqName} (${toISODateStr(new Date(s.start))} ถึง ${toISODateStr(new Date(s.end))})"></div>`;
+                    return `<div class="absolute top-1 h-5 rounded shadow-sm" style="left:${leftPct}%; width:${widthPct}%; background:${color}" title="Sequence ${s.seqIndex}: ${seqName} (${toISODateStr(new Date(s.start))} ถึง ${toISODateStr(new Date(s.end))})"></div>`;
                 }).join('');
-                return `
-                    <div class="flex items-stretch border-b border-slate-100">
-                        <div class="shrink-0 py-1.5 px-2 text-[11px] font-semibold text-slate-700 bg-white sticky left-0 z-10 border-r border-slate-100 truncate" style="width:${GANTT_LABEL_PX}px" title="${r.projectName} — ${r.unitName}">${r.unitName}</div>
-                        <div class="relative h-7 shrink-0" style="width:${chartWidthPx}px">${barsHtml}</div>
-                    </div>
-                `;
+                return `<div class="relative h-7 border-b border-slate-100">${barsHtml}</div>`;
             }).join('');
 
             const legendHtml = Array.from({ length: totalSeq }, (_, idx) => `
@@ -4403,13 +4406,17 @@
 
             container.innerHTML = `
                 <div class="flex flex-wrap gap-x-3 gap-y-1 mb-3 pb-3 border-b border-slate-100">${legendHtml}</div>
-                <div class="overflow-x-auto custom-scrollbar border border-slate-200 rounded-xl">
-                    <div style="width:${GANTT_LABEL_PX + chartWidthPx}px">
-                        <div class="flex items-stretch bg-slate-50 border-b border-slate-200">
-                            <div class="shrink-0 sticky left-0 bg-slate-50 z-10" style="width:${GANTT_LABEL_PX}px"></div>
-                            <div class="relative h-6 shrink-0" style="width:${chartWidthPx}px">${monthGridHtml}</div>
+                <div class="border border-slate-200 rounded-xl overflow-hidden">
+                    <div class="flex items-stretch bg-slate-50 border-b border-slate-200">
+                        <div class="shrink-0" style="width:${GANTT_LABEL_PX}px"></div>
+                        <div class="relative h-6 flex-1 min-w-0">${monthLabelHtml}</div>
+                    </div>
+                    <div class="flex items-start max-h-96 overflow-y-auto custom-scrollbar">
+                        <div class="shrink-0 bg-white" style="width:${GANTT_LABEL_PX}px">${labelColHtml}</div>
+                        <div class="relative flex-1 min-w-0">
+                            ${monthLineHtml}
+                            ${barRowsHtml}
                         </div>
-                        <div class="max-h-96 overflow-y-auto custom-scrollbar">${rowsHtml}</div>
                     </div>
                 </div>
             `;
