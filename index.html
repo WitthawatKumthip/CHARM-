@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="th" class="h-full bg-slate-100">
 <head>
     <meta charset="UTF-8">
@@ -66,7 +66,7 @@
             aside, header, nav, .no-print, button { 
                 display: none !important; 
             }
-            body, main, #view-reports, #view-fame, .print-area {
+            body, main, #view-reports, .print-area {
                 background: white !important; 
                 padding: 0 !important; 
                 margin: 0 !important; 
@@ -190,10 +190,6 @@
                 <button onclick="switchTab('reports')" id="nav-reports" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition">
                     <i class="fa-solid fa-file-invoice w-5 text-center text-sm"></i>
                     <span>รายงานสรุปผล (Reports)</span>
-                </button>
-                <button onclick="switchTab('fame')" id="nav-fame" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition">
-                    <i class="fa-solid fa-compass w-5 text-center text-sm"></i>
-                    <span>รายงาน F.A.M.E. (รายสัปดาห์)</span>
                 </button>
             </nav>
         </div>
@@ -467,6 +463,26 @@
                 </div>
             </div>
 
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-4">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation text-rose-500"></i> ความเสี่ยง &amp; แผนแก้ไข (Action Plan)</h3>
+                    <p class="text-xs text-slate-500 mt-1">ตรวจจับอัตโนมัติจากข้อมูลจริง (อ่านอย่างเดียว ไม่กระทบข้อมูลเดิม) — แปลงที่ล่าช้า/เสี่ยงล่าช้าตาม Sequence, วัสดุที่ยังไม่สั่ง/สั่งแล้วแต่ยังไม่เข้า, และรายการ Spec ที่เลยกำหนดสรุป</p>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="cp-risk-stat-tiles"></div>
+                <div class="space-y-2">
+                    <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-house-chimney-crack text-rose-500"></i> แปลงบ้านที่ล่าช้า/เสี่ยงล่าช้าตาม Sequence</h4>
+                    <div id="cp-risk-units-list" class="space-y-2"></div>
+                </div>
+                <div class="space-y-2">
+                    <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-truck-fast text-amber-500"></i> วัสดุเสี่ยงไม่ทันใช้งาน</h4>
+                    <div id="cp-risk-procurement-list" class="space-y-2"></div>
+                </div>
+                <div class="space-y-2">
+                    <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-clipboard-list text-slate-500"></i> รายการ Spec วัสดุ/ผู้รับเหมาที่เลยกำหนดสรุป</h4>
+                    <div id="cp-risk-materialspec-list" class="space-y-2"></div>
+                </div>
+            </div>
+
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
                 <div class="flex justify-between items-center">
                     <h3 class="font-bold text-slate-800 text-sm">ทรัพยากรร่วม/เครื่องจักร ของโครงการนี้</h3>
@@ -554,8 +570,10 @@
                     <div class="font-semibold text-slate-600">+ เพิ่มแปลงเข้าคิว</div>
                     <div class="grid grid-cols-2 gap-2">
                         <select id="cp-new-queue-unit-select" class="border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
-                        <select id="cp-new-queue-seq-select" class="border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                        <select id="cp-new-queue-seq-select" onchange="updateQueueNoteSuggestions()" class="border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
                     </div>
+                    <input type="text" id="cp-new-queue-note-input" list="cp-queue-note-suggestions" placeholder="รายละเอียดงานย่อยสำหรับทีมวิศวกร (ถ้ามี) — พิมพ์เองได้เลย ครั้งต่อไปจะช่วยเดาให้จากที่เคยพิมพ์" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500">
+                    <datalist id="cp-queue-note-suggestions"></datalist>
                     <div class="flex gap-2">
                         <input type="number" min="0.1" step="0.1" id="cp-new-queue-qty-input" placeholder="จำนวนงาน" class="flex-1 border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500">
                         <button onclick="addQueueEntry()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs font-semibold">เพิ่มแถว</button>
@@ -563,6 +581,56 @@
                 </div>
                 <div class="flex justify-end pt-3 border-t border-slate-100">
                     <button onclick="closeModal('cp-queue-modal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-medium">ปิด</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add/Edit Action Plan Modal (ใช้ร่วมกันทั้ง 3 ประเภทความเสี่ยง) -->
+        <div id="cp-action-plan-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4 max-h-[92vh] overflow-y-auto custom-scrollbar">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <h3 id="cp-ap-form-title" class="font-bold text-slate-800 text-sm">เพิ่มแผนแก้ไข</h3>
+                    <button onclick="closeModal('cp-action-plan-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-base"></i></button>
+                </div>
+                <input type="hidden" id="cp-ap-form-id">
+                <input type="hidden" id="cp-ap-form-project-id">
+                <input type="hidden" id="cp-ap-form-target-type">
+                <input type="hidden" id="cp-ap-form-target-id">
+                <p id="cp-ap-form-target-label" class="text-xs font-semibold text-slate-500 bg-slate-50 rounded-xl px-3 py-2"></p>
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">แผนแก้ไข *</label>
+                        <textarea id="cp-ap-plantext-input" rows="3" placeholder="ระบุแนวทางแก้ไขปัญหา..." class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">ผู้รับผิดชอบ</label>
+                            <input type="text" id="cp-ap-responsible-input" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">เป้าหมายแก้ไขเสร็จ</label>
+                            <input type="date" id="cp-ap-targetdate-input" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">สถานะ</label>
+                        <select id="cp-ap-status-select" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="open">ยังไม่เริ่ม</option>
+                            <option value="in_progress">กำลังดำเนินการ</option>
+                            <option value="done">เสร็จแล้ว</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">หมายเหตุเพิ่มเติม</label>
+                        <textarea id="cp-ap-note-input" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center pt-3 border-t border-slate-100">
+                    <button id="cp-ap-delete-btn" onclick="deleteActionPlanFromModal()" class="hidden px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-semibold">ลบแผนแก้ไข</button>
+                    <div class="flex space-x-2 ml-auto">
+                        <button onclick="closeModal('cp-action-plan-modal')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-medium">ยกเลิก</button>
+                        <button onclick="saveActionPlanFormData()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm">บันทึก</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1073,71 +1141,6 @@
             </div>
         </div>
 
-        <!-- VIEW: F.A.M.E. WEEKLY REPORT -->
-        <div id="view-fame" class="hidden space-y-6">
-            <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-3 no-print">
-                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-                    <div>
-                        <h3 class="font-bold text-slate-800 text-sm">รายงานสรุปผลประจำสัปดาห์ — กรอบ F.A.M.E.</h3>
-                        <p class="text-xs text-slate-500">Foresee – Assure – Monitor – Enhance : บริหารจัดการงานก่อสร้างเชิงรุก</p>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs">
-                        <label class="font-semibold text-slate-600">โครงการ:</label>
-                        <select id="fame-project-select" onchange="renderFameReportView()" class="border border-slate-200 rounded-xl px-3 py-1.5 font-medium outline-none focus:ring-2 focus:ring-blue-500"></select>
-                        <button onclick="window.print()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5">
-                            <i class="fa-solid fa-print"></i><span>พิมพ์รายงาน</span>
-                        </button>
-                    </div>
-                </div>
-                <p id="fame-week-range" class="text-[11px] text-slate-400"></p>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3 print-avoid-break">
-                    <div class="flex items-center gap-2 border-b border-slate-100 pb-2.5">
-                        <div class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-binoculars text-sm"></i></div>
-                        <div>
-                            <h4 class="font-bold text-slate-800 text-sm">1. Foresee — คาดการณ์ล่วงหน้า</h4>
-                            <p class="text-[10px] text-slate-400">ความเสี่ยงล่าช้า / วัสดุใกล้ครบกำหนด / แผนสัปดาห์หน้า</p>
-                        </div>
-                    </div>
-                    <div id="fame-foresee-content" class="space-y-3"></div>
-                </div>
-
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3 print-avoid-break">
-                    <div class="flex items-center gap-2 border-b border-slate-100 pb-2.5">
-                        <div class="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-shield-halved text-sm"></i></div>
-                        <div>
-                            <h4 class="font-bold text-slate-800 text-sm">2. Assure — ควบคุมมาตรฐาน</h4>
-                            <p class="text-[10px] text-slate-400">สรุปสเปควัสดุ/ผู้รับเหมา / สถานะ Defect</p>
-                        </div>
-                    </div>
-                    <div id="fame-assure-content" class="space-y-3"></div>
-                </div>
-
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3 print-avoid-break">
-                    <div class="flex items-center gap-2 border-b border-slate-100 pb-2.5">
-                        <div class="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-chart-line text-sm"></i></div>
-                        <div>
-                            <h4 class="font-bold text-slate-800 text-sm">3. Monitor — ติดตามการปฏิบัติงาน</h4>
-                            <p class="text-[10px] text-slate-400">PLAN vs ACT / งานที่บันทึกสัปดาห์นี้ / สถานะสั่งซื้อวัสดุ</p>
-                        </div>
-                    </div>
-                    <div id="fame-monitor-content" class="space-y-3"></div>
-                </div>
-
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3 print-avoid-break">
-                    <div class="flex items-center gap-2 border-b border-slate-100 pb-2.5">
-                        <div class="w-8 h-8 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-arrow-trend-up text-sm"></i></div>
-                        <div>
-                            <h4 class="font-bold text-slate-800 text-sm">4. Enhance — ปรับปรุงต่อเนื่อง</h4>
-                            <p class="text-[10px] text-slate-400">Defect ที่แก้ไขสำเร็จ (Corrective Action) / บทเรียนประจำสัปดาห์</p>
-                        </div>
-                    </div>
-                    <div id="fame-enhance-content" class="space-y-3"></div>
-                </div>
-            </div>
-        </div>
     </main>
 
     <!-- MODALS SECTION -->
@@ -2157,6 +2160,7 @@
         let materialSpecsData = [];
         let fameNotesData = [];
         let resourcesData = []; // ทรัพยากรร่วม/คิวงาน สำหรับเมนู Critical Path / Float — ข้อมูลใหม่แยกต่างหาก อ่านโครงการ/แปลงบ้านเดิมแบบอ่านอย่างเดียว ไม่เขียนกลับ
+        let actionPlansData = []; // แผนแก้ไขปัญหา (Action Plan) — อ้างอิงรายการเสี่ยงด้วย targetType+targetId เท่านั้น ไม่เขียนกลับข้อมูลเดิม
         let currentUser = null;
         let chartInstance = null;
         let projectChartInstances = {};
@@ -2409,6 +2413,39 @@
                     active: r.active !== false,
                     sortOrder: Number(r.sort_order) || 0,
                     queue: Array.isArray(r.queue) ? r.queue : []
+                })
+            },
+
+            // แผนแก้ไขปัญหา (Action Plan) อ้างอิงรายการเสี่ยงด้วย target_type+target_id — ไม่เขียนกลับ projects/procurements/material_specs
+            actionPlans: {
+                table: 'cp_action_plans',
+                get: () => actionPlansData,
+                set: v => { actionPlansData = v; },
+                toRow: a => ({
+                    id: a.id,
+                    project_id: a.projectId,
+                    target_type: s(a.targetType),
+                    target_id: s(a.targetId),
+                    plan_text: s(a.planText),
+                    responsible: s(a.responsible),
+                    target_date: d(a.targetDate),
+                    status: s(a.status) || 'open',
+                    note: s(a.note),
+                    created_by: s(a.createdBy),
+                    created_at: a.createdAt || new Date().toISOString()
+                }),
+                fromRow: r => ({
+                    id: r.id,
+                    projectId: r.project_id,
+                    targetType: s(r.target_type),
+                    targetId: s(r.target_id),
+                    planText: s(r.plan_text),
+                    responsible: s(r.responsible),
+                    targetDate: s(r.target_date),
+                    status: s(r.status) || 'open',
+                    note: s(r.note),
+                    createdBy: s(r.created_by),
+                    createdAt: s(r.created_at)
                 })
             }
         };
@@ -3060,7 +3097,7 @@
         }
 
         function switchTab(tabName) {
-            const views = ['dashboard', 'projects', 'construction-plan', 'critical-path', 'record-seq', 'pm-approval', 'seq-history', 'photos', 'procurement', 'materials', 'issues', 'reports', 'fame'];
+            const views = ['dashboard', 'projects', 'construction-plan', 'critical-path', 'record-seq', 'pm-approval', 'seq-history', 'photos', 'procurement', 'materials', 'issues', 'reports'];
             views.forEach(v => {
                 const el = document.getElementById(`view-${v}`);
                 if (el) el.classList.add('hidden');
@@ -3095,8 +3132,7 @@
                 'procurement': 'แผนรายการสั่งซื้อวัสดุ (กำหนดวันสั่งล่วงหน้าได้)',
                 'materials': 'สรุปวัสดุ/ผู้รับเหมาแยกงาน — BY SUB / BY OWNER',
                 'issues': 'รายการแจ้งปัญหา / งานแก้ไข (Defects)',
-                'reports': 'รายงานสรุปผลการก่อสร้างรายโครงการ/แปลงบ้าน',
-                'fame': 'รายงานสรุปผลประจำสัปดาห์ตามกรอบ F.A.M.E. (Foresee – Assure – Monitor – Enhance)'
+                'reports': 'รายงานสรุปผลการก่อสร้างรายโครงการ/แปลงบ้าน'
             };
 
             const titleEl = document.getElementById('current-view-title');
@@ -3150,6 +3186,9 @@
                 const savedResources = localStorage.getItem('bt_cp_resources');
                 resourcesData = savedResources ? JSON.parse(savedResources) : [];
 
+                const savedActionPlans = localStorage.getItem('bt_cp_action_plans');
+                actionPlansData = savedActionPlans ? JSON.parse(savedActionPlans) : [];
+
                 // กันข้อมูลเก่าที่ยังฝังรูป base64 ค้างอยู่ในเครื่อง — ล้างทิ้งอัตโนมัติ
                 stripEmbeddedBase64Photos();
             } catch (err) {
@@ -3165,6 +3204,7 @@
                 materialSpecsData = [];
                 fameNotesData = [];
                 resourcesData = [];
+                actionPlansData = [];
             }
         }
 
@@ -3231,6 +3271,7 @@
             localStorage.setItem('bt_material_specs', JSON.stringify(materialSpecsData));
             localStorage.setItem('bt_fame_notes', JSON.stringify(fameNotesData));
             localStorage.setItem('bt_cp_resources', JSON.stringify(resourcesData));
+            localStorage.setItem('bt_cp_action_plans', JSON.stringify(actionPlansData));
         }
 
         function saveDataToDatabase() {
@@ -3280,6 +3321,7 @@
                 issuesData,
                 procurementsData,
                 resourcesData,
+                actionPlansData,
                 exportDate: new Date().toISOString()
             };
 
@@ -3429,6 +3471,12 @@
                     // 6. Critical Path resources (feature ใหม่ ไม่มีชื่อฟิลด์เก่าให้ต้องเทียบ)
                     if (Array.isArray(data.resourcesData)) {
                         resourcesData = data.resourcesData;
+                        parsedSectionCount++;
+                    }
+
+                    // 7. Critical Path action plans (feature ใหม่ ไม่มีชื่อฟิลด์เก่าให้ต้องเทียบ)
+                    if (Array.isArray(data.actionPlansData)) {
+                        actionPlansData = data.actionPlansData;
                         parsedSectionCount++;
                     }
 
@@ -4249,239 +4297,6 @@
             return { text: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200', label: 'ยังไม่เริ่ม' };
         }
 
-        // รายงานสรุปผลประจำสัปดาห์ตามกรอบ F.A.M.E. (Foresee-Assure-Monitor-Enhance) — ต่อโครงการ ต่อสัปดาห์ปัจจุบัน
-        function renderFameReportView() {
-            const selectEl = document.getElementById('fame-project-select');
-            if (!selectEl) return;
-
-            const currentVal = selectEl.value;
-            const options = projectsData.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-            if (selectEl.innerHTML !== options) {
-                selectEl.innerHTML = options;
-                selectEl.value = projectsData.some(p => p.id === currentVal) ? currentVal : (projectsData[0]?.id || '');
-            }
-            const projId = selectEl.value;
-            const project = projectsData.find(p => p.id === projId);
-
-            const foreseeEl = document.getElementById('fame-foresee-content');
-            const assureEl = document.getElementById('fame-assure-content');
-            const monitorEl = document.getElementById('fame-monitor-content');
-            const enhanceEl = document.getElementById('fame-enhance-content');
-            const weekRangeEl = document.getElementById('fame-week-range');
-
-            if (!project) {
-                [foreseeEl, assureEl, monitorEl, enhanceEl].forEach(el => { if (el) el.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">ยังไม่มีโครงการในระบบ</p>'; });
-                if (weekRangeEl) weekRangeEl.textContent = '';
-                return;
-            }
-
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const thisMonday = getMondayOfWeek(today);
-            const thisSunday = addDaysToDate(thisMonday, 6);
-            const nextMonday = addDaysToDate(thisMonday, 7);
-            const nextSunday = addDaysToDate(thisMonday, 13);
-            const inRange = (dateStr, start, end) => dateStr && dateStr >= toISODateStr(start) && dateStr <= toISODateStr(end);
-            const todayStr = toISODateStr(today);
-
-            if (weekRangeEl) weekRangeEl.textContent = `สัปดาห์นี้: ${toISODateStr(thisMonday)} ถึง ${toISODateStr(thisSunday)} (โครงการ: ${project.name})`;
-
-            const unitStatusList = getUnitPlanStatusList(projId, today);
-            const plannedEvents = getPlannedSeqEvents(projId);
-            const actualEvents = getActualSeqEvents(projId);
-            const projIssues = issuesData.filter(i => i.projectId === projId);
-
-            // ---------- 1) FORESEE ----------
-            const atRiskUnits = unitStatusList.filter(u => {
-                if (u.actualDone >= u.totalSeq) return false;
-                const pct = u.totalSeq > 0 ? Math.round((u.actualDone / u.totalSeq) * 100) : 0;
-                return getUnitStatusColor(pct, u.startDate, u.endDate).label === 'ล่าช้า';
-            });
-
-            const warnDateStr = toISODateStr(addDaysToDate(today, 7));
-            const urgentProcurements = procurementsData
-                .filter(m => m.projectId === projId && m.status !== 'delivered' && m.status !== 'ordered' && m.orderDueDate && m.orderDueDate <= warnDateStr)
-                .sort((a, b) => (a.orderDueDate || '').localeCompare(b.orderDueDate || ''));
-
-            const nextWeekPlanned = plannedEvents.filter(e => inRange(e.plannedDate, nextMonday, nextSunday));
-            const nextWeekByUnit = new Map();
-            nextWeekPlanned.forEach(e => {
-                if (!nextWeekByUnit.has(e.unitId)) nextWeekByUnit.set(e.unitId, { unitName: e.unitName, seqList: [] });
-                nextWeekByUnit.get(e.unitId).seqList.push(e.seqIndex);
-            });
-
-            if (foreseeEl) {
-                foreseeEl.innerHTML = `
-                    <div>
-                        <div class="text-[11px] font-semibold text-slate-600 mb-1.5">🚩 แปลงที่เสี่ยงล่าช้ากว่าแผน (${atRiskUnits.length})</div>
-                        ${atRiskUnits.length > 0 ? `<div class="space-y-1.5">${atRiskUnits.map(u => `
-                            <div class="flex items-center justify-between bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 text-[11px]">
-                                <span class="font-bold text-slate-800">${u.unitName}</span>
-                                <span class="text-rose-600 font-semibold">${u.actualDone}/${u.totalSeq} Sequence</span>
-                            </div>
-                        `).join('')}</div>` : '<p class="text-xs text-emerald-600"><i class="fa-solid fa-circle-check mr-1"></i>ไม่มีแปลงเสี่ยงล่าช้า</p>'}
-                    </div>
-                    <div>
-                        <div class="text-[11px] font-semibold text-slate-600 mb-1.5">📦 วัสดุใกล้/เลยกำหนดสั่งซื้อ (${urgentProcurements.length})</div>
-                        ${urgentProcurements.length > 0 ? `<div class="space-y-1.5">${urgentProcurements.map(m => {
-                            const unitName = project.units?.find(u => u.id === m.unitId)?.name || '-';
-                            return `
-                            <div class="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-[11px]">
-                                <span class="font-bold text-slate-800"><span class="text-blue-600">[${unitName}]</span> ${m.name}</span>
-                                <span class="text-amber-600 font-semibold">${m.orderDueDate < todayStr ? 'เลยกำหนดแล้ว' : `กำหนด ${m.orderDueDate}`}</span>
-                            </div>
-                        `;}).join('')}</div>` : '<p class="text-xs text-emerald-600"><i class="fa-solid fa-circle-check mr-1"></i>ไม่มีรายการเร่งด่วน</p>'}
-                    </div>
-                    <div>
-                        <div class="text-[11px] font-semibold text-slate-600 mb-1.5">🗓️ แผนงานสัปดาห์หน้า (${nextWeekPlanned.length} Sequence)</div>
-                        ${nextWeekByUnit.size > 0 ? `<div class="space-y-1.5">${Array.from(nextWeekByUnit.values()).map(u => `
-                            <div class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[11px]">
-                                <span class="font-bold text-slate-800">${u.unitName}</span>
-                                <span class="text-slate-500"> — Sequence ${u.seqList.sort((a, b) => a - b).join(', ')}</span>
-                            </div>
-                        `).join('')}</div>` : '<p class="text-xs text-slate-400">ไม่มีแผนงานในสัปดาห์หน้า</p>'}
-                    </div>
-                `;
-            }
-
-            // ---------- 2) ASSURE ----------
-            const projMaterialSpecs = materialSpecsData.filter(m => m.projectId === projId);
-            const specDone = projMaterialSpecs.filter(m => m.status === 'done').length;
-            const specOverdue = projMaterialSpecs.filter(m => m.status !== 'done' && m.dueDate && m.dueDate < todayStr);
-            const openIssues = projIssues.filter(i => i.status !== 'resolved');
-
-            if (assureEl) {
-                assureEl.innerHTML = `
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
-                            <div class="text-[10px] text-emerald-600 font-semibold uppercase">สรุปสเปควัสดุ/ผู้รับเหมาแล้ว</div>
-                            <div class="text-xl font-extrabold text-emerald-700">${specDone} / ${projMaterialSpecs.length}</div>
-                        </div>
-                        <div class="bg-rose-50 border border-rose-200 rounded-xl p-3 text-center">
-                            <div class="text-[10px] text-rose-600 font-semibold uppercase">Defect ค้างแก้ไข</div>
-                            <div class="text-xl font-extrabold text-rose-700">${openIssues.length} / ${projIssues.length}</div>
-                        </div>
-                    </div>
-                    ${specOverdue.length > 0 ? `
-                    <div class="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-[11px] text-amber-700 font-semibold">
-                        <i class="fa-solid fa-triangle-exclamation mr-1"></i>สเปควัสดุที่เลยกำหนดสรุปแล้วยังไม่สรุป (${specOverdue.length}): ${specOverdue.map(m => m.name).join(', ')}
-                    </div>
-                    ` : ''}
-                    <div class="mt-2">
-                        <div class="text-[11px] font-semibold text-slate-600 mb-1.5">รายการ Defect ที่ยังเปิดอยู่</div>
-                        ${openIssues.length > 0 ? `<div class="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">${openIssues.map(i => `
-                            <div class="flex items-center justify-between bg-rose-50/60 border border-rose-100 rounded-lg px-3 py-2 text-[11px]">
-                                <span class="font-semibold text-slate-800">${i.title}</span>
-                                <span class="text-slate-400">${i.reportDate || '-'}</span>
-                            </div>
-                        `).join('')}</div>` : '<p class="text-xs text-slate-400">ไม่มี Defect ค้างอยู่</p>'}
-                    </div>
-                `;
-            }
-
-            // ---------- 3) MONITOR ----------
-            const thisWeekPlanned = plannedEvents.filter(e => inRange(e.plannedDate, thisMonday, thisSunday));
-            const thisWeekActual = actualEvents.filter(e => inRange(e.actualDate, thisMonday, thisSunday));
-            const weekPct = thisWeekPlanned.length > 0 ? Math.round((thisWeekActual.length / thisWeekPlanned.length) * 100) : 0;
-            const weekPctColor = weekPct >= 100 ? 'text-emerald-600' : (weekPct >= 50 ? 'text-amber-600' : 'text-rose-600');
-
-            const procStatusCounts = { pending: 0, ordered: 0, delivered: 0 };
-            procurementsData.filter(m => m.projectId === projId).forEach(m => {
-                if (m.status === 'delivered') procStatusCounts.delivered++;
-                else if (m.status === 'ordered') procStatusCounts.ordered++;
-                else procStatusCounts.pending++;
-            });
-
-            if (monitorEl) {
-                monitorEl.innerHTML = `
-                    <div class="grid grid-cols-3 gap-2">
-                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
-                            <div class="text-[9px] text-slate-500 font-semibold uppercase">แผน (PLAN)</div>
-                            <div class="text-lg font-extrabold text-slate-800">${thisWeekPlanned.length}</div>
-                        </div>
-                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-2.5 text-center">
-                            <div class="text-[9px] text-blue-600 font-semibold uppercase">ทำได้จริง (ACT)</div>
-                            <div class="text-lg font-extrabold text-blue-700">${thisWeekActual.length}</div>
-                        </div>
-                        <div class="bg-gradient-to-br ${weekPct >= 100 ? 'from-emerald-50 to-emerald-100 border-emerald-200' : (weekPct >= 50 ? 'from-amber-50 to-amber-100 border-amber-200' : 'from-rose-50 to-rose-100 border-rose-200')} border rounded-xl p-2.5 text-center">
-                            <div class="text-[9px] font-semibold uppercase ${weekPctColor}">คืบหน้าตามแผน</div>
-                            <div class="text-lg font-extrabold ${weekPctColor}">${weekPct}%</div>
-                        </div>
-                    </div>
-                    <div class="mt-2">
-                        <div class="text-[11px] font-semibold text-slate-600 mb-1.5">งานที่บันทึกและอนุมัติแล้วสัปดาห์นี้ (${thisWeekActual.length})</div>
-                        ${thisWeekActual.length > 0 ? `<div class="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">${thisWeekActual.map(e => `
-                            <div class="flex items-center justify-between bg-blue-50/60 border border-blue-100 rounded-lg px-3 py-2 text-[11px]">
-                                <span class="font-semibold text-slate-800">${e.unitName} — Sequence ${e.seqIndex}</span>
-                                <span class="text-slate-400">${e.actualDate}</span>
-                            </div>
-                        `).join('')}</div>` : '<p class="text-xs text-slate-400">ยังไม่มีงานบันทึกในสัปดาห์นี้</p>'}
-                    </div>
-                    <div class="grid grid-cols-3 gap-2 mt-2">
-                        <div class="bg-slate-50 rounded-lg p-2 text-center">
-                            <div class="text-[9px] text-slate-500">รอสั่งซื้อ</div>
-                            <div class="font-bold text-slate-700 text-sm">${procStatusCounts.pending}</div>
-                        </div>
-                        <div class="bg-amber-50 rounded-lg p-2 text-center">
-                            <div class="text-[9px] text-amber-600">สั่งแล้ว</div>
-                            <div class="font-bold text-amber-700 text-sm">${procStatusCounts.ordered}</div>
-                        </div>
-                        <div class="bg-emerald-50 rounded-lg p-2 text-center">
-                            <div class="text-[9px] text-emerald-600">ถึงหน้างานแล้ว</div>
-                            <div class="font-bold text-emerald-700 text-sm">${procStatusCounts.delivered}</div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            // ---------- 4) ENHANCE ----------
-            const resolvedThisWeek = projIssues.filter(i => i.status === 'resolved' && inRange(i.resolvedDate, thisMonday, thisSunday));
-            const weekStartStr = toISODateStr(thisMonday);
-            const existingNote = fameNotesData.find(n => n.projectId === projId && n.weekStart === weekStartStr);
-
-            if (enhanceEl) {
-                enhanceEl.innerHTML = `
-                    <div>
-                        <div class="text-[11px] font-semibold text-slate-600 mb-1.5">✅ Defect ที่แก้ไขสำเร็จสัปดาห์นี้ (${resolvedThisWeek.length})</div>
-                        ${resolvedThisWeek.length > 0 ? `<div class="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar">${resolvedThisWeek.map(i => `
-                            <div class="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-[11px]">
-                                <div class="font-bold text-slate-800">${i.title}</div>
-                                ${i.resolutionNotes ? `<div class="text-slate-500 mt-0.5">แก้ไข: ${i.resolutionNotes}</div>` : ''}
-                            </div>
-                        `).join('')}</div>` : '<p class="text-xs text-slate-400">ยังไม่มี Defect ที่แก้ไขเสร็จในสัปดาห์นี้</p>'}
-                    </div>
-                    <div class="mt-2">
-                        <div class="text-[11px] font-semibold text-slate-600 mb-1.5">📝 บทเรียน/ข้อเสนอแนะประจำสัปดาห์นี้</div>
-                        <textarea id="fame-lesson-textarea" rows="4" placeholder="สรุปบทเรียนหรือแนวทางปรับปรุงจากสัปดาห์นี้..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-purple-500">${existingNote ? existingNote.note : ''}</textarea>
-                        <button onclick="saveFameNote('${projId}', '${weekStartStr}')" class="no-print mt-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-sm">บันทึกบทเรียน</button>
-                        ${existingNote ? `<p class="text-[10px] text-slate-400 mt-1">บันทึกล่าสุดโดย ${existingNote.updatedBy || '-'}</p>` : ''}
-                    </div>
-                `;
-            }
-        }
-
-        function saveFameNote(projectId, weekStart) {
-            const textarea = document.getElementById('fame-lesson-textarea');
-            if (!textarea) return;
-            const note = textarea.value.trim();
-
-            const existing = fameNotesData.find(n => n.projectId === projectId && n.weekStart === weekStart);
-            if (existing) {
-                existing.note = note;
-                existing.updatedBy = currentUser ? currentUser.name : 'ผู้ใช้งาน';
-            } else {
-                fameNotesData.push({
-                    id: `FAME-${Date.now().toString().slice(-4)}-${Math.floor(Math.random() * 1000)}`,
-                    projectId,
-                    weekStart,
-                    note,
-                    updatedBy: currentUser ? currentUser.name : 'ผู้ใช้งาน'
-                });
-            }
-            saveDataToDatabase();
-            renderFameReportView();
-            showNotification('บันทึกบทเรียนประจำสัปดาห์เรียบร้อยแล้ว');
-        }
 
         // ไทม์ไลน์งานก่อสร้างตาม Sequence — แถวละ 1 แปลงบ้าน แท่งสีคือแต่ละ Sequence เริ่ม-จบเมื่อไหร่ตามแผน
         // แท่งของ Sequence ที่ i คือช่วงจากวันที่ตามแผนของ Sequence ก่อนหน้า ถึงวันที่ตามแผนของ Sequence นี้เอง
@@ -4712,6 +4527,7 @@
             renderResourceManagementPanel(projId);
             renderCriticalPathGantt(projId);
             renderUnitReadinessTable(projId);
+            renderCriticalPathRiskPanel(projId);
         }
 
         function renderResourceManagementPanel(projectId) {
@@ -4864,9 +4680,28 @@
             populateUnitPickerForQueue(r.projectId);
             populateSeqPickerForQueue();
             document.getElementById('cp-new-queue-qty-input').value = '';
+            document.getElementById('cp-new-queue-note-input').value = '';
+            updateQueueNoteSuggestions();
 
             renderQueueListInModal(resourceId);
             openModal('cp-queue-modal');
+        }
+
+        // ตัวช่วยพิมพ์ "รายละเอียดงานย่อย" — ดึงจากที่ทีมวิศวกรเคยพิมพ์ไว้เองในคิวงาน Critical Path เท่านั้น
+        // แยกขาดจากเมนู "ตั้งค่างานย่อย" (masterSubTasks) โดยตั้งใจ เพราะรายการนั้นใช้สำหรับรายงานผู้บริหาร
+        // ไม่เกี่ยวข้องกัน ไม่อ่าน ไม่เขียนข้ามกันเลย
+        function updateQueueNoteSuggestions() {
+            const seqSel = document.getElementById('cp-new-queue-seq-select');
+            const datalist = document.getElementById('cp-queue-note-suggestions');
+            if (!seqSel || !datalist) return;
+            const feedsSeq = Number(seqSel.value);
+            const notesSet = new Set();
+            resourcesData.forEach(r => {
+                (r.queue || []).forEach(q => {
+                    if (q.feedsSeq === feedsSeq && q.note) notesSet.add(q.note);
+                });
+            });
+            datalist.innerHTML = Array.from(notesSet).map(item => `<option value="${item}"></option>`).join('');
         }
 
         // dropdown รายชื่อแปลงบ้านจริงของโครงการ (อ่านอย่างเดียว)
@@ -4911,7 +4746,7 @@
                     <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs">
                         <span class="font-bold text-slate-400 w-5">${idx + 1}</span>
                         <div class="flex-1 min-w-0">
-                            <div class="font-semibold text-slate-800 truncate">${liveUnitName}</div>
+                            <div class="font-semibold text-slate-800 truncate">${liveUnitName}${q.note ? ` <span class="font-normal text-slate-500">— ${q.note}</span>` : ''}</div>
                             <div class="text-[10px] text-slate-500 truncate">ป้อน Seq ${q.feedsSeq}: ${seqName} · ${q.workQty} หน่วย</div>
                         </div>
                         <button onclick="moveQueueEntry('${resourceId}','${q.id}',-1)" title="เลื่อนขึ้น" class="text-slate-400 hover:text-slate-700 px-1"><i class="fa-solid fa-arrow-up"></i></button>
@@ -4934,6 +4769,7 @@
             const unitId = document.getElementById('cp-new-queue-unit-select').value;
             const feedsSeq = Number(document.getElementById('cp-new-queue-seq-select').value);
             const workQty = Number(document.getElementById('cp-new-queue-qty-input').value);
+            const note = document.getElementById('cp-new-queue-note-input').value.trim();
 
             if (!unitId || !feedsSeq || !workQty || workQty <= 0) {
                 showNotification('กรุณาเลือกแปลงบ้าน, Sequence, และระบุจำนวนงาน (มากกว่า 0)', 'rose');
@@ -4946,13 +4782,14 @@
             if (!r.queue) r.queue = [];
             r.queue.push({
                 id: `Q-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                unitId, unitName: unit?.name || '', workQty, feedsSeq, note: ''
+                unitId, unitName: unit?.name || '', workQty, feedsSeq, note
             });
 
             saveDataToDatabase();
             refreshAllViews();
             renderQueueListInModal(resourceId);
             document.getElementById('cp-new-queue-qty-input').value = '';
+            document.getElementById('cp-new-queue-note-input').value = '';
             showNotification('เพิ่มแปลงเข้าคิวเรียบร้อยแล้ว');
         }
 
@@ -4988,7 +4825,7 @@
             renderQueueListInModal(resourceId);
         }
 
-        const CP_GANTT_LABEL_PX = 90;
+        const CP_GANTT_LABEL_PX = 150;
 
         function renderCriticalPathGantt(projectId) {
             const container = document.getElementById('cp-gantt-chart');
@@ -5021,6 +4858,7 @@
                         resourceName: res.name,
                         resourceColor: GANTT_COLORS[resIdx % GANTT_COLORS.length],
                         unitName: entry.unitName,
+                        note: entry.note || '',
                         start: entry.startDate.getTime(),
                         end: entry.finishDate.getTime(),
                         feedsSeq: entry.feedsSeq,
@@ -5051,7 +4889,16 @@
             const monthLabelHtml = months.map(m => `<div class="absolute top-0 bottom-0 border-l border-slate-300 text-[9px] text-slate-400 pl-1 pt-1" style="left:${m.leftPct}%">${m.label}</div>`).join('');
             const monthLineHtml = months.map(m => `<div class="absolute top-0 bottom-0 border-l-2 border-slate-300" style="left:${m.leftPct}%"></div>`).join('');
 
-            const labelColHtml = rows.map(r => `<div class="h-7 flex items-center justify-center text-[10px] font-semibold text-slate-700 border-b border-r border-slate-100 truncate px-1" title="${r.resourceName} — ${r.unitName}">${r.unitName}</div>`).join('');
+            const labelColHtml = rows.map(r => {
+                const seqName = (masterSequences[r.feedsSeq - 1] || `Sequence ${r.feedsSeq}`).replace(/^Sequence\s*\d+[:\s]*/i, '');
+                const activityLabel = r.note || seqName;
+                return `
+                    <div class="h-11 flex flex-col justify-center border-b border-r border-slate-100 px-1.5 py-0.5 overflow-hidden" title="${r.unitName} — ${activityLabel}">
+                        <div class="text-[10px] font-bold text-slate-800 truncate leading-tight">${r.unitName}</div>
+                        <div class="text-[9px] text-slate-500 truncate leading-tight">${activityLabel}</div>
+                    </div>
+                `;
+            }).join('');
 
             const barRowsHtml = rows.map(r => {
                 const leftPct = ((r.start - rangeMin) / rangeSpan) * 100;
@@ -5060,10 +4907,11 @@
                 const floatDays = r.criticalInfo.floatDays;
                 const barClass = isCritical ? 'ring-2 ring-rose-600 shadow-sm' : 'opacity-50';
                 const seqName = (masterSequences[r.feedsSeq - 1] || `Sequence ${r.feedsSeq}`).replace(/^Sequence\s*\d+[:\s]*/i, '');
+                const activityLabel = r.note || seqName;
                 const floatText = isCritical ? 'จุดวิกฤต (Float 0 วัน)' : `Float ${floatDays} วัน`;
                 return `
-                    <div class="relative h-7 border-b border-slate-100">
-                        <div class="absolute top-[7px] h-[14px] rounded ${barClass}" style="left:${leftPct}%; width:${widthPct}%; background:${r.resourceColor}" title="${r.resourceName} — ${r.unitName} — ป้อน Seq ${r.feedsSeq}: ${seqName} (${toISODateStr(new Date(r.start))} ถึง ${toISODateStr(new Date(r.end))}) — ${floatText}"></div>
+                    <div class="relative h-11 border-b border-slate-100">
+                        <div class="absolute top-[15px] h-[14px] rounded ${barClass}" style="left:${leftPct}%; width:${widthPct}%; background:${r.resourceColor}" title="${r.resourceName} — ${r.unitName} — ${activityLabel} — ป้อน Seq ${r.feedsSeq}: ${seqName} (${toISODateStr(new Date(r.start))} ถึง ${toISODateStr(new Date(r.end))}) — ${floatText}"></div>
                     </div>
                 `;
             }).join('');
@@ -5087,7 +4935,7 @@
                         <div class="shrink-0" style="width:${CP_GANTT_LABEL_PX}px"></div>
                         <div class="relative h-6 flex-1 min-w-0">${monthLabelHtml}</div>
                     </div>
-                    <div class="flex items-start max-h-96 overflow-y-auto custom-scrollbar">
+                    <div class="flex items-start">
                         <div class="shrink-0 bg-white" style="width:${CP_GANTT_LABEL_PX}px">${labelColHtml}</div>
                         <div class="relative flex-1 min-w-0">
                             ${monthLineHtml}
@@ -5141,6 +4989,307 @@
                     </table>
                 </div>
             `;
+        }
+
+        // ===================================================================
+        // RISK DETECTION — สำรวจปัญหาที่อาจเกิดจาก: ล่าช้าตาม Sequence / วัสดุไม่มา / Spec ค้าง
+        // อ่านอย่างเดียวจาก projectsData/sequenceRecords/procurementsData/materialSpecsData เดิม ห้ามเขียนกลับเด็ดขาด
+        // ===================================================================
+
+        const PROCUREMENT_NEAR_DUE_DAYS = 3; // จำนวนวันล่วงหน้าที่ถือว่า "ใกล้ถึงวันที่ต้องใช้งานแต่ของยังไม่เข้า"
+
+        // (a) แปลงบ้านที่ล่าช้า/เสี่ยงล่าช้าตามแผน Sequence — ใช้ getUnitPlanStatusList + calculateUnitStatus ตรงๆ ไม่คำนวณเอง
+        function getAtRiskUnitsForProject(projectId) {
+            if (!projectId) return [];
+            const today = new Date();
+            return getUnitPlanStatusList(projectId, today)
+                .filter(u => u.actualDone < u.totalSeq)
+                .map(u => {
+                    const pct = u.totalSeq > 0 ? Math.round((u.actualDone / u.totalSeq) * 100) : 0;
+                    const tier = calculateUnitStatus({ startDate: u.startDate, endDate: u.endDate }, pct);
+                    return { ...u, pct, tier };
+                })
+                .filter(u => u.tier === 'delayed' || u.tier === 'warning');
+        }
+
+        // (b) วัสดุเสี่ยงไม่ทันใช้: (1) ยังไม่สั่งซื้อ + เลย/ครบกำหนดสั่ง (2) สั่งแล้วแต่ยังไม่เข้า + ใกล้/เลยกำหนดวันใช้งานจริง
+        function getAtRiskProcurementsForProject(projectId) {
+            if (!projectId) return [];
+            const todayStr = toISODateStr(new Date());
+            const nearDueStr = toISODateStr(addDaysToDate(new Date(), PROCUREMENT_NEAR_DUE_DAYS));
+            const results = [];
+
+            procurementsData.filter(m => m.projectId === projectId).forEach(m => {
+                if (m.status === 'pending' && m.orderDueDate) {
+                    if (m.orderDueDate < todayStr) results.push({ item: m, tier: 'rose', reason: 'ยังไม่สั่งซื้อ — เกินกำหนดสั่งแล้ว' });
+                    else if (m.orderDueDate <= todayStr) results.push({ item: m, tier: 'amber', reason: 'ยังไม่สั่งซื้อ — ครบกำหนดสั่งวันนี้' });
+                } else if (m.status === 'ordered' && m.requiredDate) {
+                    if (m.requiredDate < todayStr) results.push({ item: m, tier: 'rose', reason: 'สั่งแล้วแต่ของยังไม่เข้า — เลยวันที่ต้องใช้งานแล้ว' });
+                    else if (m.requiredDate <= nearDueStr) results.push({ item: m, tier: 'amber', reason: 'สั่งแล้วแต่ของยังไม่เข้า — ใกล้ถึงวันที่ต้องใช้งาน' });
+                }
+            });
+            return results;
+        }
+
+        // (c) รายการ Spec วัสดุ/ผู้รับเหมาที่เลยกำหนดสรุป — reuse predicate เดิมจากหน้าสรุปวัสดุเป๊ะๆ
+        function getOverdueMaterialSpecsForProject(projectId) {
+            if (!projectId) return [];
+            const todayStr = toISODateStr(new Date());
+            return materialSpecsData.filter(m => m.projectId === projectId && m.status !== 'done' && m.dueDate && m.dueDate < todayStr);
+        }
+
+        // ===================================================================
+        // ACTION PLAN — แผนแก้ไขปัญหา ผูกกับรายการเสี่ยงด้วย targetType+targetId เท่านั้น (ข้อมูลใหม่แยกต่างหาก ไม่เขียนกลับ)
+        // ===================================================================
+
+        function findActionPlan(targetType, targetId) {
+            return actionPlansData.find(a => a.targetType === targetType && a.targetId === targetId);
+        }
+
+        // หาชื่อที่อ่านง่ายของรายการเสี่ยงแบบสดๆ จากข้อมูลเดิม (อ่านอย่างเดียว) ใช้แสดงในหัวโมดัลแผนแก้ไข
+        function getRiskTargetLabel(targetType, targetId) {
+            if (targetType === 'UNIT_DELAY') {
+                for (const p of projectsData) {
+                    const u = (p.units || []).find(x => x.id === targetId);
+                    if (u) return `แปลง ${u.name} (${p.name})`;
+                }
+            } else if (targetType === 'PROCUREMENT') {
+                const m = procurementsData.find(x => x.id === targetId);
+                if (m) return m.name;
+            } else if (targetType === 'MATERIAL_SPEC') {
+                const m = materialSpecsData.find(x => x.id === targetId);
+                if (m) return m.name;
+            }
+            return '';
+        }
+
+        const ACTION_PLAN_STATUS_META = {
+            open: { label: 'ยังไม่เริ่ม', cls: 'bg-rose-100 text-rose-700' },
+            in_progress: { label: 'กำลังดำเนินการ', cls: 'bg-amber-100 text-amber-700' },
+            done: { label: 'เสร็จแล้ว', cls: 'bg-emerald-100 text-emerald-700' }
+        };
+
+        function renderActionPlanWidget(targetType, targetId, projectId) {
+            const canEdit = !!currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'FOREMAN');
+            const plan = findActionPlan(targetType, targetId);
+
+            if (!plan) {
+                if (!canEdit) return '<span class="text-[10px] text-slate-400">ยังไม่มีแผนแก้ไข</span>';
+                return `<button onclick="openAddActionPlanModal('${targetType}','${targetId}','${projectId}')" class="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg"><i class="fa-solid fa-plus mr-1"></i>เพิ่มแผนแก้ไข</button>`;
+            }
+
+            const meta = ACTION_PLAN_STATUS_META[plan.status] || ACTION_PLAN_STATUS_META.open;
+            const planTextShort = (plan.planText || '').length > 60 ? plan.planText.slice(0, 60) + '…' : (plan.planText || '');
+            return `
+                <div class="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[10px] space-y-0.5">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-semibold text-slate-700 truncate">${planTextShort || '(ไม่ได้ระบุแผน)'}</span>
+                        <span class="shrink-0 px-1.5 py-0.5 rounded-full font-bold ${meta.cls}">${meta.label}</span>
+                    </div>
+                    <div class="text-slate-400 flex items-center gap-2 flex-wrap">
+                        ${plan.responsible ? `<span><i class="fa-solid fa-user mr-0.5"></i>${plan.responsible}</span>` : ''}
+                        ${plan.targetDate ? `<span><i class="fa-solid fa-calendar mr-0.5"></i>${plan.targetDate}</span>` : ''}
+                        ${canEdit ? `<button onclick="openEditActionPlanModal('${plan.id}')" class="text-indigo-500 hover:text-indigo-700 font-semibold ml-auto">แก้ไข</button>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCriticalPathRiskPanel(projectId) {
+            const tilesEl = document.getElementById('cp-risk-stat-tiles');
+            if (!tilesEl) return;
+
+            const atRiskUnits = getAtRiskUnitsForProject(projectId);
+            const atRiskProcurements = getAtRiskProcurementsForProject(projectId);
+            const overdueSpecs = getOverdueMaterialSpecsForProject(projectId);
+
+            const tileClass = count => count > 0 ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700';
+            tilesEl.innerHTML = `
+                <div class="border rounded-xl p-3 text-center ${tileClass(atRiskUnits.length)}">
+                    <div class="text-[10px] font-semibold uppercase opacity-80">แปลงล่าช้า/เสี่ยงล่าช้า</div>
+                    <div class="text-xl font-extrabold">${atRiskUnits.length}</div>
+                </div>
+                <div class="border rounded-xl p-3 text-center ${tileClass(atRiskProcurements.length)}">
+                    <div class="text-[10px] font-semibold uppercase opacity-80">วัสดุเสี่ยงไม่ทันใช้</div>
+                    <div class="text-xl font-extrabold">${atRiskProcurements.length}</div>
+                </div>
+                <div class="border rounded-xl p-3 text-center ${tileClass(overdueSpecs.length)}">
+                    <div class="text-[10px] font-semibold uppercase opacity-80">Spec เลยกำหนดสรุป</div>
+                    <div class="text-xl font-extrabold">${overdueSpecs.length}</div>
+                </div>
+            `;
+
+            renderUnitDelayRiskList(atRiskUnits);
+            renderProcurementRiskList(atRiskProcurements);
+            renderMaterialSpecRiskList(overdueSpecs);
+        }
+
+        function renderUnitDelayRiskList(atRiskUnits) {
+            const container = document.getElementById('cp-risk-units-list');
+            if (!container) return;
+            if (atRiskUnits.length === 0) {
+                container.innerHTML = '<p class="text-xs text-emerald-600"><i class="fa-solid fa-circle-check mr-1"></i>ไม่มีแปลงเสี่ยงล่าช้า</p>';
+                return;
+            }
+            container.innerHTML = atRiskUnits.map(u => {
+                const isDelayed = u.tier === 'delayed';
+                const badgeCls = isDelayed ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700';
+                const badgeLabel = isDelayed ? 'ล่าช้า' : 'เสี่ยงล่าช้า';
+                return `
+                    <div class="border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-slate-800 text-xs">${u.unitName}</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeCls}">${badgeLabel}</span>
+                            </div>
+                            <div class="text-[11px] text-slate-500 mt-0.5">${u.actualDone}/${u.totalSeq} Sequence เสร็จแล้ว${u.plannedSeqName ? ` · แผนควรถึง ${u.plannedSeqName}` : ''}</div>
+                        </div>
+                        <div class="shrink-0 sm:w-56">${renderActionPlanWidget('UNIT_DELAY', u.unitId, u.projectId)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderProcurementRiskList(atRiskProcurements) {
+            const container = document.getElementById('cp-risk-procurement-list');
+            if (!container) return;
+            if (atRiskProcurements.length === 0) {
+                container.innerHTML = '<p class="text-xs text-emerald-600"><i class="fa-solid fa-circle-check mr-1"></i>ไม่มีรายการวัสดุเสี่ยง</p>';
+                return;
+            }
+            container.innerHTML = atRiskProcurements.map(({ item: m, tier, reason }) => {
+                const badgeCls = tier === 'rose' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700';
+                return `
+                    <div class="border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div class="flex-1 min-w-0">
+                            <div class="font-bold text-slate-800 text-xs">${m.name}</div>
+                            <div class="text-[11px] mt-0.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeCls}">${reason}</span></div>
+                        </div>
+                        <div class="shrink-0 sm:w-56">${renderActionPlanWidget('PROCUREMENT', m.id, m.projectId)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderMaterialSpecRiskList(overdueSpecs) {
+            const container = document.getElementById('cp-risk-materialspec-list');
+            if (!container) return;
+            if (overdueSpecs.length === 0) {
+                container.innerHTML = '<p class="text-xs text-emerald-600"><i class="fa-solid fa-circle-check mr-1"></i>ไม่มี Spec ที่เลยกำหนดสรุป</p>';
+                return;
+            }
+            container.innerHTML = overdueSpecs.map(m => `
+                <div class="border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-slate-800 text-xs">${m.name}</div>
+                        <div class="text-[11px] mt-0.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">เลยกำหนดสรุป (${m.dueDate})</span></div>
+                    </div>
+                    <div class="shrink-0 sm:w-56">${renderActionPlanWidget('MATERIAL_SPEC', m.id, m.projectId)}</div>
+                </div>
+            `).join('');
+        }
+
+        function openAddActionPlanModal(targetType, targetId, projectId) {
+            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'FOREMAN')) {
+                showNotification('เฉพาะ ADMIN/FOREMAN เท่านั้นที่จัดการแผนแก้ไขได้', 'rose');
+                return;
+            }
+            document.getElementById('cp-ap-form-title').textContent = 'เพิ่มแผนแก้ไข';
+            document.getElementById('cp-ap-form-id').value = '';
+            document.getElementById('cp-ap-form-project-id').value = projectId;
+            document.getElementById('cp-ap-form-target-type').value = targetType;
+            document.getElementById('cp-ap-form-target-id').value = targetId;
+            document.getElementById('cp-ap-form-target-label').textContent = getRiskTargetLabel(targetType, targetId);
+            document.getElementById('cp-ap-plantext-input').value = '';
+            document.getElementById('cp-ap-responsible-input').value = '';
+            document.getElementById('cp-ap-targetdate-input').value = '';
+            document.getElementById('cp-ap-status-select').value = 'open';
+            document.getElementById('cp-ap-note-input').value = '';
+            document.getElementById('cp-ap-delete-btn').classList.add('hidden');
+            openModal('cp-action-plan-modal');
+        }
+
+        function openEditActionPlanModal(planId) {
+            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'FOREMAN')) {
+                showNotification('เฉพาะ ADMIN/FOREMAN เท่านั้นที่จัดการแผนแก้ไขได้', 'rose');
+                return;
+            }
+            const plan = actionPlansData.find(a => a.id === planId);
+            if (!plan) return;
+            document.getElementById('cp-ap-form-title').textContent = 'แก้ไขแผนแก้ไข';
+            document.getElementById('cp-ap-form-id').value = plan.id;
+            document.getElementById('cp-ap-form-project-id').value = plan.projectId;
+            document.getElementById('cp-ap-form-target-type').value = plan.targetType;
+            document.getElementById('cp-ap-form-target-id').value = plan.targetId;
+            document.getElementById('cp-ap-form-target-label').textContent = getRiskTargetLabel(plan.targetType, plan.targetId);
+            document.getElementById('cp-ap-plantext-input').value = plan.planText || '';
+            document.getElementById('cp-ap-responsible-input').value = plan.responsible || '';
+            document.getElementById('cp-ap-targetdate-input').value = plan.targetDate || '';
+            document.getElementById('cp-ap-status-select').value = plan.status || 'open';
+            document.getElementById('cp-ap-note-input').value = plan.note || '';
+            document.getElementById('cp-ap-delete-btn').classList.remove('hidden');
+            openModal('cp-action-plan-modal');
+        }
+
+        function saveActionPlanFormData() {
+            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'FOREMAN')) {
+                showNotification('เฉพาะ ADMIN/FOREMAN เท่านั้นที่จัดการแผนแก้ไขได้', 'rose');
+                return;
+            }
+            const id = document.getElementById('cp-ap-form-id').value;
+            const projectId = document.getElementById('cp-ap-form-project-id').value;
+            const targetType = document.getElementById('cp-ap-form-target-type').value;
+            const targetId = document.getElementById('cp-ap-form-target-id').value;
+            const planText = document.getElementById('cp-ap-plantext-input').value.trim();
+            const responsible = document.getElementById('cp-ap-responsible-input').value.trim();
+            const targetDate = document.getElementById('cp-ap-targetdate-input').value;
+            const status = document.getElementById('cp-ap-status-select').value;
+            const note = document.getElementById('cp-ap-note-input').value.trim();
+
+            if (!planText) {
+                showNotification('กรุณาระบุแผนแก้ไข', 'rose');
+                return;
+            }
+
+            if (id) {
+                const plan = actionPlansData.find(a => a.id === id);
+                if (plan) {
+                    plan.planText = planText;
+                    plan.responsible = responsible;
+                    plan.targetDate = targetDate;
+                    plan.status = status;
+                    plan.note = note;
+                }
+                showNotification('แก้ไขแผนแก้ไขเรียบร้อยแล้ว');
+            } else {
+                actionPlansData.push({
+                    id: `AP-${Date.now()}`,
+                    projectId, targetType, targetId,
+                    planText, responsible, targetDate, status, note,
+                    createdBy: currentUser ? currentUser.name : 'ผู้ใช้งาน',
+                    createdAt: new Date().toISOString()
+                });
+                showNotification('เพิ่มแผนแก้ไขเรียบร้อยแล้ว');
+            }
+
+            saveDataToDatabase();
+            refreshAllViews();
+            closeModal('cp-action-plan-modal');
+        }
+
+        function deleteActionPlanFromModal() {
+            if (!currentUser || (currentUser.role !== 'ADMIN' && currentUser.role !== 'FOREMAN')) {
+                showNotification('เฉพาะ ADMIN/FOREMAN เท่านั้นที่จัดการแผนแก้ไขได้', 'rose');
+                return;
+            }
+            const id = document.getElementById('cp-ap-form-id').value;
+            if (!id) return;
+            if (!confirm('ลบแผนแก้ไขนี้ใช่หรือไม่?')) return;
+            actionPlansData = actionPlansData.filter(a => a.id !== id);
+            saveDataToDatabase();
+            refreshAllViews();
+            closeModal('cp-action-plan-modal');
+            showNotification('ลบแผนแก้ไขเรียบร้อยแล้ว', 'amber');
         }
 
         function renderConstructionPlanView() {
@@ -5434,7 +5583,6 @@
             renderSequenceHistoryTable();
             renderPhotosGallery();
             renderReportView();
-            renderFameReportView();
         }
 
         function updatePendingApprovalBadge() {
