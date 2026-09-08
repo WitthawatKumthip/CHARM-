@@ -3964,6 +3964,11 @@
         // จำนวน Sequence ที่ถือว่าอยู่ในช่วงก่อสร้าง Precast (Sequence 1-5 = จนถึง "ตรวจรับงานติดตั้ง Precast")
         const PRECAST_PHASE_END_SEQ = 5;
 
+        // สัดส่วนเวลาแต่ละ Sequence 1-10 (% ของระยะเวลารวมทั้งแปลง, รวม 100%) — ค่ามาตรฐานที่ตกลงกันไว้ ใช้ทุกโครงการเหมือนกัน
+        const SEQ_WEIGHT_PCT = [2.5, 2.5, 5, 5, 25, 10, 15, 20, 10, 5];
+        // Sequence 1-2 (ตรวจผัง+ตอกเข็ม) ฝ่ายโครงการจัดการเอง ไม่ใช่คิวผู้รับจ้าง ใช้เวลารวมคงที่ทุกโครงการ (ไม่ขึ้นกับ phase1/phase2 วันด้านล่าง)
+        const SEQ12_FIXED_DAYS = 2;
+
         // วันที่ตามแผนของ Sequence หนึ่งๆ ของแปลงบ้าน — ปกติเฉลี่ยเท่ากันตลอดช่วงเริ่ม-จบ
         // แต่ถ้าแปลงนี้ตั้งค่า precastDays ไว้ (บ้าน Precast) จะแบ่ง 2 ช่วง:
         // Sequence 1-5 เฉลี่ยอยู่ภายใน precastDays วันแรก, Sequence ที่เหลือเฉลี่ยในช่วงที่เหลือจนถึงวันจบ
@@ -3999,6 +4004,29 @@
                         ? new Date(last.time + (end - last.time) * (remainingIdx / remainingCount))
                         : new Date(last.time);
                 }
+            }
+
+            // แบ่งเวลาตามน้ำหนัก % ของแต่ละ Sequence (ค่ามาตรฐาน) โดยช่วง Sq3-5 และ Sq6-10 ใช้จำนวนวันรวมที่ตั้งไว้ต่อแปลง
+            // (unit.seqPhase1Days/seqPhase2Days) ค่าเริ่มต้น 35/35 วัน ถ้าไม่ได้ตั้งไว้ — ใช้เฉพาะเมื่อ Sequence รวมมี 10 ขั้นพอดี
+            if (totalSeq === SEQ_WEIGHT_PCT.length) {
+                const phase1Days = Number(unit.seqPhase1Days) || 35; // รวมเวลา Sequence 3-5
+                const phase2Days = Number(unit.seqPhase2Days) || 35; // รวมเวลา Sequence 6-10
+                const phase1Pct = SEQ_WEIGHT_PCT[2] + SEQ_WEIGHT_PCT[3] + SEQ_WEIGHT_PCT[4]; // = 35
+                const phase2Pct = SEQ_WEIGHT_PCT[5] + SEQ_WEIGHT_PCT[6] + SEQ_WEIGHT_PCT[7] + SEQ_WEIGHT_PCT[8] + SEQ_WEIGHT_PCT[9]; // = 60
+                const seq12Pct = SEQ_WEIGHT_PCT[0] + SEQ_WEIGHT_PCT[1]; // = 5
+
+                let cumPct = 0;
+                for (let i = 0; i < seqIndex; i++) cumPct += SEQ_WEIGHT_PCT[i];
+
+                let days;
+                if (seqIndex <= 2) {
+                    days = SEQ12_FIXED_DAYS * (cumPct / seq12Pct);
+                } else if (seqIndex <= PRECAST_PHASE_END_SEQ) {
+                    days = SEQ12_FIXED_DAYS + phase1Days * ((cumPct - seq12Pct) / phase1Pct);
+                } else {
+                    days = SEQ12_FIXED_DAYS + phase1Days + phase2Days * ((cumPct - seq12Pct - phase1Pct) / phase2Pct);
+                }
+                return new Date(start + days * 24 * 60 * 60 * 1000);
             }
 
             const precastDays = Number(unit.precastDays) || 0;
@@ -4333,7 +4361,8 @@
         // สเกลเป็น % ของความกว้างที่มี ไม่ใช่พิกเซลคงที่ต่อวัน เพื่อให้พอดีความกว้างหน้าจอเสมอ ไม่ต้องเลื่อนสกอร์บาร์แนวนอน
         const GANTT_LABEL_PX = 56;
         // เลือกให้สีที่อยู่ติดกัน (Sequence ถัดไป) ต่างวรรณะกันชัดเจน อ่านง่ายกว่าชุดสีเดิมที่มีสีใกล้เคียงกันอยู่ติดกัน (เช่น น้ำเงิน-ม่วงคราม, ส้ม 2 เฉด)
-        const GANTT_COLORS = ['#2563EB', '#DC2626', '#16A34A', '#9333EA', '#EA580C', '#0891B2', '#DB2777', '#CA8A04', '#4F46E5', '#65A30D'];
+        // ไล่โทนสีจากเข้ม (Sq1-3) ไปสว่าง/ชัดเจน (Sq7-9) ปิดท้ายด้วยเขียว (Sq10 = ส่งมอบ) — ตรวจสอบแล้วว่าสีทุกคู่ที่อยู่ติดกันแยกแยะได้ชัดเจนแม้สายตาบอดสี
+        const GANTT_COLORS = ['#4338CA', '#BE123C', '#0D9488', '#2563EB', '#D97706', '#7C3AED', '#0EA5E9', '#F472B6', '#C2410C', '#16A34A'];
 
         function renderPlanGanttChart(filterProjId) {
             const container = document.getElementById('plan-gantt-chart');
@@ -4343,9 +4372,13 @@
             const projectsToUse = (filterProjId && filterProjId !== 'ALL') ? projectsData.filter(p => p.id === filterProjId) : projectsData;
 
             const rows = [];
+            let hasAnyEligibleUnit = false;
+            let allDoneCount = 0;
             projectsToUse.forEach(p => {
                 (p.units || []).forEach(u => {
                     if (!u.startDate || !u.endDate) return;
+                    hasAnyEligibleUnit = true;
+                    if (calculateUnitProgress(p.id, u.id) >= 100) { allDoneCount++; return; } // เสร็จ 100% แล้ว ไม่ต้องโชว์ใน Plan อีก
                     const unitStart = new Date(u.startDate).getTime();
                     const unitEnd = new Date(u.endDate).getTime();
                     if (isNaN(unitStart) || isNaN(unitEnd) || unitEnd <= unitStart) return;
@@ -4364,7 +4397,10 @@
             });
 
             if (rows.length === 0) {
-                container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">ยังไม่มีข้อมูลแปลงบ้านที่กำหนดวันเริ่ม-จบไว้</p>';
+                const msg = (hasAnyEligibleUnit && allDoneCount > 0)
+                    ? `ทุกแปลงบ้านเสร็จสมบูรณ์ 100% แล้ว (${allDoneCount} แปลง) จึงไม่มีอะไรต้องแสดงในผังแผนงาน`
+                    : 'ยังไม่มีข้อมูลแปลงบ้านที่กำหนดวันเริ่ม-จบไว้';
+                container.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">${msg}</p>`;
                 return;
             }
 
