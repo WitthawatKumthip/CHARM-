@@ -82,22 +82,33 @@ Deno.serve(async (_req) => {
   // 2) รายการสั่งของที่ใกล้/เลยกำหนดแล้วยังไม่สั่ง — จัดกลุ่มตามโครงการ
   const { data: procurements } = await supabase
     .from("procurements")
-    .select("name, project_id, order_due_date, status");
+    .select("name, project_id, unit_id, order_due_date, status");
 
   const projectNameMap = new Map((projects || []).map((p) => [p.id, p.name]));
-  const procByProject = new Map<string, { name: string; overdue: boolean; daysOverdue: number; dueToday: boolean }[]>();
+  // ชื่อ Block/แปลงบ้าน ผูกกับ project_id เพื่อแยกให้ถูกโครงการ (แต่ละโครงการมี unit id ของตัวเอง)
+  const unitNameByProject = new Map<string, Map<string, string>>();
+  for (const p of projects || []) {
+    const units = Array.isArray(p.units) ? p.units : [];
+    unitNameByProject.set(p.id, new Map(units.map((u) => [u.id, u.name])));
+  }
+
+  const procByProject = new Map<
+    string,
+    { name: string; unitName: string; overdue: boolean; daysOverdue: number; dueToday: boolean }[]
+  >();
   let dueProcCount = 0;
   for (const item of procurements || []) {
     if (item.status !== "pending" || !item.order_due_date) continue;
     if (item.order_due_date <= warnDateStr) {
       const projName = projectNameMap.get(item.project_id) || "-";
+      const unitName = unitNameByProject.get(item.project_id)?.get(item.unit_id) || "-";
       const overdue = item.order_due_date < today;
       const dueToday = item.order_due_date === today;
       const daysOverdue = overdue
         ? Math.floor((new Date(today).getTime() - new Date(item.order_due_date).getTime()) / (24 * 60 * 60 * 1000))
         : 0;
       if (!procByProject.has(projName)) procByProject.set(projName, []);
-      procByProject.get(projName)!.push({ name: item.name, overdue, daysOverdue, dueToday });
+      procByProject.get(projName)!.push({ name: item.name, unitName, overdue, daysOverdue, dueToday });
       dueProcCount++;
     }
   }
@@ -157,7 +168,7 @@ Deno.serve(async (_req) => {
         const tag = it.overdue ? `⚠️ เกิน ${it.daysOverdue} วัน` : it.dueToday ? "📌 วันนี้" : "🗓 พรุ่งนี้";
         bodyContents.push({
           type: "text",
-          text: `• ${it.name} — ${tag}`,
+          text: `• [${it.unitName}] ${it.name} — ${tag}`,
           size: "11px",
           color: "#4b5563",
           wrap: true,

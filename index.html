@@ -114,6 +114,11 @@
 </head>
 <body class="min-h-screen text-slate-800 antialiased bg-slate-100 flex flex-col md:flex-row overflow-x-hidden">
 
+    <!-- ปุ่มแสดงเมนูอีกครั้ง (โผล่เฉพาะตอนซ่อนเมนูซ้ายอยู่) -->
+    <button id="sidebar-reopen-btn" onclick="toggleSidebar()" class="hidden fixed top-4 left-4 z-40 bg-slate-900 hover:bg-slate-800 text-white w-10 h-10 rounded-xl shadow-lg items-center justify-center transition no-print" title="แสดงเมนู">
+        <i class="fa-solid fa-angles-right"></i>
+    </button>
+
     <!-- Toast Notification Box -->
     <div id="toast-notification" class="fixed top-5 right-5 z-[100] hidden transform transition-all duration-300 ease-in-out no-print">
         <div id="toast-bg" class="bg-emerald-600 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-3 text-xs font-medium">
@@ -123,7 +128,7 @@
     </div>
 
     <!-- Sidebar Navigation -->
-    <aside class="w-full md:w-64 bg-slate-900 text-slate-300 flex-shrink-0 flex flex-col justify-between min-h-screen no-print">
+    <aside id="app-sidebar" class="w-full md:w-64 bg-slate-900 text-slate-300 flex-shrink-0 flex flex-col justify-between min-h-screen no-print">
         <div>
             <!-- Logo Header -->
             <div class="p-5 border-b border-slate-800 flex items-center justify-between">
@@ -136,6 +141,9 @@
                         <p class="text-[10px] text-slate-400">Construction Management</p>
                     </div>
                 </div>
+                <button onclick="toggleSidebar()" class="text-slate-400 hover:text-white transition p-1.5 rounded-lg hover:bg-slate-800" title="ซ่อนเมนู">
+                    <i class="fa-solid fa-angles-left"></i>
+                </button>
             </div>
 
             <!-- Navigation Links -->
@@ -3029,6 +3037,27 @@
             }
         }
 
+        // ซ่อน/แสดงแถบเมนูซ้ายทั้งหมด เพื่อให้เห็นเนื้อหาหลักกว้างขึ้น — จำค่าที่เลือกไว้ใน localStorage ต่อเครื่อง
+        function toggleSidebar() {
+            const sidebar = document.getElementById('app-sidebar');
+            const reopenBtn = document.getElementById('sidebar-reopen-btn');
+            if (!sidebar || !reopenBtn) return;
+            const nowHidden = sidebar.classList.toggle('hidden');
+            reopenBtn.classList.toggle('hidden', !nowHidden);
+            reopenBtn.classList.toggle('flex', nowHidden);
+            localStorage.setItem('bt_sidebar_hidden', nowHidden ? '1' : '0');
+        }
+
+        function restoreSidebarState() {
+            const sidebar = document.getElementById('app-sidebar');
+            const reopenBtn = document.getElementById('sidebar-reopen-btn');
+            if (!sidebar || !reopenBtn) return;
+            const hidden = localStorage.getItem('bt_sidebar_hidden') === '1';
+            sidebar.classList.toggle('hidden', hidden);
+            reopenBtn.classList.toggle('hidden', !hidden);
+            reopenBtn.classList.toggle('flex', hidden);
+        }
+
         function showNotification(msg, type = 'emerald') {
             const toast = document.getElementById('toast-notification');
             const toastBg = document.getElementById('toast-bg');
@@ -5723,24 +5752,24 @@
                     </div>
                     ` : ''}
 
-                    <div id="siteplan-image-frame" onclick="handleSitePlanImageClick(event, '${project.id}')" class="relative w-full h-[385px] rounded-2xl overflow-hidden border-2 border-slate-200 bg-slate-900 shadow-lg select-none ${isEditingPinPositionMode ? 'cursor-crosshair ring-4 ring-amber-400' : 'cursor-default'}">
+                    <div id="siteplan-image-frame" onclick="handleSitePlanImageClick(event, '${project.id}')" class="relative w-full rounded-2xl overflow-hidden border-2 border-slate-200 bg-slate-900 shadow-lg select-none ${isEditingPinPositionMode ? 'cursor-crosshair ring-4 ring-amber-400' : 'cursor-default'}" style="height: 385px;">
                         <img id="siteplan-main-image" src="${planSrc}" onload="repositionSitePlanPins()" class="w-full h-full object-contain opacity-90 mx-auto">
 
                         ${project.units ? project.units.map(u => {
                             const uProg = calculateUnitProgress(project.id, u.id);
                             const uStatus = calculateUnitStatus(u, uProg);
 
-                            let pinColor = "bg-slate-500 border-white text-white";
+                            let pinColor = "bg-slate-500/60 border-white text-white";
                             let statusLabel = "ยังไม่เริ่ม";
 
                             if (uProg >= 100) {
-                                pinColor = "bg-emerald-500 border-white text-white shadow-emerald-500/50 shadow-lg";
+                                pinColor = "bg-emerald-500/60 border-white text-white shadow-emerald-500/50 shadow-lg";
                                 statusLabel = "เสร็จแล้ว 100%";
                             } else if (uStatus === 'delayed') {
-                                pinColor = "bg-rose-600 border-white text-white shadow-rose-600/50 shadow-lg animate-pulse";
+                                pinColor = "bg-rose-600/60 border-white text-white shadow-rose-600/50 shadow-lg animate-pulse";
                                 statusLabel = `ล่าช้า (${uProg}%)`;
                             } else if (uProg > 0) {
-                                pinColor = "bg-amber-500 border-white text-white shadow-amber-500/50 shadow-lg";
+                                pinColor = "bg-amber-500/60 border-white text-white shadow-amber-500/50 shadow-lg";
                                 statusLabel = `กำลังสร้าง (${uProg}%)`;
                             }
 
@@ -5752,10 +5781,10 @@
 
                             return `
                                 <div class="absolute pin-marker z-20 cursor-pointer" data-pin-x="${x}" data-pin-y="${y}" style="left: ${x}%; top: ${y}%;" title="${u.name} (${statusLabel})" onclick="event.stopPropagation(); filterAndHighlightUnit('${project.id}', '${u.id}')">
-                                    <div class="${pinColor} border-2 rounded-full px-1 py-0.5 sm:px-2.5 sm:py-1 text-[7px] sm:text-[10px] font-extrabold flex items-center gap-0.5 sm:space-x-1 shadow-md whitespace-nowrap">
-                                        <i class="fa-solid fa-house text-[6px] sm:text-[9px]"></i>
+                                    <div class="${pinColor} border rounded-full px-1 py-0.5 sm:px-2 sm:py-0.5 text-[6px] sm:text-[9px] font-extrabold flex items-center gap-0.5 sm:space-x-1 shadow-md whitespace-nowrap backdrop-blur-[1px]">
+                                        <i class="fa-solid fa-house text-[5px] sm:text-[8px]"></i>
                                         <span>${u.name}</span>
-                                        <span class="hidden sm:inline-block bg-black/30 rounded-full px-1.5 py-0.2 text-[9px]">${uProg}%</span>
+                                        <span class="hidden sm:inline-block bg-black/30 rounded-full px-1 py-0.2 text-[8px]">${uProg}%</span>
                                     </div>
                                 </div>
                             `;
@@ -5790,6 +5819,11 @@
             const frame = document.getElementById('siteplan-image-frame');
             const img = document.getElementById('siteplan-main-image');
             if (!frame || !img || !img.naturalWidth) return;
+
+            // ปรับความสูงกรอบให้ใกล้เคียงสัดส่วนจริงของรูปที่อัปโหลด ลดพื้นที่ขอบดำ (letterbox) ให้เหลือน้อยที่สุด เพื่อให้ปักหมุดง่ายขึ้น
+            const aspect = img.naturalWidth / img.naturalHeight;
+            const targetHeight = Math.min(700, Math.max(300, frame.offsetWidth / aspect));
+            frame.style.height = `${targetHeight}px`;
 
             const frameRect = frame.getBoundingClientRect();
             const box = getContainedImageBox(img.naturalWidth, img.naturalHeight, frameRect.width, frameRect.height);
@@ -7943,14 +7977,17 @@
             const matsToCreate = masterMaterials.length > 0 ? masterMaterials : defaultMasterMaterials;
             const totalSeq = masterSequences.length || 10;
 
+            // จับคู่วัสดุมาตรฐาน 10 รายการ (ตามลำดับเดิม) กับ Sequence งานก่อสร้างที่ตรงกับเนื้องานจริง
+            // (ไม่ใช่จับคู่ตามลำดับที่ 1:1 เหมือนเดิม เพราะลำดับวัสดุกับลำดับ Sequence ไม่ได้ตรงกันเป๊ะ)
+            const MATERIAL_TO_SEQ_MAP = [4, 6, 7, 7, 8, 8, 9, 9, 9, 8];
+
             let addedCount = 0;
             matsToCreate.forEach((matName, matIdx) => {
                 const exists = procurementsData.some(m => m.projectId === projId && m.unitId === unitId && m.name === matName);
                 if (!exists) {
-                    // เทียบลำดับรายการวัสดุกับ Sequence งานก่อสร้างที่ตรงกัน (รายการที่ N ↔ Sequence ที่ N)
+                    // ใช้ตารางจับคู่ด้านบนถ้ามี ไม่งั้น fallback เป็นจับคู่ตามลำดับที่ (เผื่อมีวัสดุมากกว่า/น้อยกว่า 10 รายการ)
                     // แล้วคำนวณวันครบกำหนดสั่งซื้อจากวันที่ต้องใช้จริงของ Sequence นั้น ไม่ใช่นับจากวันเริ่มงานแปลงเหมือนเดิม
-                    // (แก้ปัญหาเดิมที่วัสดุทุกชิ้นถูกตั้งวันครบกำหนดเดียวกันหมด ทำให้รายการที่ใช้ตอนท้ายงานขึ้น "เกินกำหนด" ทันที)
-                    const seqIndex = Math.min(matIdx + 1, totalSeq);
+                    const seqIndex = Math.min(MATERIAL_TO_SEQ_MAP[matIdx] || (matIdx + 1), totalSeq);
                     const requiredDate = getPlannedDateForSeq(unit, seqIndex, totalSeq);
                     const requiredDateStr = toISODateStr(requiredDate);
                     const orderDueDateStr = toISODateStr(addDaysToDate(requiredDate, -leadDays));
@@ -8817,6 +8854,8 @@
         }
 
         window.onload = async function() {
+            restoreSidebarState();
+
             // 1) โหลดข้อมูลในเครื่องก่อน เพื่อให้เปิดใช้งานได้ทันทีแม้เน็ตช้า
             loadDataFromDatabase();
             checkCloudConnectionOnLoad();
