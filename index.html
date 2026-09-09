@@ -1207,6 +1207,11 @@
                         <i class="fa-solid fa-download"></i>
                         <span>ดาวน์โหลดไฟล์ข้อมูลสำรอง (.json)</span>
                     </button>
+                    <button onclick="exportRawDataExcel()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 rounded-xl transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span>ดาวน์โหลดข้อมูลดิบเป็น Excel (.xlsx)</span>
+                    </button>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">ไฟล์ Excel นี้ไว้เปิดดู/กรอง/วิเคราะห์เอง (แยกเป็นชีทตามหมวดข้อมูล) — ถ้าต้องการกู้คืนระบบให้ใช้ไฟล์ .json ด้านบนแทน</p>
                 </div>
 
                 <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
@@ -3363,6 +3368,120 @@
             dlAnchorElem.remove();
 
             showNotification('ดาวน์โหลดไฟล์สำรองข้อมูลเรียบร้อยแล้ว');
+        }
+
+        // ส่งออกข้อมูลดิบทั้งหมดเป็น Excel หลายชีท (คนละแบบกับสำรอง .json — อันนี้ไว้เปิดดู/กรอง/วิเคราะห์เองได้ ไม่ใช่ไว้กู้คืนระบบ)
+        function exportRawDataExcel() {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่มีสิทธิ์ Export ข้อมูล', 'rose');
+                return;
+            }
+
+            const projectNameMap = new Map(projectsData.map(p => [p.id, p.name]));
+            const unitNameMap = new Map();
+            projectsData.forEach(p => (p.units || []).forEach(u => unitNameMap.set(u.id, u.name)));
+            const resourceNameMap = new Map(resourcesData.map(r => [r.id, r.name]));
+
+            const wb = XLSX.utils.book_new();
+            const addSheet = (rows, sheetName) => {
+                const ws = XLSX.utils.json_to_sheet(rows.length > 0 ? rows : [{}]);
+                XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31)); // ชื่อชีทของ Excel ยาวได้ไม่เกิน 31 ตัวอักษร
+            };
+
+            // 1) โครงการ
+            addSheet(projectsData.map(p => ({
+                'รหัสโครงการ': p.id, 'ชื่อโครงการ': p.name, 'ทำเล': p.location || '',
+                'จำนวนแปลงบ้าน': (p.units || []).length
+            })), 'โครงการ');
+
+            // 2) แปลงบ้าน (แยกจากโครงการ เพราะฝังเป็น array ซ้อนอยู่ในนั้น)
+            const unitRows = [];
+            projectsData.forEach(p => (p.units || []).forEach(u => {
+                unitRows.push({
+                    'รหัสโครงการ': p.id, 'ชื่อโครงการ': p.name, 'รหัสแปลง': u.id, 'ชื่อแปลง': u.name,
+                    'วันเริ่มงาน': u.startDate || '', 'วันจบงาน': u.endDate || '',
+                    'ความคืบหน้า (%)': calculateUnitProgress(p.id, u.id),
+                    'Sq3-5 (วัน)': u.seqPhase1Days ?? '', 'Sq6-10 (วัน)': u.seqPhase2Days ?? '',
+                    'seqDateOverrides': u.seqDateOverrides ? JSON.stringify(u.seqDateOverrides) : ''
+                });
+            }));
+            addSheet(unitRows, 'แปลงบ้าน');
+
+            // 3) บันทึกผลงานตาม Sequence
+            addSheet(sequenceRecords.map(r => ({
+                'โครงการ': projectNameMap.get(r.projectId) || r.projectId, 'แปลง': unitNameMap.get(r.unitId) || r.unitId,
+                'Sequence': r.seqIndex, 'ชื่อ Sequence': r.seqName || '', 'งานย่อย': r.subTask || '',
+                'สถานะงาน': r.status || '', 'สถานะอนุมัติ': r.approvalStatus || '',
+                'วันที่บันทึก': r.recordDate || '', 'บันทึกโดย': r.recordedBy || '',
+                'อนุมัติโดย': r.approvedBy || '', 'วันที่อนุมัติ': r.approvedDate || '',
+                'หมายเหตุ': r.remark || '', 'จำนวนรูปแนบ': Array.isArray(r.photos) ? r.photos.length : 0
+            })), 'บันทึกผลงาน Sequence');
+
+            // 4) แผนสั่งซื้อวัสดุ
+            addSheet(procurementsData.map(m => ({
+                'โครงการ': projectNameMap.get(m.projectId) || m.projectId, 'แปลง': unitNameMap.get(m.unitId) || m.unitId,
+                'รายการ': m.name || '', 'ยี่ห้อ': m.brand || '', 'รุ่น': m.model || '', 'สเปค': m.spec || '',
+                'ราคา': m.price ?? '', 'ผู้จัดจำหน่าย': m.supplier || '', 'ประเภทวัสดุ': m.materialType || '',
+                'Lead Time (วัน)': m.leadDays ?? '', 'กำหนดสั่งซื้อ': m.orderDueDate || '', 'วันที่ต้องใช้งาน': m.requiredDate || '',
+                'สถานะ': m.status || '', 'หมายเหตุ': m.remark || ''
+            })), 'แผนสั่งซื้อวัสดุ');
+
+            // 5) สรุปวัสดุ/ผู้รับเหมา
+            addSheet(materialSpecsData.map(m => ({
+                'โครงการ': projectNameMap.get(m.projectId) || m.projectId, 'หมวด': m.category || '', 'รายการ': m.name || '',
+                'ยี่ห้อ/ผู้รับจ้าง': m.brand || '', 'ผู้รับผิดชอบ': m.responsible || '', 'สถานะ': m.status || '',
+                'กำหนดสรุป': m.dueDate || '', 'หมายเหตุ': m.note || '', 'เชื่อมโยง Defect': m.linkedIssueId || ''
+            })), 'สรุปวัสดุ-ผู้รับเหมา');
+
+            // 6) แจ้งปัญหา / งานแก้ไข (Defects)
+            addSheet(issuesData.map(i => ({
+                'โครงการ': projectNameMap.get(i.projectId) || i.projectId, 'แปลง': unitNameMap.get(i.unitId) || i.unitNumber || '',
+                'หัวข้อ': i.title || '', 'วันที่แจ้ง': i.reportDate || '', 'ผู้แจ้ง': i.reportedBy || '',
+                'ผู้รับผิดชอบแก้ไข': i.assignedTo || '', 'สถานะ': i.status || '', 'วันที่แก้เสร็จ': i.resolvedDate || '',
+                'รายละเอียดการแก้ไข': i.resolutionNotes || ''
+            })), 'แจ้งปัญหา-Defects');
+
+            // 7) ทรัพยากรร่วม (Critical Path)
+            addSheet(resourcesData.map(r => ({
+                'โครงการ': projectNameMap.get(r.projectId) || r.projectId, 'ชื่อทรัพยากร': r.name || '',
+                'หน่วยงาน': r.unitLabel || '', 'อัตราทำงาน/วัน': r.dailyRate ?? '', 'ปฏิทินทำงาน': r.calendar || '',
+                'วันเริ่มทำงาน': r.startDate || '', 'สถานะใช้งาน': r.active !== false ? 'ใช้งาน' : 'ปิดใช้งาน'
+            })), 'ทรัพยากรร่วม');
+
+            // 8) คิวงานของทรัพยากรร่วม (แยกชีทเพราะฝังเป็น array ซ้อนอยู่ในทรัพยากร)
+            const queueRows = [];
+            resourcesData.forEach(r => (r.queue || []).forEach((q, idx) => {
+                queueRows.push({
+                    'ทรัพยากร': r.name, 'ลำดับคิว': idx + 1, 'แปลง': unitNameMap.get(q.unitId) || q.unitName || '',
+                    'ป้อน Sequence': q.feedsSeq, 'จำนวนงาน': q.workQty ?? '', 'รายละเอียดงานย่อย': q.note || ''
+                });
+            }));
+            addSheet(queueRows, 'คิวงานทรัพยากรร่วม');
+
+            // 9) แผนแก้ไขปัญหา (Action Plan)
+            addSheet(actionPlansData.map(a => ({
+                'โครงการ': projectNameMap.get(a.projectId) || a.projectId, 'ประเภทความเสี่ยง': a.targetType || '',
+                'รายการที่เกี่ยวข้อง': unitNameMap.get(a.targetId) || resourceNameMap.get(a.targetId) || a.targetId,
+                'แผนแก้ไข': a.planText || '', 'ผู้รับผิดชอบ': a.responsible || '', 'เป้าหมายแก้ไขเสร็จ': a.targetDate || '',
+                'สถานะ': a.status || '', 'หมายเหตุ': a.note || '', 'สร้างโดย': a.createdBy || ''
+            })), 'แผนแก้ไขปัญหา');
+
+            // 10) ผู้ใช้งาน (บัญชี Local เท่านั้น — บัญชี Cloud จริงจัดการที่ Supabase Dashboard)
+            addSheet(usersDatabase.map(u => ({
+                'Username': u.username || '', 'ชื่อ': u.name || '', 'สิทธิ์': u.role || ''
+            })), 'ผู้ใช้งาน (Local)');
+
+            // 11) ตั้งค่ามาตรฐานระบบ
+            const masterRows = [];
+            (masterSequences || []).forEach((s, i) => masterRows.push({ 'ประเภท': 'Sequence', 'ลำดับ': i + 1, 'รายการ': s }));
+            (masterMaterials || []).forEach((m, i) => masterRows.push({ 'ประเภท': 'วัสดุมาตรฐาน', 'ลำดับ': i + 1, 'รายการ': m }));
+            Object.keys(masterSubTasks || {}).forEach(seqKey => {
+                (masterSubTasks[seqKey] || []).forEach(sub => masterRows.push({ 'ประเภท': `งานย่อย Sequence ${seqKey}`, 'ลำดับ': '', 'รายการ': sub }));
+            });
+            addSheet(masterRows, 'ตั้งค่ามาตรฐานระบบ');
+
+            XLSX.writeFile(wb, `BuildTrack_RawData_${new Date().toISOString().split('T')[0]}.xlsx`);
+            showNotification('ดาวน์โหลดข้อมูลดิบเป็น Excel เรียบร้อยแล้ว');
         }
 
         async function importDataJSON() {
