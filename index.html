@@ -474,9 +474,9 @@
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-4">
                 <div>
                     <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation text-rose-500"></i> ความเสี่ยง &amp; แผนแก้ไข (Action Plan)</h3>
-                    <p class="text-xs text-slate-500 mt-1">ตรวจจับอัตโนมัติจากข้อมูลจริง (อ่านอย่างเดียว ไม่กระทบข้อมูลเดิม) — แปลงที่ล่าช้า/เสี่ยงล่าช้าตาม Sequence, วัสดุที่ยังไม่สั่ง/สั่งแล้วแต่ยังไม่เข้า, และรายการ Spec ที่เลยกำหนดสรุป</p>
+                    <p class="text-xs text-slate-500 mt-1">ตรวจจับอัตโนมัติจากข้อมูลจริง (อ่านอย่างเดียว ไม่กระทบข้อมูลเดิม) — แปลงที่ล่าช้า/เสี่ยงล่าช้าตาม Sequence, วัสดุที่ยังไม่สั่ง/สั่งแล้วแต่ยังไม่เข้า, รายการ Spec ที่เลยกำหนดสรุป, และทรัพยากรที่ถูกจองชนกันข้ามโครงการ</p>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="cp-risk-stat-tiles"></div>
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3" id="cp-risk-stat-tiles"></div>
                 <div class="space-y-2">
                     <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-house-chimney-crack text-rose-500"></i> แปลงบ้านที่ล่าช้า/เสี่ยงล่าช้าตาม Sequence</h4>
                     <div id="cp-risk-units-list" class="space-y-2"></div>
@@ -489,12 +489,19 @@
                     <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-clipboard-list text-slate-500"></i> รายการ Spec วัสดุ/ผู้รับเหมาที่เลยกำหนดสรุป</h4>
                     <div id="cp-risk-materialspec-list" class="space-y-2"></div>
                 </div>
+                <div class="space-y-2">
+                    <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-user-clock text-rose-500"></i> ทรัพยากรที่ถูกจองชนกันข้ามโครงการ</h4>
+                    <div id="cp-risk-conflicts-list" class="space-y-2"></div>
+                </div>
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
                 <div class="flex justify-between items-center">
-                    <h3 class="font-bold text-slate-800 text-sm">ทรัพยากรร่วม/เครื่องจักร ของโครงการนี้</h3>
-                    <button id="cp-btn-add-resource" onclick="openAddResourceModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm">ทรัพยากรร่วม/เครื่องจักร (ใช้ข้ามโครงการได้)</h3>
+                        <p class="text-[11px] text-slate-400 mt-0.5">รายชื่อทรัพยากรทั้งหมด ไม่จำกัดเฉพาะโครงการที่เลือกด้านบน — กด "คิวงาน" เพื่อเพิ่มงานของแต่ละโครงการให้ทรัพยากรนี้</p>
+                    </div>
+                    <button id="cp-btn-add-resource" onclick="openAddResourceModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 shrink-0">
                         <i class="fa-solid fa-plus"></i>
                         <span>เพิ่มทรัพยากรใหม่</span>
                     </button>
@@ -525,7 +532,6 @@
                     <button onclick="closeModal('cp-resource-form-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-base"></i></button>
                 </div>
                 <input type="hidden" id="cp-resource-form-id">
-                <input type="hidden" id="cp-resource-form-project-id">
                 <div class="space-y-3 text-xs">
                     <div>
                         <label class="block font-semibold text-slate-600 mb-1">ชื่อทรัพยากร *</label>
@@ -575,15 +581,30 @@
                 <input type="hidden" id="cp-queue-modal-resource-id">
                 <div id="cp-queue-list-container" class="space-y-2"></div>
                 <div class="border-t border-slate-100 pt-3 space-y-2 text-xs">
-                    <div class="font-semibold text-slate-600">+ เพิ่มแปลงเข้าคิว</div>
+                    <div class="font-semibold text-slate-600">+ เพิ่มงานเข้าคิว</div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">โครงการ *</label>
+                        <select id="cp-new-queue-project-select" onchange="onQueueProjectChange()" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                    </div>
                     <div class="grid grid-cols-2 gap-2">
                         <select id="cp-new-queue-unit-select" class="border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
                         <select id="cp-new-queue-seq-select" onchange="updateQueueNoteSuggestions()" class="border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
                     </div>
                     <input type="text" id="cp-new-queue-note-input" list="cp-queue-note-suggestions" placeholder="รายละเอียดงานย่อยสำหรับทีมวิศวกร (ถ้ามี) — พิมพ์เองได้เลย ครั้งต่อไปจะช่วยเดาให้จากที่เคยพิมพ์" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500">
                     <datalist id="cp-queue-note-suggestions"></datalist>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">วันเริ่มงาน *</label>
+                            <input type="date" id="cp-new-queue-startdate-input" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">วันจบงาน *</label>
+                            <input type="date" id="cp-new-queue-enddate-input" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-400">เลือกช่วงวันที่ทำงานเองตรงๆ ได้เลย — ระบบจะเตือนถ้าช่วงนี้ชนกับงานของทรัพยากรนี้ในโครงการอื่น</p>
                     <div class="flex gap-2">
-                        <input type="number" min="0.1" step="0.1" id="cp-new-queue-qty-input" placeholder="จำนวนงาน" class="flex-1 border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="number" min="0" step="0.1" id="cp-new-queue-qty-input" placeholder="จำนวนงาน (ถ้ามี ไม่บังคับ)" class="flex-1 border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500">
                         <button onclick="addQueueEntry()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs font-semibold">เพิ่มแถว</button>
                     </div>
                 </div>
@@ -844,6 +865,10 @@
                             <i class="fa-solid fa-plus"></i>
                             <span>+ สั่งของใหม่</span>
                         </button>
+                        <button id="btn-toggle-delivered-procurements" onclick="toggleDeliveredProcurementsView()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm flex items-center space-x-1">
+                            <i class="fa-solid fa-box-archive"></i>
+                            <span>ดูรายการที่ของเข้าแล้ว (<span id="delivered-procurements-count">0</span>)</span>
+                        </button>
                     </div>
                 </div>
 
@@ -861,6 +886,26 @@
                             </tr>
                         </thead>
                         <tbody id="procurements-table-body" class="text-xs divide-y divide-slate-100 text-slate-700"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="delivered-procurements-section" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
+                <div>
+                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-box-archive text-slate-500"></i> ประวัติของที่สั่งซื้อและเข้าครบแล้ว</h3>
+                    <p class="text-xs text-slate-500">รายการที่เช็คถูกทั้ง "สั่งซื้อแล้ว" และ "ของเข้าแล้ว" — เก็บไว้ให้กลับมาเช็คย้อนหลังได้ ไม่ได้ถูกลบทิ้ง</p>
+                </div>
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 border-b border-slate-100 uppercase">
+                                <th class="py-2 px-3">รายการวัสดุ</th>
+                                <th class="py-2 px-3">โครงการ / แปลงบ้าน</th>
+                                <th class="py-2 px-3">กำหนดต้องสั่งซื้อ (เดิม)</th>
+                                <th class="py-2 px-3 text-right">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="delivered-procurements-table-body" class="text-xs divide-y divide-slate-100 text-slate-700"></tbody>
                     </table>
                 </div>
             </div>
@@ -4621,10 +4666,21 @@
             const calendar = resource.calendar === 'EVERY_DAY' ? 'EVERY_DAY' : 'MON_SAT';
             const startDate = resource.startDate ? new Date(resource.startDate) : null;
             const results = [];
-            if (rate <= 0 || !startDate || isNaN(startDate.getTime())) return results;
+            if (!startDate || isNaN(startDate.getTime())) return results;
 
             let cumWork = 0;
             queue.forEach(entry => {
+                // ถ้ากำหนดวันเริ่ม-จบเองไว้ครบ ใช้วันนั้นตรงๆ เลย ไม่นับรวมในปริมาณงานสะสมของแถวอื่น (เป็นอิสระจากกัน)
+                if (entry.manualStartDate && entry.manualEndDate) {
+                    const mStart = new Date(entry.manualStartDate);
+                    const mEnd = new Date(entry.manualEndDate);
+                    if (!isNaN(mStart.getTime()) && !isNaN(mEnd.getTime())) {
+                        results.push({ ...entry, startDate: mStart, finishDate: mEnd, workingDays: null });
+                        return;
+                    }
+                }
+                if (rate <= 0) return; // ไม่มีอัตราทำงาน และไม่ได้กำหนดวันเอง คำนวณอัตโนมัติไม่ได้
+
                 const qty = Number(entry.workQty) || 0;
                 const prevCum = cumWork;
                 cumWork += qty;
@@ -4642,25 +4698,46 @@
             return results;
         }
 
-        // คำนวณตารางเวลาของทุกทรัพยากร (ที่ active) ในโครงการนั้น
-        function computeAllResourceSchedules(projectId) {
+        // หาช่วงวันที่ของทรัพยากรเดียวกันที่ทับซ้อนกัน (ไม่ว่าจะอยู่คนละโครงการหรือโครงการเดียวกัน) — คนเดียว/ทีมเดียวทำ 2 ที่พร้อมกันไม่ได้
+        function findResourceConflicts(resource) {
+            const schedule = computeResourceQueueSchedule(resource);
+            const conflicts = [];
+            for (let i = 0; i < schedule.length; i++) {
+                for (let j = i + 1; j < schedule.length; j++) {
+                    const a = schedule[i], b = schedule[j];
+                    if (a.startDate.getTime() <= b.finishDate.getTime() && b.startDate.getTime() <= a.finishDate.getTime()) {
+                        conflicts.push({ a, b });
+                    }
+                }
+            }
+            return conflicts;
+        }
+
+        // คำนวณตารางเวลาของทุกทรัพยากร (ที่ active) ทั้งหมด — ทรัพยากรใช้ข้ามโครงการได้ ไม่จำกัดเฉพาะโครงการเดียวอีกต่อไป
+        function computeAllResourceSchedules() {
             const map = new Map();
             resourcesData
-                .filter(r => r.projectId === projectId && r.active !== false)
+                .filter(r => r.active !== false)
                 .forEach(r => map.set(r.id, computeResourceQueueSchedule(r)));
             return map;
+        }
+
+        // แถวคิวเก่าบางแถวอาจยังไม่มี projectId ของตัวเอง (ก่อนเปลี่ยนเป็นทรัพยากรข้ามโครงการ) — fallback ไปใช้ projectId ของทรัพยากรแม่แทน
+        function getQueueEntryProjectId(entry, resource) {
+            return entry.projectId || resource.projectId || '';
         }
 
         // หา "วันที่พร้อมจริง" ของแต่ละแปลง+Sequence เมื่อมีทรัพยากรมากกว่า 1 ตัวป้อนงานเดียวกัน (เช่น รถตอก+รถกด ของ KARDEN)
         // ทรัพยากรที่ทำให้ MAX คือตัว "วิกฤต" (Float = 0) ทรัพยากรอื่นที่เสร็จก่อนจะมี Float เท่ากับส่วนต่างวัน
         function computeUnitReadiness(projectId) {
-            const schedules = computeAllResourceSchedules(projectId);
-            const resources = resourcesData.filter(r => r.projectId === projectId && r.active !== false);
+            const schedules = computeAllResourceSchedules();
+            const resources = resourcesData.filter(r => r.active !== false);
 
             const groups = new Map();
             resources.forEach(res => {
                 const schedule = schedules.get(res.id) || [];
                 schedule.forEach(entry => {
+                    if (getQueueEntryProjectId(entry, res) !== projectId) return; // เฉพาะคิวงานของโครงการที่กำลังดูอยู่
                     if (!entry.unitId || !entry.feedsSeq) return;
                     const key = `${entry.unitId}::${entry.feedsSeq}`;
                     if (!groups.has(key)) groups.set(key, []);
@@ -4708,42 +4785,54 @@
             }
             const projId = filterEl.value;
 
-            renderResourceManagementPanel(projId);
+            renderResourceManagementPanel();
             renderCriticalPathGantt(projId);
             renderUnitReadinessTable(projId);
             renderCriticalPathRiskPanel(projId);
         }
 
-        function renderResourceManagementPanel(projectId) {
+        function renderResourceManagementPanel() {
             const container = document.getElementById('cp-resource-list');
             if (!container) return;
             const canEdit = !!currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'FOREMAN');
             const addBtn = document.getElementById('cp-btn-add-resource');
-            if (addBtn) addBtn.classList.toggle('hidden', !canEdit || !projectId);
+            if (addBtn) addBtn.classList.toggle('hidden', !canEdit);
 
-            if (!projectId) {
-                container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">กรุณาเลือกโครงการก่อน</p>';
-                return;
-            }
-
-            const resources = resourcesData.filter(r => r.projectId === projectId).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+            const resources = [...resourcesData].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
             if (resources.length === 0) {
-                container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">ยังไม่มีทรัพยากรร่วมของโครงการนี้ กด "เพิ่มทรัพยากรใหม่" เพื่อเริ่มต้น</p>';
+                container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">ยังไม่มีทรัพยากรร่วมในระบบ กด "เพิ่มทรัพยากรใหม่" เพื่อเริ่มต้น</p>';
                 return;
             }
 
-            const schedules = computeAllResourceSchedules(projectId);
+            const schedules = computeAllResourceSchedules();
             container.innerHTML = resources.map(r => {
                 const schedule = schedules.get(r.id) || [];
                 const totalWorkQty = (r.queue || []).reduce((sum, q) => sum + (Number(q.workQty) || 0), 0);
                 const finishDate = schedule.length > 0 ? toISODateStr(schedule[schedule.length - 1].finishDate) : '-';
                 const calendarLabel = r.calendar === 'EVERY_DAY' ? 'ทำงานทุกวัน' : 'จันทร์-เสาร์ (หยุดอาทิตย์)';
+
+                // สรุปโครงการที่ทรัพยากรนี้มีคิวงานอยู่ ณ ตอนนี้ (อ่านสดจากคิวงานจริง)
+                const projectIds = [...new Set((r.queue || []).map(q => getQueueEntryProjectId(q, r)).filter(Boolean))];
+                const projectNames = projectIds.map(pid => projectsData.find(p => p.id === pid)?.name).filter(Boolean);
+                const projectTagsHtml = projectNames.length > 0
+                    ? projectNames.map(n => `<span class="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-full text-[10px] font-semibold">${n}</span>`).join(' ')
+                    : '<span class="text-[10px] text-slate-400">ยังไม่มีคิวงาน</span>';
+
+                const conflicts = findResourceConflicts(r);
+                const conflictBadge = conflicts.length > 0
+                    ? `<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i>ช่วงงานชนกัน ${conflicts.length} จุด</span>`
+                    : '';
+
                 return `
-                    <div class="border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div class="flex-1 min-w-0">
-                            <div class="font-bold text-slate-800 text-sm">${r.name}${r.active === false ? ' <span class="text-[10px] text-slate-400 font-normal">(ปิดใช้งาน)</span>' : ''}</div>
+                    <div class="border ${conflicts.length > 0 ? 'border-rose-300 bg-rose-50/30' : 'border-slate-200'} rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="flex-1 min-w-0 space-y-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-bold text-slate-800 text-sm">${r.name}${r.active === false ? ' <span class="text-[10px] text-slate-400 font-normal">(ปิดใช้งาน)</span>' : ''}</span>
+                                ${conflictBadge}
+                            </div>
                             <div class="text-[11px] text-slate-500">อัตรา ${r.dailyRate} ${r.unitLabel || 'หน่วย'}/วัน · ${calendarLabel} · เริ่ม ${r.startDate || '-'}</div>
                             <div class="text-[11px] text-slate-500">คิวงาน ${(r.queue || []).length} แถว รวม ${totalWorkQty} ${r.unitLabel || 'หน่วย'} · คำนวณเสร็จ ${finishDate}</div>
+                            <div class="flex items-center gap-1 flex-wrap">${projectTagsHtml}</div>
                         </div>
                         <div class="flex gap-2 shrink-0">
                             <button onclick="openQueueModal('${r.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold"><i class="fa-solid fa-list-ol mr-1"></i>คิวงาน</button>
@@ -4759,14 +4848,8 @@
                 showNotification('เฉพาะ ADMIN/FOREMAN เท่านั้นที่จัดการทรัพยากรได้', 'rose');
                 return;
             }
-            const projId = document.getElementById('cp-project-filter')?.value;
-            if (!projId) {
-                showNotification('กรุณาเลือกโครงการก่อน', 'rose');
-                return;
-            }
             document.getElementById('cp-resource-form-title').textContent = 'เพิ่มทรัพยากรใหม่';
             document.getElementById('cp-resource-form-id').value = '';
-            document.getElementById('cp-resource-form-project-id').value = projId;
             document.getElementById('cp-resource-name-input').value = '';
             document.getElementById('cp-resource-rate-input').value = '';
             document.getElementById('cp-resource-unitlabel-input').value = '';
@@ -4785,7 +4868,6 @@
             if (!r) return;
             document.getElementById('cp-resource-form-title').textContent = 'แก้ไขทรัพยากร';
             document.getElementById('cp-resource-form-id').value = r.id;
-            document.getElementById('cp-resource-form-project-id').value = r.projectId;
             document.getElementById('cp-resource-name-input').value = r.name || '';
             document.getElementById('cp-resource-rate-input').value = r.dailyRate || '';
             document.getElementById('cp-resource-unitlabel-input').value = r.unitLabel || '';
@@ -4801,7 +4883,6 @@
                 return;
             }
             const id = document.getElementById('cp-resource-form-id').value;
-            const projectId = document.getElementById('cp-resource-form-project-id').value;
             const name = document.getElementById('cp-resource-name-input').value.trim();
             const dailyRate = Number(document.getElementById('cp-resource-rate-input').value);
             const unitLabel = document.getElementById('cp-resource-unitlabel-input').value.trim();
@@ -4824,10 +4905,10 @@
                 }
                 showNotification('แก้ไขทรัพยากรเรียบร้อยแล้ว');
             } else {
-                const maxOrder = resourcesData.filter(x => x.projectId === projectId).reduce((m, x) => Math.max(m, x.sortOrder || 0), 0);
+                const maxOrder = resourcesData.reduce((m, x) => Math.max(m, x.sortOrder || 0), 0);
                 resourcesData.push({
                     id: `RES-${Date.now()}`,
-                    projectId, name, dailyRate, unitLabel, startDate, calendar,
+                    name, dailyRate, unitLabel, startDate, calendar,
                     active: true, sortOrder: maxOrder + 1, queue: []
                 });
                 showNotification('เพิ่มทรัพยากรใหม่เรียบร้อยแล้ว');
@@ -4861,14 +4942,27 @@
             document.getElementById('cp-queue-modal-resource-id').value = resourceId;
             document.getElementById('cp-queue-modal-resource-name').textContent = r.name;
 
-            populateUnitPickerForQueue(r.projectId);
+            const projSel = document.getElementById('cp-new-queue-project-select');
+            const currentProjVal = projSel.value;
+            projSel.innerHTML = projectsData.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            projSel.value = projectsData.some(p => p.id === currentProjVal) ? currentProjVal : (projectsData[0]?.id || '');
+
+            onQueueProjectChange();
             populateSeqPickerForQueue();
             document.getElementById('cp-new-queue-qty-input').value = '';
             document.getElementById('cp-new-queue-note-input').value = '';
+            document.getElementById('cp-new-queue-startdate-input').value = '';
+            document.getElementById('cp-new-queue-enddate-input').value = '';
             updateQueueNoteSuggestions();
 
             renderQueueListInModal(resourceId);
             openModal('cp-queue-modal');
+        }
+
+        // เปลี่ยนโครงการในฟอร์มเพิ่มคิวงาน — ต้องอัปเดต dropdown แปลงบ้านให้ตรงกับโครงการที่เลือกใหม่เสมอ
+        function onQueueProjectChange() {
+            const projId = document.getElementById('cp-new-queue-project-select')?.value;
+            populateUnitPickerForQueue(projId);
         }
 
         // ตัวช่วยพิมพ์ "รายละเอียดงานย่อย" — ดึงจากที่ทีมวิศวกรเคยพิมพ์ไว้เองในคิวงาน Critical Path เท่านั้น
@@ -4915,23 +5009,37 @@
             if (!container) return;
             const r = resourcesData.find(x => x.id === resourceId);
             if (!r) return;
-            const project = projectsData.find(p => p.id === r.projectId);
-            const unitNameMap = new Map((project?.units || []).map(u => [u.id, u.name]));
+
+            // แปลงบ้านตอนนี้อาจมาจากคนละโครงการกัน จึงต้องหาชื่อแปลง/โครงการแบบ global ไม่ผูกกับโครงการเดียว
+            const unitNameMap = new Map();
+            const projectNameMap = new Map(projectsData.map(p => [p.id, p.name]));
+            projectsData.forEach(p => (p.units || []).forEach(u => unitNameMap.set(u.id, u.name)));
 
             const queue = r.queue || [];
             if (queue.length === 0) {
                 container.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">ยังไม่มีแปลงในคิวนี้</p>';
                 return;
             }
+
+            const conflictEntryIds = new Set();
+            findResourceConflicts(r).forEach(({ a, b }) => { conflictEntryIds.add(a.id); conflictEntryIds.add(b.id); });
+
             container.innerHTML = queue.map((q, idx) => {
                 const liveUnitName = unitNameMap.get(q.unitId) || q.unitName || 'แปลงที่ถูกลบ';
+                const entryProjectId = getQueueEntryProjectId(q, r);
+                const projectName = projectNameMap.get(entryProjectId) || '-';
                 const seqName = (masterSequences[q.feedsSeq - 1] || `Sequence ${q.feedsSeq}`).replace(/^Sequence\s*\d+[:\s]*/i, '');
+                const dateLabel = q.manualStartDate && q.manualEndDate ? `${q.manualStartDate} ถึง ${q.manualEndDate}` : (q.workQty ? `${q.workQty} หน่วย (คำนวณอัตโนมัติ)` : '-');
+                const isConflict = conflictEntryIds.has(q.id);
                 return `
-                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs">
+                    <div class="flex items-center gap-2 ${isConflict ? 'bg-rose-50 border-rose-300' : 'bg-slate-50 border-slate-200'} border rounded-lg px-3 py-2 text-xs">
                         <span class="font-bold text-slate-400 w-5">${idx + 1}</span>
                         <div class="flex-1 min-w-0">
-                            <div class="font-semibold text-slate-800 truncate">${liveUnitName}${q.note ? ` <span class="font-normal text-slate-500">— ${q.note}</span>` : ''}</div>
-                            <div class="text-[10px] text-slate-500 truncate">ป้อน Seq ${q.feedsSeq}: ${seqName} · ${q.workQty} หน่วย</div>
+                            <div class="font-semibold text-slate-800 truncate">
+                                <span class="text-indigo-600">[${projectName}]</span> ${liveUnitName}${q.note ? ` <span class="font-normal text-slate-500">— ${q.note}</span>` : ''}
+                                ${isConflict ? '<span class="ml-1 text-rose-600 font-bold"><i class="fa-solid fa-triangle-exclamation"></i> ชนกัน</span>' : ''}
+                            </div>
+                            <div class="text-[10px] text-slate-500 truncate">ป้อน Seq ${q.feedsSeq}: ${seqName} · ${dateLabel}</div>
                         </div>
                         <button onclick="moveQueueEntry('${resourceId}','${q.id}',-1)" title="เลื่อนขึ้น" class="text-slate-400 hover:text-slate-700 px-1"><i class="fa-solid fa-arrow-up"></i></button>
                         <button onclick="moveQueueEntry('${resourceId}','${q.id}',1)" title="เลื่อนลง" class="text-slate-400 hover:text-slate-700 px-1"><i class="fa-solid fa-arrow-down"></i></button>
@@ -4950,30 +5058,49 @@
             const r = resourcesData.find(x => x.id === resourceId);
             if (!r) return;
 
+            const queueProjectId = document.getElementById('cp-new-queue-project-select').value;
             const unitId = document.getElementById('cp-new-queue-unit-select').value;
             const feedsSeq = Number(document.getElementById('cp-new-queue-seq-select').value);
-            const workQty = Number(document.getElementById('cp-new-queue-qty-input').value);
+            const workQtyRaw = document.getElementById('cp-new-queue-qty-input').value;
+            const workQty = workQtyRaw ? Number(workQtyRaw) : 0;
             const note = document.getElementById('cp-new-queue-note-input').value.trim();
+            const manualStartDate = document.getElementById('cp-new-queue-startdate-input').value;
+            const manualEndDate = document.getElementById('cp-new-queue-enddate-input').value;
 
-            if (!unitId || !feedsSeq || !workQty || workQty <= 0) {
-                showNotification('กรุณาเลือกแปลงบ้าน, Sequence, และระบุจำนวนงาน (มากกว่า 0)', 'rose');
+            if (!queueProjectId || !unitId || !feedsSeq) {
+                showNotification('กรุณาเลือกโครงการ, แปลงบ้าน, และ Sequence', 'rose');
+                return;
+            }
+            if ((manualStartDate && !manualEndDate) || (!manualStartDate && manualEndDate)) {
+                showNotification('กรุณาระบุวันเริ่มและวันจบให้ครบทั้งคู่ หรือเว้นว่างทั้งคู่เพื่อคำนวณอัตโนมัติ', 'rose');
+                return;
+            }
+            if (!manualStartDate && (!workQty || workQty <= 0)) {
+                showNotification('กรุณาระบุวันเริ่ม-จบเอง หรือระบุจำนวนงาน (มากกว่า 0) เพื่อคำนวณอัตโนมัติ', 'rose');
                 return;
             }
 
-            const project = projectsData.find(p => p.id === r.projectId);
+            const project = projectsData.find(p => p.id === queueProjectId);
             const unit = project?.units?.find(u => u.id === unitId);
 
             if (!r.queue) r.queue = [];
-            r.queue.push({
+            const entry = {
                 id: `Q-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                unitId, unitName: unit?.name || '', workQty, feedsSeq, note
-            });
+                unitId, unitName: unit?.name || '', workQty, feedsSeq, note, projectId: queueProjectId
+            };
+            if (manualStartDate && manualEndDate) {
+                entry.manualStartDate = manualStartDate;
+                entry.manualEndDate = manualEndDate;
+            }
+            r.queue.push(entry);
 
             saveDataToDatabase();
             refreshAllViews();
             renderQueueListInModal(resourceId);
             document.getElementById('cp-new-queue-qty-input').value = '';
             document.getElementById('cp-new-queue-note-input').value = '';
+            document.getElementById('cp-new-queue-startdate-input').value = '';
+            document.getElementById('cp-new-queue-enddate-input').value = '';
             showNotification('เพิ่มแปลงเข้าคิวเรียบร้อยแล้ว');
         }
 
@@ -5019,13 +5146,16 @@
                 return;
             }
 
-            const resources = resourcesData.filter(r => r.projectId === projectId && r.active !== false).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+            const schedules = computeAllResourceSchedules();
+            const allResources = resourcesData.filter(r => r.active !== false).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
+            // เฉพาะทรัพยากรที่มีคิวงานของโครงการนี้จริง (ทรัพยากรใช้ข้ามโครงการได้ ต้องกรองที่ระดับแถวคิว ไม่ใช่ที่ตัวทรัพยากร)
+            const resources = allResources.filter(res => (schedules.get(res.id) || []).some(entry => getQueueEntryProjectId(entry, res) === projectId));
             if (resources.length === 0) {
                 container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">ยังไม่มีทรัพยากรร่วมของโครงการนี้</p>';
                 return;
             }
 
-            const schedules = computeAllResourceSchedules(projectId);
             const readiness = computeUnitReadiness(projectId);
             const criticalLookup = new Map();
             readiness.forEach(item => {
@@ -5036,7 +5166,7 @@
 
             const rows = [];
             resources.forEach((res, resIdx) => {
-                const schedule = schedules.get(res.id) || [];
+                const schedule = (schedules.get(res.id) || []).filter(entry => getQueueEntryProjectId(entry, res) === projectId);
                 schedule.forEach(entry => {
                     rows.push({
                         resourceName: res.name,
@@ -5222,6 +5352,22 @@
             return materialSpecsData.filter(m => m.projectId === projectId && m.status !== 'done' && m.dueDate && m.dueDate < todayStr);
         }
 
+        // (d) ทรัพยากรที่ถูกจองชนกันข้ามโครงการ — เอาเฉพาะคู่ที่มีอย่างน้อยแถวเดียวสังกัดโครงการที่กำลังดูอยู่
+        function getResourceConflictsForProject(projectId) {
+            if (!projectId) return [];
+            const results = [];
+            resourcesData.filter(r => r.active !== false).forEach(res => {
+                findResourceConflicts(res).forEach(({ a, b }) => {
+                    const aProj = getQueueEntryProjectId(a, res);
+                    const bProj = getQueueEntryProjectId(b, res);
+                    if (aProj === projectId || bProj === projectId) {
+                        results.push({ resource: res, a, b, aProj, bProj });
+                    }
+                });
+            });
+            return results;
+        }
+
         // ===================================================================
         // ACTION PLAN — แผนแก้ไขปัญหา ผูกกับรายการเสี่ยงด้วย targetType+targetId เท่านั้น (ข้อมูลใหม่แยกต่างหาก ไม่เขียนกลับ)
         // ===================================================================
@@ -5286,6 +5432,7 @@
             const atRiskUnits = getAtRiskUnitsForProject(projectId);
             const atRiskProcurements = getAtRiskProcurementsForProject(projectId);
             const overdueSpecs = getOverdueMaterialSpecsForProject(projectId);
+            const resourceConflicts = getResourceConflictsForProject(projectId);
 
             const tileClass = count => count > 0 ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700';
             tilesEl.innerHTML = `
@@ -5301,11 +5448,16 @@
                     <div class="text-[10px] font-semibold uppercase opacity-80">Spec เลยกำหนดสรุป</div>
                     <div class="text-xl font-extrabold">${overdueSpecs.length}</div>
                 </div>
+                <div class="border rounded-xl p-3 text-center ${tileClass(resourceConflicts.length)}">
+                    <div class="text-[10px] font-semibold uppercase opacity-80">ทรัพยากรจองชนกัน</div>
+                    <div class="text-xl font-extrabold">${resourceConflicts.length}</div>
+                </div>
             `;
 
             renderUnitDelayRiskList(atRiskUnits);
             renderProcurementRiskList(atRiskProcurements);
             renderMaterialSpecRiskList(overdueSpecs);
+            renderConflictsRiskList(resourceConflicts);
         }
 
         function renderUnitDelayRiskList(atRiskUnits) {
@@ -5369,6 +5521,29 @@
                         <div class="text-[11px] mt-0.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">เลยกำหนดสรุป (${m.dueDate})</span></div>
                     </div>
                     <div class="shrink-0 sm:w-56">${renderActionPlanWidget('MATERIAL_SPEC', m.id, m.projectId)}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderConflictsRiskList(resourceConflicts) {
+            const container = document.getElementById('cp-risk-conflicts-list');
+            if (!container) return;
+            if (resourceConflicts.length === 0) {
+                container.innerHTML = '<p class="text-xs text-emerald-600"><i class="fa-solid fa-circle-check mr-1"></i>ไม่มีทรัพยากรที่ถูกจองชนกัน</p>';
+                return;
+            }
+            const projectNameMap = new Map(projectsData.map(p => [p.id, p.name]));
+            const fmt = d => d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+            container.innerHTML = resourceConflicts.map(({ resource, a, b, aProj, bProj }) => `
+                <div class="border border-rose-200 bg-rose-50 rounded-xl p-3">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-slate-800 text-xs">${resource.name}</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">ช่วงเวลาชนกัน</span>
+                    </div>
+                    <div class="text-[11px] text-slate-600 mt-1 space-y-0.5">
+                        <div>· <span class="text-indigo-600">[${projectNameMap.get(aProj) || '-'}]</span> ${a.unitName || ''} Seq ${a.feedsSeq} — ${fmt(a.startDate)} ถึง ${fmt(a.finishDate)}</div>
+                        <div>· <span class="text-indigo-600">[${projectNameMap.get(bProj) || '-'}]</span> ${b.unitName || ''} Seq ${b.feedsSeq} — ${fmt(b.startDate)} ถึง ${fmt(b.finishDate)}</div>
+                    </div>
                 </div>
             `).join('');
         }
@@ -7373,9 +7548,9 @@
             const filterProjId = document.getElementById('procurement-project-filter')?.value || 'ALL';
             if (!tbody) return;
 
-            let filtered = procurementsData;
+            let filtered = procurementsData.filter(m => m.status !== 'delivered'); // สั่งซื้อแล้ว+ของเข้าแล้วครบ ไม่ต้องโชว์ในรายการอีก แต่ยังเก็บข้อมูลไว้เหมือนเดิม
             if (filterProjId !== 'ALL') {
-                filtered = procurementsData.filter(m => m.projectId === filterProjId);
+                filtered = filtered.filter(m => m.projectId === filterProjId);
             }
 
             // เรียงตามแปลง (Block) ก่อน แล้วเรียงตามเลขลำดับหน้าชื่อรายการ (เช่น "8. งานสุขภัณฑ์...")
@@ -7443,6 +7618,51 @@
             });
 
             tbody.innerHTML = html || '<tr><td colspan="7" class="py-4 text-center text-slate-400">ยังไม่มีรายการสั่งซื้อวัสดุ</td></tr>';
+            renderDeliveredProcurementsTable();
+        }
+
+        // เปิด/ปิดการ์ดดูรายการที่สั่งซื้อและของเข้าครบแล้ว (ถูกซ่อนออกจากตารางหลักเพื่อไม่ให้รก แต่ยังเก็บข้อมูลไว้เหมือนเดิม)
+        function toggleDeliveredProcurementsView() {
+            const section = document.getElementById('delivered-procurements-section');
+            if (!section) return;
+            section.classList.toggle('hidden');
+            if (!section.classList.contains('hidden')) renderDeliveredProcurementsTable();
+        }
+
+        function renderDeliveredProcurementsTable() {
+            const tbody = document.getElementById('delivered-procurements-table-body');
+            const countEl = document.getElementById('delivered-procurements-count');
+            const filterProjId = document.getElementById('procurement-project-filter')?.value || 'ALL';
+            if (!tbody) return;
+
+            let delivered = procurementsData.filter(m => m.status === 'delivered');
+            if (countEl) countEl.textContent = delivered.length;
+            if (filterProjId !== 'ALL') delivered = delivered.filter(m => m.projectId === filterProjId);
+
+            const getUnitName = (m) => projectsData.find(p => p.id === m.projectId)?.units?.find(u => u.id === m.unitId)?.name || '';
+            delivered = [...delivered].sort((a, b) => getUnitName(a).localeCompare(getUnitName(b), 'th', { numeric: true }));
+
+            tbody.innerHTML = delivered.map(m => {
+                const project = projectsData.find(p => p.id === m.projectId);
+                const unit = project?.units?.find(u => u.id === m.unitId);
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="py-2 px-3">
+                            <div class="font-bold text-slate-800">${m.name}</div>
+                            <div class="text-[10px] text-slate-400">${m.remark || '-'}</div>
+                        </td>
+                        <td class="py-2 px-3">
+                            <div class="font-semibold text-slate-700">${project ? project.name : '-'}</div>
+                            <div class="text-[10px] text-blue-600 font-bold">${unit ? unit.name : '-'}</div>
+                        </td>
+                        <td class="py-2 px-3 text-slate-600">${m.orderDueDate || '-'}</td>
+                        <td class="py-2 px-3 text-right space-x-1">
+                            <button onclick="openEditProcurementModal('${m.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-semibold">แก้ไข</button>
+                            <button onclick="deleteProcurementItem('${m.id}')" title="ลบรายการ" class="bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1 rounded-lg text-xs font-semibold"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('') || '<tr><td colspan="4" class="py-4 text-center text-slate-400">ยังไม่มีรายการที่ของเข้าครบแล้ว</td></tr>';
         }
 
         // หน้าสรุปวัสดุ/ผู้รับเหมา ระดับโครงการ (BY SUB / BY OWNER) — คนละชุดข้อมูลกับแผนสั่งซื้อวัสดุรายแปลง
