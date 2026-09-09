@@ -587,14 +587,14 @@
                         <select id="cp-new-queue-project-select" onchange="onQueueProjectChange()" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
-                        <select id="cp-new-queue-unit-select" class="border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
-                        <select id="cp-new-queue-seq-select" onchange="updateQueueNoteSuggestions()" class="border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                        <select id="cp-new-queue-unit-select" onchange="fillQueueDatesFromSeqPlan()" class="border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                        <select id="cp-new-queue-seq-select" onchange="updateQueueNoteSuggestions(); fillQueueDatesFromSeqPlan()" class="border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500"></select>
                     </div>
                     <input type="text" id="cp-new-queue-note-input" list="cp-queue-note-suggestions" placeholder="รายละเอียดงานย่อยสำหรับทีมวิศวกร (ถ้ามี) — พิมพ์เองได้เลย ครั้งต่อไปจะช่วยเดาให้จากที่เคยพิมพ์" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500">
                     <datalist id="cp-queue-note-suggestions"></datalist>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
-                            <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">วันเริ่มงาน *</label>
+                            <label class="block text-[10px] font-semibold text-slate-500 mb-0.5">วันเริ่มงาน * <span class="font-normal text-slate-400">(แนะนำอัตโนมัติ แก้ไขได้)</span></label>
                             <input type="date" id="cp-new-queue-startdate-input" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500">
                         </div>
                         <div>
@@ -602,7 +602,7 @@
                             <input type="date" id="cp-new-queue-enddate-input" class="w-full border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500">
                         </div>
                     </div>
-                    <p class="text-[10px] text-slate-400">เลือกช่วงวันที่ทำงานเองตรงๆ ได้เลย — ระบบจะเตือนถ้าช่วงนี้ชนกับงานของทรัพยากรนี้ในโครงการอื่น</p>
+                    <p class="text-[10px] text-slate-400">วันที่ถูกเติมให้อัตโนมัติตามแผนงาน Sequence ของแปลงบ้านนี้ (หน้า "แผนงานก่อสร้าง") ถ้าแปลงยังไม่ได้ตั้งวันเริ่ม-จบไว้ ระบบจะแนะนำต่อจากคิวงานล่าสุดของทรัพยากรนี้แทน — แก้ไขเองได้เสมอ และระบบจะเตือนถ้าช่วงนี้ชนกับงานของทรัพยากรนี้ในโครงการอื่น</p>
                     <div class="flex gap-2">
                         <input type="number" min="0" step="0.1" id="cp-new-queue-qty-input" placeholder="จำนวนงาน (ถ้ามี ไม่บังคับ)" class="flex-1 border border-slate-200 rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500">
                         <button onclick="addQueueEntry()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs font-semibold">เพิ่มแถว</button>
@@ -4698,6 +4698,45 @@
             return results;
         }
 
+        // เติมวันเริ่ม-จบงานให้อัตโนมัติจาก "แผนงาน Sequence" ของแปลงบ้าน+Sequence ที่เลือกในฟอร์มเพิ่มคิวงาน (อ่านจาก getPlannedDateForSeq เดียวกับผัง Plan Gantt)
+        // คืนค่า true ถ้าเติมสำเร็จ (แปลงนี้กำหนดวันเริ่ม-จบไว้แล้ว) false ถ้ายังไม่มีข้อมูลพอให้คำนวณ (ให้ผู้เรียกใช้ fallback เอง)
+        function fillQueueDatesFromSeqPlan() {
+            const startInput = document.getElementById('cp-new-queue-startdate-input');
+            const endInput = document.getElementById('cp-new-queue-enddate-input');
+            if (!startInput || !endInput) return false;
+            // เติมไม่สำเร็จ (เปลี่ยนแปลง/Sequence ไปที่ยังไม่มีแผน) ล้างวันที่เดิมทิ้ง กันค้างวันที่ของแปลง/Sequence ก่อนหน้าไว้แบบเข้าใจผิด
+            const fail = () => { startInput.value = ''; endInput.value = ''; return false; };
+
+            const projectId = document.getElementById('cp-new-queue-project-select')?.value;
+            const unitId = document.getElementById('cp-new-queue-unit-select')?.value;
+            const seqIndex = Number(document.getElementById('cp-new-queue-seq-select')?.value);
+            if (!projectId || !unitId || !seqIndex) return fail();
+
+            const project = projectsData.find(p => p.id === projectId);
+            const unit = project?.units?.find(u => u.id === unitId);
+            if (!unit || !unit.startDate || !unit.endDate) return fail();
+
+            const totalSeq = masterSequences.length || 10;
+            const segStart = seqIndex <= 1 ? new Date(unit.startDate) : getPlannedDateForSeq(unit, seqIndex - 1, totalSeq);
+            const segEnd = getPlannedDateForSeq(unit, seqIndex, totalSeq);
+            if (!segStart || !segEnd || isNaN(segStart.getTime()) || isNaN(segEnd.getTime())) return fail();
+
+            startInput.value = toISODateStr(segStart);
+            endInput.value = toISODateStr(segEnd);
+            return true;
+        }
+
+        // แนะนำ "วันเริ่มงาน" ถัดไปให้ทรัพยากรนี้โดยอัตโนมัติ — ต่อจากคิวงานล่าสุด (ทั้งแบบคำนวณอัตโนมัติและกำหนดวันเอง) วันทำงานถัดไป ถ้ายังไม่มีคิวเลยใช้วันเริ่มงานของทรัพยากร
+        // ใช้เป็น fallback เมื่อแปลงบ้านที่เลือกยังไม่ได้กำหนดวันเริ่ม-จบไว้ ทำให้เดาจากแผน Sequence ไม่ได้
+        function getSuggestedNextQueueStartDate(resource) {
+            const schedule = computeResourceQueueSchedule(resource);
+            if (schedule.length === 0) return resource.startDate || '';
+            const calendar = resource.calendar === 'EVERY_DAY' ? 'EVERY_DAY' : 'MON_SAT';
+            const maxFinishTime = Math.max(...schedule.map(s => s.finishDate.getTime()));
+            const dayAfter = new Date(maxFinishTime + 24 * 60 * 60 * 1000);
+            return toISODateStr(addWorkingDays(dayAfter, 1, calendar));
+        }
+
         // หาช่วงวันที่ของทรัพยากรเดียวกันที่ทับซ้อนกัน (ไม่ว่าจะอยู่คนละโครงการหรือโครงการเดียวกัน) — คนเดียว/ทีมเดียวทำ 2 ที่พร้อมกันไม่ได้
         function findResourceConflicts(resource) {
             const schedule = computeResourceQueueSchedule(resource);
@@ -4953,6 +4992,10 @@
             document.getElementById('cp-new-queue-note-input').value = '';
             document.getElementById('cp-new-queue-startdate-input').value = '';
             document.getElementById('cp-new-queue-enddate-input').value = '';
+            // เติมวันที่ตามแผน Sequence ของแปลง+Sequence ที่เลือกอยู่ก่อน ถ้าแปลงนี้ยังไม่ได้ตั้งวันเริ่ม-จบไว้ ค่อย fallback เป็นต่อจากคิวงานล่าสุดของทรัพยากรนี้
+            if (!fillQueueDatesFromSeqPlan()) {
+                document.getElementById('cp-new-queue-startdate-input').value = getSuggestedNextQueueStartDate(r);
+            }
             updateQueueNoteSuggestions();
 
             renderQueueListInModal(resourceId);
@@ -4963,6 +5006,7 @@
         function onQueueProjectChange() {
             const projId = document.getElementById('cp-new-queue-project-select')?.value;
             populateUnitPickerForQueue(projId);
+            fillQueueDatesFromSeqPlan();
         }
 
         // ตัวช่วยพิมพ์ "รายละเอียดงานย่อย" — ดึงจากที่ทีมวิศวกรเคยพิมพ์ไว้เองในคิวงาน Critical Path เท่านั้น
@@ -5101,6 +5145,10 @@
             document.getElementById('cp-new-queue-note-input').value = '';
             document.getElementById('cp-new-queue-startdate-input').value = '';
             document.getElementById('cp-new-queue-enddate-input').value = '';
+            // เผื่อจะเพิ่มคิวต่อเนื่องหลายรายการ — เติมวันตามแผน Sequence เหมือนตอนเปิดฟอร์ม ถ้าไม่มีแผนค่อย fallback ต่อจากคิวที่เพิ่งเพิ่ม
+            if (!fillQueueDatesFromSeqPlan()) {
+                document.getElementById('cp-new-queue-startdate-input').value = getSuggestedNextQueueStartDate(r);
+            }
             showNotification('เพิ่มแปลงเข้าคิวเรียบร้อยแล้ว');
         }
 
