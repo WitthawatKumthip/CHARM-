@@ -4744,6 +4744,10 @@
             for (let i = 0; i < schedule.length; i++) {
                 for (let j = i + 1; j < schedule.length; j++) {
                     const a = schedule[i], b = schedule[j];
+                    // ชนกันในโครงการเดียวกันไม่นับเป็นปัญหา (ทีมงานชุดเดียวกันดูแลหลายบล็อกพร้อมกันในไซต์เดียวได้ปกติ) — นับเฉพาะที่ชนกันข้ามโครงการ ซึ่งทำพร้อมกันจริงไม่ได้
+                    const aProj = getQueueEntryProjectId(a, resource);
+                    const bProj = getQueueEntryProjectId(b, resource);
+                    if (aProj && bProj && aProj === bProj) continue;
                     if (a.startDate.getTime() <= b.finishDate.getTime() && b.startDate.getTime() <= a.finishDate.getTime()) {
                         conflicts.push({ a, b });
                     }
@@ -5251,6 +5255,18 @@
             const monthLabelHtml = months.map(m => `<div class="absolute top-0 bottom-0 border-l border-slate-300 text-[9px] text-slate-400 pl-1 pt-1" style="left:${m.leftPct}%">${m.label}</div>`).join('');
             const monthLineHtml = months.map(m => `<div class="absolute top-0 bottom-0 border-l-2 border-slate-300" style="left:${m.leftPct}%"></div>`).join('');
 
+            // เส้นแบ่งทุก 7 วัน (รายสัปดาห์) เริ่มจากวันจันทร์ที่ใกล้ช่วงเริ่มต้นที่สุด ให้ตรงกับสัปดาห์ปฏิทินจริง — เป็นเส้นประบางๆ แยกจากเส้นเดือนที่เข้มกว่า
+            const weekLines = [];
+            let curWeek = new Date(rangeMin);
+            curWeek.setHours(0, 0, 0, 0);
+            curWeek.setDate(curWeek.getDate() - ((curWeek.getDay() + 6) % 7));
+            while (curWeek.getTime() <= rangeMax) {
+                const leftPct = ((curWeek.getTime() - rangeMin) / rangeSpan) * 100;
+                if (leftPct >= 0) weekLines.push({ leftPct });
+                curWeek = new Date(curWeek.getTime() + 7 * 24 * 60 * 60 * 1000);
+            }
+            const weekLineHtml = weekLines.map(w => `<div class="absolute top-0 bottom-0 border-l border-dashed border-slate-200" style="left:${w.leftPct}%"></div>`).join('');
+
             const labelColHtml = rows.map(r => {
                 const seqName = (masterSequences[r.feedsSeq - 1] || `Sequence ${r.feedsSeq}`).replace(/^Sequence\s*\d+[:\s]*/i, '');
                 const activityLabel = r.note || seqName;
@@ -5300,6 +5316,7 @@
                     <div class="flex items-start">
                         <div class="shrink-0 bg-white" style="width:${CP_GANTT_LABEL_PX}px">${labelColHtml}</div>
                         <div class="relative flex-1 min-w-0">
+                            ${weekLineHtml}
                             ${monthLineHtml}
                             ${barRowsHtml}
                         </div>
