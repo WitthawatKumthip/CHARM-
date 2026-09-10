@@ -7,6 +7,10 @@
 // 3) แปลงบ้านที่ครบกำหนดวันเสร็จแล้วแต่ Sequence ยังไม่ครบ/ไม่อนุมัติ + รายการสั่งของที่ใกล้/เลยกำหนดสั่งแล้วยังไม่ได้สั่ง (ของเดิมจาก line-daily-check)
 // 4) เตือนถ่ายรูปหน้างานประจำสัปดาห์ เฉพาะวันเสาร์ (ของเดิมจาก line-photo-reminder)
 // ข้ามการแจ้งเตือนทั้งหมดในวันอาทิตย์ และวันหยุดที่กำหนดไว้ใน HOLIDAYS
+//
+// เพดานโควตารายเดือน: เก็บยอดข้อความที่ใช้ไปแล้วของเดือนนี้ไว้ใน app_settings (key "line_quota_usage")
+// ก่อนส่งทุกครั้งจะเช็คจำนวนสมาชิกกลุ่มจริงจาก LINE (ถ้าเรียกไม่สำเร็จ fallback เป็น FALLBACK_GROUP_SIZE) แล้วเทียบว่าถ้าส่งวันนี้ไปจะเกิน
+// MONTHLY_MESSAGE_CAP ไหม ถ้าเกินจะข้ามการส่งวันนั้นไปเลย (การันตีไม่มีวันไหนดันยอดรวมของเดือนเกินเพดานที่ตั้งไว้)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GREETING_TEXT = "สวัสดีเช้าวันใหม่ขอให้มีความสุขกับการทำงานทุกคนนะฮะ";
@@ -17,6 +21,22 @@ const LEAD_DAYS_WARN = 1; // แจ้งเตือนล่วงหน้า
 
 // วันหยุดที่ไม่ต้องแจ้งเตือนใดๆ เลย (รูปแบบ YYYY-MM-DD ตามปฏิทินสากล) — เพิ่ม/ลบวันที่ได้ตามต้องการ
 const HOLIDAYS = ["2026-08-12", "2026-10-13", "2026-12-05", "2026-12-31"];
+
+const MONTHLY_MESSAGE_CAP = 298; // เพดานข้อความ push รวมต่อเดือน — ปรับให้ตรง/ต่ำกว่าโควตาจริงของแพ็กเกจ LINE OA ที่ใช้อยู่เล็กน้อย
+const FALLBACK_GROUP_SIZE = 16; // ใช้แทนกรณีเรียก API เช็คจำนวนสมาชิกกลุ่มไม่สำเร็จ
+
+async function getGroupMemberCount(token: string, groupId: string): Promise<number> {
+  try {
+    const res = await fetch(`https://api.line.me/v2/bot/group/${groupId}/members/count`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return FALLBACK_GROUP_SIZE;
+    const data = await res.json();
+    return typeof data.count === "number" ? data.count : FALLBACK_GROUP_SIZE;
+  } catch {
+    return FALLBACK_GROUP_SIZE;
+  }
+}
 
 Deno.serve(async (_req) => {
   const supabase = createClient(
@@ -48,6 +68,24 @@ Deno.serve(async (_req) => {
   if (!groupId) {
     console.log("ยังไม่มี LINE group id — เชิญบอทเข้ากลุ่มก่อน");
     return new Response("No LINE group linked yet", { status: 200 });
+  }
+
+  // ---- เช็คเพดานโควตารายเดือนก่อน ถ้าส่งวันนี้แล้วจะเกิน MONTHLY_MESSAGE_CAP ให้ข้ามไปเลย ----
+  const monthKey = todayStr.slice(0, 7); // "YYYY-MM"
+  const { data: quotaRow } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", "line_quota_usage")
+    .maybeSingle();
+
+  const storedQuota = quotaRow?.value as { month?: string; count?: number } | undefined;
+  const usedThisMonth = storedQuota?.month === monthKey ? (storedQuota.count || 0) : 0;
+
+  const groupSize = await getGroupMemberCount(LINE_TOKEN, groupId);
+
+  if (usedThisMonth + groupSize > MONTHLY_MESSAGE_CAP) {
+    console.log(`ข้ามการส่งวันนี้ — ใกล้ครบโควตาเดือนนี้แล้ว (ใช้ไป ${usedThisMonth}/${MONTHLY_MESSAGE_CAP})`);
+    return new Response("Skipped - would exceed monthly cap", { status: 200 });
   }
 
   const today = todayStr;
@@ -240,6 +278,11 @@ Deno.serve(async (_req) => {
     console.error("LINE push failed:", res.status, await res.text());
     return new Response("LINE push failed", { status: 200 });
   }
+
+  // อัปเดตยอดใช้โควตาของเดือนนี้ (บวกเพิ่มด้วยจำนวนสมาชิกกลุ่มที่เพิ่งส่งไป)
+  await supabase
+    .from("app_settings")
+    .upsert({ key: "line_quota_usage", value: { month: monthKey, count: usedThisMonth + groupSize } }, { onConflict: "key" });
 
   return new Response("Sent", { status: 200 });
 });
