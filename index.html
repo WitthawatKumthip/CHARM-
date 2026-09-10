@@ -4536,9 +4536,9 @@
         // (ใช้ getPlannedDateForSeq ตัวเดียวกับที่อื่นในระบบ เลยรองรับทั้งโมเดล Precast ปกติ และ seqDateOverrides แบบ KARDEN โดยอัตโนมัติ)
         // สเกลเป็น % ของความกว้างที่มี ไม่ใช่พิกเซลคงที่ต่อวัน เพื่อให้พอดีความกว้างหน้าจอเสมอ ไม่ต้องเลื่อนสกอร์บาร์แนวนอน
         const GANTT_LABEL_PX = 56;
-        // Sequence 1-5 โทนเข้ม, Sequence 6-10 โทนสว่าง — ใช้ 10 สีชุดเดิม (ผ่านเกณฑ์อ่านง่าย/แยกแยะได้แม้สายตาบอดสีแล้ว) แค่จัดลำดับใหม่ตามความสว่าง (OKLCH L)
-        // และเรียงให้คู่ที่อยู่ติดกันเป็นคนละวรรณะสีชัดเจน (ตรวจสอบด้วย validate_palette.js อีกครั้งหลังจัดลำดับใหม่: ผ่านทุกเกณฑ์บังคับ)
-        const GANTT_COLORS = ['#7C3AED', '#C2410C', '#2563EB', '#BE123C', '#4338CA', '#0D9488', '#F472B6', '#0EA5E9', '#16A34A', '#D97706'];
+        // Sequence 1-5 โทนเข้มชัดเจน (OKLCH L ~0.43-0.49), Sequence 6-10 โทนสว่างชัดเจน (~0.70-0.77) — ดันความต่างสว่าง-เข้มให้ห่างกันมากขึ้นกว่ารอบก่อน
+        // ตรวจสอบด้วย validate_palette.js แล้วว่าผ่านทุกเกณฑ์บังคับ (lightness band, chroma floor, CVD/normal-vision adjacent pair) ในลำดับนี้
+        const GANTT_COLORS = ['#5B21B6', '#9A3412', '#1D4ED8', '#9F1239', '#4338CA', '#14B8A6', '#F59E0B', '#F472B6', '#38BDF8', '#22C55E'];
 
         function renderPlanGanttChart(filterProjId) {
             const container = document.getElementById('plan-gantt-chart');
@@ -4616,12 +4616,19 @@
                     const widthPct = Math.max(0.3, ((s.end - s.start) / rangeSpan) * 100);
                     const color = GANTT_COLORS[(s.seqIndex - 1) % GANTT_COLORS.length];
                     const seqName = masterSequences[s.seqIndex - 1] || `Sequence ${s.seqIndex}`;
-                    return `<div class="absolute top-[7px] h-[14px] rounded shadow-sm" style="left:${leftPct}%; width:${widthPct}%; background:${color}" title="Sequence ${s.seqIndex}: ${seqName} (${toISODateStr(new Date(s.start))} ถึง ${toISODateStr(new Date(s.end))})"></div>`;
+                    const bar = `<div class="absolute top-[7px] h-[14px] rounded shadow-sm" style="left:${leftPct}%; width:${widthPct}%; background:${color}" title="Sequence ${s.seqIndex}: ${seqName} (${toISODateStr(new Date(s.start))} ถึง ${toISODateStr(new Date(s.end))})"></div>`;
+                    // Sequence 1-5 (ช่วงที่โครงการจัดการเอง) มีเส้นขาวพาดกลางแถบ แยกความรู้สึกจาก Sequence 6-10 เพิ่มเติมจากสีเข้ม-สว่างอย่างเดียว
+                    const centerLine = s.seqIndex <= 5
+                        ? `<div class="absolute top-[13px] h-[2px] rounded-full bg-white/80 pointer-events-none" style="left:${leftPct}%; width:${widthPct}%;"></div>`
+                        : '';
+                    return bar + centerLine;
                 }).join('');
                 return `<div class="relative h-7 border-b border-slate-100">${barsHtml}</div>`;
             }).join('');
 
-            const legendHtml = Array.from({ length: totalSeq }, (_, idx) => `
+            // เรียง legend เป็น 2 คอลัมน์ตามลำดับ: คอลัมน์ซ้าย Seq 1-5 ไล่ลงมา คอลัมน์ขวา Seq 6-10 ไล่ลงมา (ไม่ใช่สลับซ้าย-ขวาทีละอันแบบ grid ปกติ)
+            const legendOrder = totalSeq === 10 ? [0, 5, 1, 6, 2, 7, 3, 8, 4, 9] : Array.from({ length: totalSeq }, (_, i) => i);
+            const legendHtml = legendOrder.map(idx => `
                 <div class="flex items-center gap-1.5 text-xs text-slate-600 min-w-0">
                     <span class="w-2.5 h-2.5 rounded-sm inline-block shrink-0" style="background:${GANTT_COLORS[idx % GANTT_COLORS.length]}"></span>
                     <span class="truncate" title="Sequence ${idx + 1}: ${(masterSequences[idx] || `Sequence ${idx + 1}`).replace(/^Sequence\s*\d+[:\s]*/i, '')}">Seq ${idx + 1}: ${(masterSequences[idx] || `Sequence ${idx + 1}`).replace(/^Sequence\s*\d+[:\s]*/i, '')}</span>
