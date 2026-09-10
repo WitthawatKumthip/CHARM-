@@ -478,20 +478,32 @@
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-4 gap-3" id="cp-risk-stat-tiles"></div>
                 <div class="space-y-2">
-                    <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-house-chimney-crack text-rose-500"></i> แปลงบ้านที่ล่าช้า/เสี่ยงล่าช้าตาม Sequence</h4>
-                    <div id="cp-risk-units-list" class="space-y-2"></div>
+                    <button type="button" onclick="toggleRiskSection('units')" class="w-full flex items-center justify-between gap-2 text-left">
+                        <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-house-chimney-crack text-rose-500"></i> แปลงบ้านที่ล่าช้า/เสี่ยงล่าช้าตาม Sequence</h4>
+                        <i class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform" id="cp-risk-chevron-units"></i>
+                    </button>
+                    <div id="cp-risk-units-list" class="space-y-2 hidden"></div>
                 </div>
                 <div class="space-y-2">
-                    <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-truck-fast text-amber-500"></i> วัสดุเสี่ยงไม่ทันใช้งาน</h4>
-                    <div id="cp-risk-procurement-list" class="space-y-2"></div>
+                    <button type="button" onclick="toggleRiskSection('procurement')" class="w-full flex items-center justify-between gap-2 text-left">
+                        <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-truck-fast text-amber-500"></i> วัสดุเสี่ยงไม่ทันใช้งาน</h4>
+                        <i class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform" id="cp-risk-chevron-procurement"></i>
+                    </button>
+                    <div id="cp-risk-procurement-list" class="space-y-2 hidden"></div>
                 </div>
                 <div class="space-y-2">
-                    <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-clipboard-list text-slate-500"></i> รายการ Spec วัสดุ/ผู้รับเหมาที่เลยกำหนดสรุป</h4>
-                    <div id="cp-risk-materialspec-list" class="space-y-2"></div>
+                    <button type="button" onclick="toggleRiskSection('materialspec')" class="w-full flex items-center justify-between gap-2 text-left">
+                        <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-clipboard-list text-slate-500"></i> รายการ Spec วัสดุ/ผู้รับเหมาที่เลยกำหนดสรุป</h4>
+                        <i class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform" id="cp-risk-chevron-materialspec"></i>
+                    </button>
+                    <div id="cp-risk-materialspec-list" class="space-y-2 hidden"></div>
                 </div>
                 <div class="space-y-2">
-                    <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-user-clock text-rose-500"></i> ทรัพยากรที่ถูกจองชนกันข้ามโครงการ</h4>
-                    <div id="cp-risk-conflicts-list" class="space-y-2"></div>
+                    <button type="button" onclick="toggleRiskSection('conflicts')" class="w-full flex items-center justify-between gap-2 text-left">
+                        <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-user-clock text-rose-500"></i> ทรัพยากรที่ถูกจองชนกันข้ามโครงการ</h4>
+                        <i class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform" id="cp-risk-chevron-conflicts"></i>
+                    </button>
+                    <div id="cp-risk-conflicts-list" class="space-y-2 hidden"></div>
                 </div>
             </div>
 
@@ -4834,6 +4846,23 @@
             renderCriticalPathRiskPanel(projId);
         }
 
+        // จำสถานะพับ/กางของแต่ละการ์ดทรัพยากรไว้ข้ามการ re-render (ค่าเริ่มต้นกางอัตโนมัติเฉพาะการ์ดที่มีปัญหาชนกัน ตั้งครั้งแรกที่เจอ resource id เท่านั้น)
+        let resourceCardExpandState = {};
+
+        function applyResourceCardVisibility(resourceId) {
+            const detailEl = document.getElementById(`cp-resource-detail-${resourceId}`);
+            const chevronEl = document.getElementById(`cp-resource-chevron-${resourceId}`);
+            if (!detailEl) return;
+            const expanded = !!resourceCardExpandState[resourceId];
+            detailEl.classList.toggle('hidden', !expanded);
+            if (chevronEl) chevronEl.classList.toggle('rotate-180', expanded);
+        }
+
+        function toggleResourceCard(resourceId) {
+            resourceCardExpandState[resourceId] = !resourceCardExpandState[resourceId];
+            applyResourceCardVisibility(resourceId);
+        }
+
         function renderResourceManagementPanel() {
             const container = document.getElementById('cp-resource-list');
             if (!container) return;
@@ -4866,24 +4895,31 @@
                     ? `<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i>ช่วงงานชนกัน ${conflicts.length} จุด</span>`
                     : '';
 
+                if (!(r.id in resourceCardExpandState)) resourceCardExpandState[r.id] = conflicts.length > 0;
+
                 return `
-                    <div class="border ${conflicts.length > 0 ? 'border-rose-300 bg-rose-50/30' : 'border-slate-200'} rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div class="flex-1 min-w-0 space-y-1">
-                            <div class="flex items-center gap-2 flex-wrap">
+                    <div class="border ${conflicts.length > 0 ? 'border-rose-300 bg-rose-50/30' : 'border-slate-200'} rounded-xl p-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <button type="button" onclick="toggleResourceCard('${r.id}')" class="flex-1 min-w-0 flex items-center gap-2 flex-wrap text-left">
+                                <i class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform shrink-0" id="cp-resource-chevron-${r.id}"></i>
                                 <span class="font-bold text-slate-800 text-sm">${r.name}${r.active === false ? ' <span class="text-[10px] text-slate-400 font-normal">(ปิดใช้งาน)</span>' : ''}</span>
                                 ${conflictBadge}
+                            </button>
+                            <div class="flex gap-2 shrink-0">
+                                <button onclick="openQueueModal('${r.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold"><i class="fa-solid fa-list-ol mr-1"></i>คิวงาน</button>
+                                ${canEdit ? `<button onclick="openEditResourceModal('${r.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1.5 rounded-lg text-xs font-semibold">แก้ไข</button>` : ''}
                             </div>
+                        </div>
+                        <div id="cp-resource-detail-${r.id}" class="space-y-1 mt-2 pl-4 hidden">
                             <div class="text-[11px] text-slate-500">อัตรา ${r.dailyRate} ${r.unitLabel || 'หน่วย'}/วัน · ${calendarLabel} · เริ่ม ${r.startDate || '-'}</div>
                             <div class="text-[11px] text-slate-500">คิวงาน ${(r.queue || []).length} แถว รวม ${totalWorkQty} ${r.unitLabel || 'หน่วย'} · คำนวณเสร็จ ${finishDate}</div>
                             <div class="flex items-center gap-1 flex-wrap">${projectTagsHtml}</div>
                         </div>
-                        <div class="flex gap-2 shrink-0">
-                            <button onclick="openQueueModal('${r.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold"><i class="fa-solid fa-list-ol mr-1"></i>คิวงาน</button>
-                            ${canEdit ? `<button onclick="openEditResourceModal('${r.id}')" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1.5 rounded-lg text-xs font-semibold">แก้ไข</button>` : ''}
-                        </div>
                     </div>
                 `;
             }).join('');
+
+            resources.forEach(r => applyResourceCardVisibility(r.id));
         }
 
         function openAddResourceModal() {
@@ -5490,6 +5526,29 @@
             `;
         }
 
+        // จำสถานะพับ/กางของแต่ละหมวดความเสี่ยงไว้ข้ามการ re-render ระหว่างที่ยังไม่รีโหลดหน้า (ค่าเริ่มต้นคำนวณจากจำนวนรายการ ตั้งครั้งแรกที่เจอ key เท่านั้น)
+        let criticalPathRiskSectionState = {};
+        const CP_RISK_SECTION_IDS = {
+            units: 'cp-risk-units-list',
+            procurement: 'cp-risk-procurement-list',
+            materialspec: 'cp-risk-materialspec-list',
+            conflicts: 'cp-risk-conflicts-list',
+        };
+
+        function applyRiskSectionVisibility(key) {
+            const listEl = document.getElementById(CP_RISK_SECTION_IDS[key]);
+            const chevronEl = document.getElementById(`cp-risk-chevron-${key}`);
+            if (!listEl) return;
+            const expanded = !!criticalPathRiskSectionState[key];
+            listEl.classList.toggle('hidden', !expanded);
+            if (chevronEl) chevronEl.classList.toggle('rotate-180', expanded);
+        }
+
+        function toggleRiskSection(key) {
+            criticalPathRiskSectionState[key] = !criticalPathRiskSectionState[key];
+            applyRiskSectionVisibility(key);
+        }
+
         function renderCriticalPathRiskPanel(projectId) {
             const tilesEl = document.getElementById('cp-risk-stat-tiles');
             if (!tilesEl) return;
@@ -5499,30 +5558,38 @@
             const overdueSpecs = getOverdueMaterialSpecsForProject(projectId);
             const resourceConflicts = getResourceConflictsForProject(projectId);
 
+            // ตั้งค่าเริ่มต้นพับ/กางแค่ครั้งแรกที่เจอหมวดนั้น (หมวดที่มีรายการ > 0 กางไว้ให้เห็นทันที) — ถ้าผู้ใช้เคยกด toggle เองแล้ว ไม่ทับสถานะที่ตั้งไว้
+            const sectionCounts = { units: atRiskUnits.length, procurement: atRiskProcurements.length, materialspec: overdueSpecs.length, conflicts: resourceConflicts.length };
+            Object.keys(sectionCounts).forEach(key => {
+                if (!(key in criticalPathRiskSectionState)) criticalPathRiskSectionState[key] = sectionCounts[key] > 0;
+            });
+
             const tileClass = count => count > 0 ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700';
             tilesEl.innerHTML = `
-                <div class="border rounded-xl p-3 text-center ${tileClass(atRiskUnits.length)}">
+                <button type="button" onclick="toggleRiskSection('units')" class="border rounded-xl p-3 text-center ${tileClass(atRiskUnits.length)} hover:opacity-80 transition-opacity">
                     <div class="text-[10px] font-semibold uppercase opacity-80">แปลงล่าช้า/เสี่ยงล่าช้า</div>
                     <div class="text-xl font-extrabold">${atRiskUnits.length}</div>
-                </div>
-                <div class="border rounded-xl p-3 text-center ${tileClass(atRiskProcurements.length)}">
+                </button>
+                <button type="button" onclick="toggleRiskSection('procurement')" class="border rounded-xl p-3 text-center ${tileClass(atRiskProcurements.length)} hover:opacity-80 transition-opacity">
                     <div class="text-[10px] font-semibold uppercase opacity-80">วัสดุเสี่ยงไม่ทันใช้</div>
                     <div class="text-xl font-extrabold">${atRiskProcurements.length}</div>
-                </div>
-                <div class="border rounded-xl p-3 text-center ${tileClass(overdueSpecs.length)}">
+                </button>
+                <button type="button" onclick="toggleRiskSection('materialspec')" class="border rounded-xl p-3 text-center ${tileClass(overdueSpecs.length)} hover:opacity-80 transition-opacity">
                     <div class="text-[10px] font-semibold uppercase opacity-80">Spec เลยกำหนดสรุป</div>
                     <div class="text-xl font-extrabold">${overdueSpecs.length}</div>
-                </div>
-                <div class="border rounded-xl p-3 text-center ${tileClass(resourceConflicts.length)}">
+                </button>
+                <button type="button" onclick="toggleRiskSection('conflicts')" class="border rounded-xl p-3 text-center ${tileClass(resourceConflicts.length)} hover:opacity-80 transition-opacity">
                     <div class="text-[10px] font-semibold uppercase opacity-80">ทรัพยากรจองชนกัน</div>
                     <div class="text-xl font-extrabold">${resourceConflicts.length}</div>
-                </div>
+                </button>
             `;
 
             renderUnitDelayRiskList(atRiskUnits);
             renderProcurementRiskList(atRiskProcurements);
             renderMaterialSpecRiskList(overdueSpecs);
             renderConflictsRiskList(resourceConflicts);
+
+            Object.keys(CP_RISK_SECTION_IDS).forEach(applyRiskSectionVisibility);
         }
 
         function renderUnitDelayRiskList(atRiskUnits) {
