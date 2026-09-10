@@ -4044,23 +4044,32 @@
             return Math.min(100, Math.round(total));
         }
 
-        function calculateUnitStatus(unit, progress) {
+        // ใช้ Set กันนับ Sequence เดิมซ้ำเหมือนใน getUnitPlanStatusList — ดึงจำนวน Sequence ที่อนุมัติเสร็จจริงของแปลงเดียว โดยไม่ต้องคำนวณทั้งโครงการผ่าน getUnitPlanStatusList
+        function getUnitActualDoneCount(projectId, unitId) {
+            return new Set(
+                sequenceRecords
+                    .filter(r => r.projectId === projectId && r.unitId === unitId && r.approvalStatus === 'approved' && r.status === 'completed')
+                    .map(r => r.seqIndex)
+            ).size;
+        }
+
+        // เทียบจำนวน Sequence ที่ "ควรเสร็จแล้วตามแผนจริง" (จากวันที่ต่อ Sequence จริงผ่าน getPlannedDateForSeq แบบถ่วงน้ำหนัก) กับจำนวนที่เสร็จจริง
+        // แทนการเทียบ % เวลาเฉลี่ยเส้นตรงทั้งช่วงเริ่ม-จบแปลงแบบเดิม ซึ่งพลาดไม่แจ้งเตือนเมื่อแปลงมีกำหนดวันจบท้ายสุดอยู่ไกลมาก (Sq1-5 ใช้เวลาน้อยกว่าสัดส่วนจำนวน Sequence มาก)
+        // actualDone เป็น optional เพื่อไม่ให้ผู้เรียกเดิมที่ยังไม่ได้ส่งมา error — แต่ถ้าไม่ส่งมาจะข้ามการเช็คนี้ไปเลย (ปลอดภัยกว่าเดาผิด)
+        function calculateUnitStatus(unit, progress, actualDone) {
             if (progress >= 100) return 'on_track';
-            const todayStr = new Date().toISOString().split('T')[0];
-            
+            const todayStr = toISODateStr(new Date());
+
             if (unit && unit.endDate && todayStr > unit.endDate) {
                 return 'delayed';
             }
-            
-            if (unit && unit.startDate && unit.endDate) {
-                const start = new Date(unit.startDate).getTime();
-                const end = new Date(unit.endDate).getTime();
-                const now = new Date().getTime();
-                if (now >= start && end > start) {
-                    const elapsed = now - start;
-                    const expectedPct = Math.min(100, (elapsed / (end - start)) * 100);
-                    if (progress < expectedPct - 15) return 'warning';
-                }
+
+            if (unit && unit.startDate && unit.endDate && typeof actualDone === 'number') {
+                const totalSeq = masterSequences.length || 10;
+                const plannedDueCount = getPlannedDueSeqCount(unit, totalSeq, todayStr);
+                const seqBehind = Math.max(0, plannedDueCount - actualDone);
+                if (seqBehind >= 2) return 'delayed';
+                if (seqBehind >= 1) return 'warning';
             }
             return 'on_track';
         }
@@ -4082,7 +4091,7 @@
                 sumProgress += p;
                 if (p >= 100) completedUnitsCount++;
 
-                const st = calculateUnitStatus(u, p);
+                const st = calculateUnitStatus(u, p, getUnitActualDoneCount(project.id, u.id));
                 if (st === 'delayed') hasDelayed = true;
                 if (st === 'warning') hasWarning = true;
 
@@ -4314,7 +4323,7 @@
                         <img id="plan-masterplan-image" src="${planSrc}" onload="repositionPlanMasterPlanPins()" class="w-full h-full object-contain opacity-90 mx-auto">
                         ${project.units ? project.units.filter(u => u.pinX !== undefined && u.pinY !== undefined).map(u => {
                             const uProg = calculateUnitProgress(project.id, u.id);
-                            const uStatus = calculateUnitStatus(u, uProg);
+                            const uStatus = calculateUnitStatus(u, uProg, getUnitActualDoneCount(project.id, u.id));
 
                             let pinColor = "bg-slate-500 border-white text-white";
                             let statusLabel = "ยังไม่เริ่ม";
@@ -4472,6 +4481,21 @@
             showNotification('ลบลิงก์ฝัง Excel เรียบร้อยแล้ว', 'amber');
         }
 
+        // นับจำนวน Sequence ที่ "ควรเสร็จแล้วตามแผนจริง" ของแปลงนี้ ณ วันที่กำหนด — ใช้ getPlannedDateForSeq ตัวเดียวกับที่วาดผัง Gantt
+        // เลยรองรับโมเดลถ่วงน้ำหนัก/seqDateOverrides อัตโนมัติ ไม่ใช่การเฉลี่ยเวลาเส้นตรงทั้งช่วงแปลง
+        function getPlannedDueSeqCount(unit, totalSeq, todayStr) {
+            if (!unit.startDate || !unit.endDate) return 0;
+            const start = new Date(unit.startDate).getTime();
+            const end = new Date(unit.endDate).getTime();
+            if (isNaN(start) || isNaN(end) || end <= start) return 0;
+            let count = 0;
+            for (let i = 1; i <= totalSeq; i++) {
+                const plannedTime = getPlannedDateForSeq(unit, i, totalSeq);
+                if (plannedTime && toISODateStr(plannedTime) <= todayStr) count = i;
+            }
+            return count;
+        }
+
         function getUnitPlanStatusList(filterProjId, today) {
             const totalSeq = masterSequences.length || 10;
             const todayStr = toISODateStr(today);
@@ -4480,28 +4504,9 @@
 
             projectsToUse.forEach(p => {
                 (p.units || []).forEach(u => {
-                    // ใช้ Set กันนับ Sequence เดิมซ้ำ ถ้ามีการบันทึก/แก้ไขมากกว่า 1 แถวต่อ Sequence เดียวกัน (สาเหตุที่เคยเห็น % เกิน 100)
-                    const actualDone = new Set(
-                        sequenceRecords
-                            .filter(r => r.projectId === p.id && r.unitId === u.id && r.approvalStatus === 'approved' && r.status === 'completed')
-                            .map(r => r.seqIndex)
-                    ).size;
-
-                    let plannedIdx = 0;
-                    let plannedDueCount = 0;
-                    if (u.startDate && u.endDate) {
-                        const start = new Date(u.startDate).getTime();
-                        const end = new Date(u.endDate).getTime();
-                        if (!isNaN(start) && !isNaN(end) && end > start) {
-                            for (let i = 1; i <= totalSeq; i++) {
-                                const plannedTime = getPlannedDateForSeq(u, i, totalSeq);
-                                if (toISODateStr(plannedTime) <= todayStr) {
-                                    plannedIdx = i;
-                                    plannedDueCount++;
-                                }
-                            }
-                        }
-                    }
+                    const actualDone = getUnitActualDoneCount(p.id, u.id);
+                    const plannedDueCount = getPlannedDueSeqCount(u, totalSeq, todayStr);
+                    const plannedIdx = plannedDueCount;
 
                     list.push({
                         projectId: p.id,
@@ -4522,10 +4527,13 @@
         }
 
         // สีมาตรฐานเดียวกับหมุดบนผัง: เขียว=เสร็จ100% / ส้ม=กำลังก่อสร้าง / แดง=ล่าช้ากว่าแผน / เทา=ยังไม่เริ่ม
-        function getUnitStatusColor(pct, startDate, endDate) {
+        // รับ actualDone/plannedDueCount ตรงๆ (มีอยู่แล้วในผลลัพธ์ของ getUnitPlanStatusList ทุกจุดที่เรียกฟังก์ชันนี้) แทนการเดาจาก % เวลาเฉลี่ยเส้นตรงแบบเดิม
+        function getUnitStatusColor(pct, actualDone, plannedDueCount, endDate) {
             if (pct >= 100) return { text: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'เสร็จแล้ว' };
-            const status = calculateUnitStatus({ startDate, endDate }, pct);
-            if (status === 'delayed') return { text: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-200', label: 'ล่าช้า' };
+            const todayStr = toISODateStr(new Date());
+            const seqBehind = Math.max(0, (plannedDueCount || 0) - (actualDone || 0));
+            if ((endDate && todayStr > endDate) || seqBehind >= 2) return { text: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-200', label: 'ล่าช้า' };
+            if (seqBehind >= 1) return { text: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', label: 'เสี่ยงล่าช้า' };
             if (pct > 0) return { text: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', label: 'กำลังก่อสร้าง' };
             return { text: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200', label: 'ยังไม่เริ่ม' };
         }
@@ -5900,7 +5908,7 @@
                     <div class="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
                         ${inProgressUnits.map(u => {
                             const unitPct = u.totalSeq > 0 ? Math.round((u.actualDone / u.totalSeq) * 100) : 0;
-                            const c = getUnitStatusColor(unitPct, u.startDate, u.endDate);
+                            const c = getUnitStatusColor(unitPct, u.actualDone, u.plannedDueCount, u.endDate);
                             const planText = u.plannedIdx > 0
                                 ? `แผนอยู่ Sequence ${u.plannedIdx} (${(u.plannedSeqName || '').replace(/^Sequence\s*\d+[:\s]*/i, '')})`
                                 : (u.totalSeq > 0 ? 'ยังไม่ถึงกำหนดเริ่มตามแผน' : '-');
@@ -5952,9 +5960,9 @@
                 const breakdownHtml = `
                     <div class="space-y-1.5 mt-3 max-h-56 overflow-y-auto custom-scrollbar">
                         ${weekPlanned.map(e => {
-                            const info = unitInfoMap.get(e.unitId) || { actualDone: 0, totalSeq: masterSequences.length || 10, startDate: null, endDate: null };
+                            const info = unitInfoMap.get(e.unitId) || { actualDone: 0, totalSeq: masterSequences.length || 10, plannedDueCount: 0, startDate: null, endDate: null };
                             const unitPct = info.totalSeq > 0 ? Math.round((info.actualDone / info.totalSeq) * 100) : 0;
-                            const c = getUnitStatusColor(unitPct, info.startDate, info.endDate);
+                            const c = getUnitStatusColor(unitPct, info.actualDone, info.plannedDueCount, info.endDate);
                             return `
                                 <div class="flex items-center justify-between gap-2 ${c.bg} border ${c.border} rounded-lg px-3 py-2 text-[11px]">
                                     <div class="flex-1 min-w-0">
@@ -6046,7 +6054,7 @@
                         const doneThisMonthSeqList = doneThisMonthEvents.map(e => e.seqIndex).sort((a, b) => a - b);
                         const doneThisMonthText = doneThisMonthSeqList.length > 0 ? `Sequence ${doneThisMonthSeqList.join(', ')}` : 'ยังไม่มี';
                         const cumPct = info.totalSeq > 0 ? Math.round((info.actualDone / info.totalSeq) * 100) : 0;
-                        const c = getUnitStatusColor(cumPct, info.startDate, info.endDate);
+                        const c = getUnitStatusColor(cumPct, info.actualDone, info.plannedDueCount, info.endDate);
                         return `
                             <div class="flex items-center justify-between gap-2 ${c.bg} border ${c.border} rounded-lg px-3 py-2 text-[11px]">
                                 <div class="flex-1 min-w-0">
@@ -6066,7 +6074,7 @@
                     const forecastDelta = Math.min(um.planCount, Math.round(um.planCount * (schedulePct / 100)));
                     const newCum = Math.min(info.totalSeq, info.actualDone + forecastDelta);
                     const newPct = info.totalSeq > 0 ? Math.round((newCum / info.totalSeq) * 100) : 0;
-                    const c = getUnitStatusColor(newPct, info.startDate, info.endDate);
+                    const c = getUnitStatusColor(newPct, newCum, info.plannedDueCount, info.endDate);
                     return `
                         <div class="flex items-center justify-between gap-2 ${c.bg} border ${c.border} rounded-lg px-3 py-2 text-[11px]">
                             <div class="flex-1 min-w-0">
@@ -6263,7 +6271,7 @@
 
                         ${project.units ? project.units.map(u => {
                             const uProg = calculateUnitProgress(project.id, u.id);
-                            const uStatus = calculateUnitStatus(u, uProg);
+                            const uStatus = calculateUnitStatus(u, uProg, getUnitActualDoneCount(project.id, u.id));
 
                             // สีทึบเต็ม (ไม่โปร่งแสงแล้ว) ให้หมุดเด่นชัดแม้อยู่บนพื้นหลังสว่าง/สีอ่อนของรูปผัง
                             let pinColor = "bg-slate-600 border-white text-white";
