@@ -4662,7 +4662,7 @@
             `;
 
             container.innerHTML = `
-                <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-4 mb-3 pb-3 border-b border-slate-100">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-3 pb-3 border-b border-slate-100">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 content-start">${legendHtml}</div>
                     ${urgentBoxHtml}
                 </div>
@@ -5453,12 +5453,20 @@
         function getAtRiskUnitsForProject(projectId) {
             if (!projectId) return [];
             const today = new Date();
+            const todayStr = toISODateStr(today);
             return getUnitPlanStatusList(projectId, today)
                 .filter(u => u.actualDone < u.totalSeq)
                 .map(u => {
                     const pct = u.totalSeq > 0 ? Math.round((u.actualDone / u.totalSeq) * 100) : 0;
-                    const tier = calculateUnitStatus({ startDate: u.startDate, endDate: u.endDate }, pct);
-                    return { ...u, pct, tier };
+                    // เทียบจำนวน Sequence ที่ "ควรเสร็จแล้วตามแผนจริง" (plannedDueCount ซึ่งคำนวณจากวันที่ต่อ Sequence จริงผ่าน getPlannedDateForSeq แบบถ่วงน้ำหนัก)
+                    // กับจำนวนที่เสร็จจริง (actualDone) — ไม่ใช้ % เวลาเฉลี่ยเส้นตรงทั้งช่วงแปลงเหมือนเดิม เพราะ Sequence แต่ละช่วงใช้เวลาไม่เท่ากันมาก
+                    // (Sq1-5 ใช้เวลาน้อยกว่าสัดส่วนจำนวน Sequence มาก ทำให้ % เวลาเฉลี่ยยังต่ำอยู่ทั้งที่ตามแผนจริงควรเสร็จไปหลาย Sequence แล้ว จึงเคยพลาดไม่แจ้งเตือน)
+                    const seqBehind = Math.max(0, u.plannedDueCount - u.actualDone);
+                    let tier = 'on_track';
+                    if (u.endDate && todayStr > u.endDate) tier = 'delayed';
+                    else if (seqBehind >= 2) tier = 'delayed';
+                    else if (seqBehind >= 1) tier = 'warning';
+                    return { ...u, pct, tier, seqBehind };
                 })
                 .filter(u => u.tier === 'delayed' || u.tier === 'warning');
         }
