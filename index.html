@@ -6250,17 +6250,18 @@
                             const uProg = calculateUnitProgress(project.id, u.id);
                             const uStatus = calculateUnitStatus(u, uProg);
 
-                            let pinColor = "bg-slate-500/60 border-white text-white";
+                            // สีทึบเต็ม (ไม่โปร่งแสงแล้ว) ให้หมุดเด่นชัดแม้อยู่บนพื้นหลังสว่าง/สีอ่อนของรูปผัง
+                            let pinColor = "bg-slate-600 border-white text-white";
                             let statusLabel = "ยังไม่เริ่ม";
 
                             if (uProg >= 100) {
-                                pinColor = "bg-emerald-500/60 border-white text-white shadow-emerald-500/50 shadow-lg";
+                                pinColor = "bg-emerald-600 border-white text-white shadow-emerald-500/70 shadow-lg";
                                 statusLabel = "เสร็จแล้ว 100%";
                             } else if (uStatus === 'delayed') {
-                                pinColor = "bg-rose-600/60 border-white text-white shadow-rose-600/50 shadow-lg animate-pulse";
+                                pinColor = "bg-rose-600 border-white text-white shadow-rose-600/70 shadow-lg animate-pulse";
                                 statusLabel = `ล่าช้า (${uProg}%)`;
                             } else if (uProg > 0) {
-                                pinColor = "bg-amber-500/60 border-white text-white shadow-amber-500/50 shadow-lg";
+                                pinColor = "bg-amber-500 border-white text-white shadow-amber-500/70 shadow-lg";
                                 statusLabel = `กำลังสร้าง (${uProg}%)`;
                             }
 
@@ -6272,7 +6273,7 @@
 
                             return `
                                 <div class="absolute pin-marker z-20 cursor-pointer" data-pin-x="${x}" data-pin-y="${y}" style="left: ${x}%; top: ${y}%;" title="${u.name} (${statusLabel})" onclick="event.stopPropagation(); filterAndHighlightUnit('${project.id}', '${u.id}')">
-                                    <div class="${pinColor} border rounded-full px-1 py-0.5 sm:px-2 sm:py-0.5 text-[6px] sm:text-[9px] font-extrabold flex items-center gap-0.5 sm:space-x-1 shadow-md whitespace-nowrap backdrop-blur-[1px]">
+                                    <div class="${pinColor} border-2 rounded-full px-1 py-0.5 sm:px-2 sm:py-0.5 text-[6px] sm:text-[9px] font-extrabold flex items-center gap-0.5 sm:space-x-1 shadow-md whitespace-nowrap">
                                         <i class="fa-solid fa-house text-[5px] sm:text-[8px]"></i>
                                         <span>${u.name}</span>
                                         <span class="hidden sm:inline-block bg-black/30 rounded-full px-1 py-0.2 text-[8px]">${uProg}%</span>
