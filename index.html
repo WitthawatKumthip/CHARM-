@@ -4622,14 +4622,43 @@
             }).join('');
 
             const legendHtml = Array.from({ length: totalSeq }, (_, idx) => `
-                <div class="flex items-center gap-1 text-xs text-slate-600">
+                <div class="flex items-center gap-1.5 text-xs text-slate-600 min-w-0">
                     <span class="w-2.5 h-2.5 rounded-sm inline-block shrink-0" style="background:${GANTT_COLORS[idx % GANTT_COLORS.length]}"></span>
-                    <span>Seq ${idx + 1}: ${(masterSequences[idx] || `Sequence ${idx + 1}`).replace(/^Sequence\s*\d+[:\s]*/i, '')}</span>
+                    <span class="truncate" title="Sequence ${idx + 1}: ${(masterSequences[idx] || `Sequence ${idx + 1}`).replace(/^Sequence\s*\d+[:\s]*/i, '')}">Seq ${idx + 1}: ${(masterSequences[idx] || `Sequence ${idx + 1}`).replace(/^Sequence\s*\d+[:\s]*/i, '')}</span>
                 </div>
             `).join('');
 
+            // จุดที่ต้องเร่งดำเนินการให้ทันแผน — เฉพาะความล่าช้าตาม Sequence เท่านั้น (อ่านจาก getAtRiskUnitsForProject เดียวกับหน้า Critical Path) ไม่เกี่ยวกับเรื่องวัสดุ/procurement เลย
+            const atRiskUnits = getAtRiskUnitsForProject(filterProjId);
+            const urgentListHtml = atRiskUnits.length === 0
+                ? `<p class="text-xs text-emerald-600 flex items-center gap-1.5"><i class="fa-solid fa-circle-check"></i>ไม่มีแปลงที่ต้องเร่งดำเนินการตอนนี้</p>`
+                : atRiskUnits.map(u => {
+                    const isDelayed = u.tier === 'delayed';
+                    const badgeCls = isDelayed ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700';
+                    const badgeLabel = isDelayed ? 'ล่าช้า' : 'เสี่ยงล่าช้า';
+                    const projTag = (!filterProjId || filterProjId === 'ALL') ? ` <span class="text-slate-400 font-normal">(${u.projectName})</span>` : '';
+                    return `
+                        <div class="flex items-start justify-between gap-2 text-xs py-1 border-b border-rose-100/70 last:border-0">
+                            <div class="min-w-0">
+                                <div class="font-semibold text-slate-800 truncate">${u.unitName}${projTag}</div>
+                                <div class="text-slate-500">${u.actualDone}/${u.totalSeq} Sequence${u.plannedSeqName ? ` · แผนควรถึง ${u.plannedSeqName}` : ''}</div>
+                            </div>
+                            <span class="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${badgeCls}">${badgeLabel}</span>
+                        </div>
+                    `;
+                }).join('');
+            const urgentBoxHtml = `
+                <div class="rounded-xl border ${atRiskUnits.length > 0 ? 'border-rose-200 bg-rose-50/40' : 'border-emerald-200 bg-emerald-50/40'} p-3 h-full flex flex-col">
+                    <div class="text-xs font-bold ${atRiskUnits.length > 0 ? 'text-rose-700' : 'text-emerald-700'} flex items-center gap-1.5 mb-1.5 shrink-0"><i class="fa-solid fa-bolt"></i>ต้องเร่งดำเนินการให้ทันแผน${atRiskUnits.length > 0 ? ` (${atRiskUnits.length})` : ''}</div>
+                    <div class="space-y-0.5 overflow-y-auto max-h-40 custom-scrollbar">${urgentListHtml}</div>
+                </div>
+            `;
+
             container.innerHTML = `
-                <div class="flex flex-wrap gap-x-3 gap-y-1 mb-3 pb-3 border-b border-slate-100">${legendHtml}</div>
+                <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-4 mb-3 pb-3 border-b border-slate-100">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 content-start">${legendHtml}</div>
+                    ${urgentBoxHtml}
+                </div>
                 <div class="border border-slate-200 rounded-xl overflow-hidden">
                     <div class="flex items-stretch bg-slate-50 border-b border-slate-200">
                         <div class="shrink-0" style="width:${GANTT_LABEL_PX}px"></div>
