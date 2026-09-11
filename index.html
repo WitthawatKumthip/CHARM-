@@ -4670,8 +4670,10 @@
             `;
 
             container.innerHTML = `
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-3 pb-3 border-b border-slate-100">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 content-start">${legendHtml}</div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 items-stretch gap-4 mb-3 pb-3 border-b border-slate-100">
+                    <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3 h-full">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 content-start">${legendHtml}</div>
+                    </div>
                     ${urgentBoxHtml}
                 </div>
                 <div class="border border-slate-200 rounded-xl overflow-hidden">
