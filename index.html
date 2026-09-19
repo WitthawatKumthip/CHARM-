@@ -164,6 +164,10 @@
                     <i class="fa-solid fa-diagram-project w-5 text-center text-sm"></i>
                     <span>Critical Path / Float</span>
                 </button>
+                <button onclick="switchTab('action-plans')" id="nav-action-plans" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-list-check w-5 text-center text-sm"></i>
+                    <span>แผนแก้ไขงาน (Action Plan)</span>
+                </button>
                 <button onclick="switchTab('record-seq')" id="nav-record-seq" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition">
                     <i class="fa-solid fa-camera-retro w-5 text-center text-sm"></i>
                     <span>บันทึกรูปและงานตาม Sequence</span>
@@ -673,6 +677,29 @@
                         <button onclick="saveActionPlanFormData()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm">บันทึก</button>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- VIEW: ACTION PLAN (รวมทุกโครงการ) -->
+        <div id="view-action-plans" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-3">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-list-check text-indigo-500"></i> แผนแก้ไขงาน (Action Plan) — รวมทุกโครงการ</h3>
+                        <p class="text-xs text-slate-500 mt-1">รวมแผนแก้ไขของทุกความเสี่ยง (แปลงล่าช้า/วัสดุ/Spec) จากทุกโครงการไว้ในที่เดียว — ทั้งที่สร้างเองและที่ระบบสร้างให้อัตโนมัติทุกวันเสาร์</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                        <select id="ap-filter-project" onchange="renderActionPlansView()" class="border border-slate-200 rounded-xl px-3 py-1.5 font-medium outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                        <select id="ap-filter-status" onchange="renderActionPlansView()" class="border border-slate-200 rounded-xl px-3 py-1.5 font-medium outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="ALL">ทุกสถานะ</option>
+                            <option value="open">ยังไม่เริ่ม</option>
+                            <option value="in_progress">กำลังดำเนินการ</option>
+                            <option value="done">เสร็จแล้ว</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="ap-stat-tiles"></div>
+                <div id="ap-list-container" class="space-y-2"></div>
             </div>
         </div>
 
@@ -3188,7 +3215,7 @@
         }
 
         function switchTab(tabName) {
-            const views = ['dashboard', 'projects', 'construction-plan', 'critical-path', 'record-seq', 'pm-approval', 'seq-history', 'photos', 'procurement', 'materials', 'issues', 'reports'];
+            const views = ['dashboard', 'projects', 'construction-plan', 'critical-path', 'action-plans', 'record-seq', 'pm-approval', 'seq-history', 'photos', 'procurement', 'materials', 'issues', 'reports'];
             views.forEach(v => {
                 const el = document.getElementById(`view-${v}`);
                 if (el) el.classList.add('hidden');
@@ -3216,6 +3243,7 @@
                 'projects': 'จัดการรายการโครงการและแปลงบ้าน',
                 'construction-plan': 'แผนงานก่อสร้าง — ทบทวนสัปดาห์ที่ผ่านมา วางแผนสัปดาห์/เดือนถัดไป',
                 'critical-path': 'Critical Path / Float — คิวเครื่องจักร/ทรัพยากรร่วม และเส้นทางวิกฤต',
+                'action-plans': 'แผนแก้ไขงาน (Action Plan) — รวมทุกโครงการ',
                 'record-seq': 'บันทึกรูปและงานตาม Sequence',
                 'pm-approval': 'รายการบันทึกงานค้างรอ PM ตรวจสอบและอนุมัติ',
                 'seq-history': 'ประวัติวันแล้วเสร็จ Sequence',
@@ -5839,6 +5867,88 @@
             showNotification('ลบแผนแก้ไขเรียบร้อยแล้ว', 'amber');
         }
 
+        // เมนู "แผนแก้ไขงาน" แบบรวมทุกโครงการ — ไม่ผูกกับหน้า Critical Path เดิม (ซึ่งจะโชว์แค่แผนของโครงการที่เลือกอยู่) ใช้ actionPlansData ก้อนเดียวกัน
+        function renderActionPlansView() {
+            const projFilterEl = document.getElementById('ap-filter-project');
+            const statusFilterEl = document.getElementById('ap-filter-status');
+            const container = document.getElementById('ap-list-container');
+            const tilesEl = document.getElementById('ap-stat-tiles');
+            if (!projFilterEl || !container) return;
+
+            const currentProjVal = projFilterEl.value || 'ALL';
+            const projOptions = '<option value="ALL">ทุกโครงการ</option>' + projectsData.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            if (projFilterEl.innerHTML !== projOptions) {
+                projFilterEl.innerHTML = projOptions;
+                projFilterEl.value = (currentProjVal === 'ALL' || projectsData.some(p => p.id === currentProjVal)) ? currentProjVal : 'ALL';
+            }
+            const filterProjId = projFilterEl.value || 'ALL';
+            const filterStatus = statusFilterEl?.value || 'ALL';
+
+            const projectNameMap = new Map(projectsData.map(p => [p.id, p.name]));
+
+            // สถิติสรุปยึดตามตัวกรองโครงการ แต่ไม่ยึดตัวกรองสถานะ (ให้เห็นภาพรวมสัดส่วนสถานะทั้งหมดของโครงการที่เลือกเสมอ)
+            const statsBasePlans = filterProjId === 'ALL' ? actionPlansData : actionPlansData.filter(a => a.projectId === filterProjId);
+            const openCount = statsBasePlans.filter(a => (a.status || 'open') === 'open').length;
+            const inProgressCount = statsBasePlans.filter(a => a.status === 'in_progress').length;
+            const doneCount = statsBasePlans.filter(a => a.status === 'done').length;
+            if (tilesEl) {
+                tilesEl.innerHTML = `
+                    <div class="border rounded-xl p-3 text-center bg-slate-50 border-slate-200">
+                        <div class="text-[10px] font-semibold uppercase text-slate-500">ทั้งหมด</div>
+                        <div class="text-xl font-extrabold text-slate-700">${statsBasePlans.length}</div>
+                    </div>
+                    <div class="border rounded-xl p-3 text-center ${openCount > 0 ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-slate-50 border-slate-200 text-slate-400'}">
+                        <div class="text-[10px] font-semibold uppercase opacity-80">ยังไม่เริ่ม</div>
+                        <div class="text-xl font-extrabold">${openCount}</div>
+                    </div>
+                    <div class="border rounded-xl p-3 text-center ${inProgressCount > 0 ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-slate-50 border-slate-200 text-slate-400'}">
+                        <div class="text-[10px] font-semibold uppercase opacity-80">กำลังดำเนินการ</div>
+                        <div class="text-xl font-extrabold">${inProgressCount}</div>
+                    </div>
+                    <div class="border rounded-xl p-3 text-center ${doneCount > 0 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-50 border-slate-200 text-slate-400'}">
+                        <div class="text-[10px] font-semibold uppercase opacity-80">เสร็จแล้ว</div>
+                        <div class="text-xl font-extrabold">${doneCount}</div>
+                    </div>
+                `;
+            }
+
+            let plans = statsBasePlans;
+            if (filterStatus !== 'ALL') plans = plans.filter(a => (a.status || 'open') === filterStatus);
+
+            if (plans.length === 0) {
+                container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">ไม่มีแผนแก้ไขที่ตรงกับตัวกรองนี้</p>';
+                return;
+            }
+
+            plans = plans.slice().sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+            const canEdit = !!currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'FOREMAN');
+            container.innerHTML = plans.map(plan => {
+                const meta = ACTION_PLAN_STATUS_META[plan.status] || ACTION_PLAN_STATUS_META.open;
+                const targetLabel = getRiskTargetLabel(plan.targetType, plan.targetId) || plan.targetId;
+                const projName = projectNameMap.get(plan.projectId) || plan.projectId;
+                const isAuto = (plan.createdBy || '').includes('อัตโนมัติ');
+                return `
+                    <div class="border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div class="flex-1 min-w-0 space-y-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-bold text-slate-800 text-sm">${targetLabel}</span>
+                                <span class="text-[10px] text-slate-400">(${projName})</span>
+                                <span class="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${meta.cls}">${meta.label}</span>
+                                ${isAuto ? '<span class="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700"><i class="fa-solid fa-robot mr-0.5"></i>อัตโนมัติ</span>' : ''}
+                            </div>
+                            <div class="text-xs text-slate-600">${plan.planText || '(ไม่ได้ระบุแผน)'}</div>
+                            <div class="text-[11px] text-slate-400 flex items-center gap-3 flex-wrap">
+                                ${plan.responsible ? `<span><i class="fa-solid fa-user mr-1"></i>${plan.responsible}</span>` : '<span class="text-amber-500"><i class="fa-solid fa-triangle-exclamation mr-1"></i>ยังไม่มีผู้รับผิดชอบ</span>'}
+                                ${plan.targetDate ? `<span><i class="fa-solid fa-calendar mr-1"></i>เป้าหมาย ${plan.targetDate}</span>` : ''}
+                            </div>
+                        </div>
+                        ${canEdit ? `<button onclick="openEditActionPlanModal('${plan.id}')" class="shrink-0 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-semibold">แก้ไข</button>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
         function renderConstructionPlanView() {
             const filterEl = document.getElementById('plan-project-filter');
             if (!filterEl) return;
@@ -6119,6 +6229,7 @@
             renderSitePlanView();
             renderConstructionPlanView();
             renderCriticalPathView();
+            renderActionPlansView();
             renderDashboardProjectsTable();
             renderAllProjectsTable();
             renderRecordSequenceOverview();
