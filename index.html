@@ -63,8 +63,17 @@
                 size: A4 portrait;
                 margin: 10mm 10mm 10mm 10mm;
             }
-            aside, header, nav, .no-print, button { 
-                display: none !important; 
+            /* ผัง Gantt หน้า Plan บังคับปริ้นแนวนอนเสมอ (ไม่ต้องพึ่งผู้ใช้ไปติ๊กเลือก Landscape เอง) — ใช้ named page แยกจาก @page หลักด้านบน
+               เพจอื่น (รายงาน/รายการ Defects ฯลฯ) ยังคงเป็นแนวตั้ง A4 ตามเดิม ไม่กระทบกัน */
+            @page gantt-landscape {
+                size: A4 landscape;
+                margin: 10mm;
+            }
+            #plan-gantt-print-area {
+                page: gantt-landscape;
+            }
+            aside, header, nav, .no-print, button {
+                display: none !important;
             }
             body, main, #view-reports, .print-area {
                 background: white !important;
