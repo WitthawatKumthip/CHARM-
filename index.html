@@ -4644,6 +4644,19 @@
                 <div class="absolute top-0 bottom-0 border-l-2 border-slate-300" style="left:${m.leftPct}%"></div>
             `).join('');
 
+            // เส้น "วันนี้" สีแดงชัดเจน ลากผ่านทุกแถว ช่วยเทียบ Actual (วันนี้จริง) กับ Plan ด้วยตาได้ทันทีว่าแท่งไหนควรจบไปแล้วหรือยัง
+            const todayTime = new Date().setHours(0, 0, 0, 0);
+            const showTodayLine = todayTime >= rangeMin && todayTime <= rangeMax;
+            const todayLeftPct = ((todayTime - rangeMin) / rangeSpan) * 100;
+            const todayLabelHtml = showTodayLine ? `
+                <div class="absolute top-0 bottom-0 border-l-2 border-rose-500 z-20 pointer-events-none" style="left:${todayLeftPct}%">
+                    <span class="absolute top-0 left-0 -translate-x-1/2 bg-rose-500 text-white text-[9px] font-bold px-1 rounded-b whitespace-nowrap">วันนี้ ${toISODateStr(new Date(todayTime))}</span>
+                </div>
+            ` : '';
+            const todayLineHtml = showTodayLine
+                ? `<div class="absolute top-0 bottom-0 border-l-2 border-rose-500 z-20 pointer-events-none" style="left:${todayLeftPct}%"></div>`
+                : '';
+
             const labelColHtml = rows.map(r => `
                 <div class="h-7 flex items-center justify-center text-[11px] font-semibold text-slate-700 border-b border-r border-slate-100 truncate px-1" title="${r.projectName} — ${r.unitName}">${r.unitName}</div>
             `).join('');
@@ -4709,13 +4722,14 @@
                 <div class="border border-slate-200 rounded-xl overflow-x-auto custom-scrollbar">
                         <div class="flex items-stretch bg-slate-50 border-b border-slate-200 sticky top-0 z-20">
                             <div class="shrink-0 sticky left-0 bg-slate-50 z-20" style="width:${GANTT_LABEL_PX}px"></div>
-                            <div class="relative h-6 flex-1" style="min-width:${timelineMinPx}px">${monthLabelHtml}</div>
+                            <div class="relative h-6 flex-1" style="min-width:${timelineMinPx}px">${monthLabelHtml}${todayLabelHtml}</div>
                         </div>
                         <div class="flex items-start">
                             <div class="shrink-0 bg-white sticky left-0 z-10" style="width:${GANTT_LABEL_PX}px">${labelColHtml}</div>
                             <div class="relative flex-1" style="min-width:${timelineMinPx}px">
                                 ${monthLineHtml}
                                 ${barRowsHtml}
+                                ${todayLineHtml}
                             </div>
                         </div>
                 </div>
