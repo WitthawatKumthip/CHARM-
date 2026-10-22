@@ -6990,7 +6990,7 @@
                             <div class="space-y-1">
                                 <span class="text-[11px] font-semibold text-slate-600">หลักฐานรูปถ่ายหน้างาน (${photos.length} รูป):</span>
                                 <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                                    ${photos.map(pUrl => `<img src="${pUrl}" onclick="openPhotoViewModal('${pUrl}', '${r.seqName}')" class="w-full h-24 object-cover rounded-xl cursor-pointer hover:opacity-90 border border-slate-200">`).join('')}
+                                    ${photos.map(pUrl => `<img src="${pUrl}" loading="lazy" decoding="async" onclick="openPhotoViewModal('${pUrl}', '${r.seqName}')" class="w-full h-24 object-cover rounded-xl cursor-pointer hover:opacity-90 border border-slate-200">`).join('')}
                                 </div>
                             </div>
                         ` : ''}
@@ -7094,7 +7094,7 @@
             }
             container.innerHTML = _editPendingPhotos.map((url, idx) => `
                 <div class="relative">
-                    <img src="${url}" class="w-full h-16 object-cover rounded-lg border border-slate-200">
+                    <img src="${url}" loading="lazy" decoding="async" class="w-full h-16 object-cover rounded-lg border border-slate-200">
                     <button type="button" onclick="removeEditPendingPhoto(${idx})" class="absolute -top-1.5 -right-1.5 bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow">×</button>
                 </div>
             `).join('');
@@ -7359,7 +7359,7 @@
                                 const subTaskText = r.subTask ? ` [${r.subTask}]` : '';
                                 html += `
                                     <div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden group hover:shadow-md transition">
-                                        <img src="${pUrl}" onclick="openPhotoViewModal('${pUrl}', 'Seq ${r.seqIndex}${subTaskText}: ${r.seqName}')" class="w-full h-28 object-cover cursor-pointer group-hover:scale-105 transition duration-300">
+                                        <img src="${pUrl}" loading="lazy" decoding="async" onclick="openPhotoViewModal('${pUrl}', 'Seq ${r.seqIndex}${subTaskText}: ${r.seqName}')" class="w-full h-28 object-cover cursor-pointer group-hover:scale-105 transition duration-300">
                                         <div class="p-2 space-y-0.5">
                                             <div class="font-bold text-[11px] text-blue-600 truncate">Seq ${r.seqIndex}${subTaskText}</div>
                                             <div class="text-[10px] text-slate-400 flex justify-between items-center pt-0.5">
@@ -7415,12 +7415,12 @@
                 const beforePhotoSrc = iss.photoBefore || iss.photo;
                 let beforePhotoHtml = '<span class="text-slate-300 text-[10px] italic">ไม่มีรูป</span>';
                 if (beforePhotoSrc) {
-                    beforePhotoHtml = `<div class="relative inline-block"><img src="${beforePhotoSrc}" onclick="openDefectComparisonModal('${iss.id}')" title="คลิกดูเปรียบเทียบรูปก่อน-หลัง" class="w-10 h-10 object-cover rounded-lg mx-auto cursor-pointer border-2 border-rose-200 hover:scale-110 transition shadow-sm">${photosBeforeCount > 1 ? `<span class="absolute -bottom-1 -right-1 bg-rose-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${photosBeforeCount}</span>` : ''}</div>`;
+                    beforePhotoHtml = `<div class="relative inline-block"><img src="${beforePhotoSrc}" loading="lazy" decoding="async" onclick="openDefectComparisonModal('${iss.id}')" title="คลิกดูเปรียบเทียบรูปก่อน-หลัง" class="w-10 h-10 object-cover rounded-lg mx-auto cursor-pointer border-2 border-rose-200 hover:scale-110 transition shadow-sm">${photosBeforeCount > 1 ? `<span class="absolute -bottom-1 -right-1 bg-rose-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${photosBeforeCount}</span>` : ''}</div>`;
                 }
 
                 let afterPhotoHtml = '<span class="text-slate-300 text-[10px] italic">รอแก้ไข</span>';
                 if (iss.photoAfter) {
-                    afterPhotoHtml = `<div class="relative inline-block"><img src="${iss.photoAfter}" onclick="openDefectComparisonModal('${iss.id}')" title="คลิกดูเปรียบเทียบรูปก่อน-หลัง" class="w-10 h-10 object-cover rounded-lg mx-auto cursor-pointer border-2 border-emerald-200 hover:scale-110 transition shadow-sm">${photosAfterCount > 1 ? `<span class="absolute -bottom-1 -right-1 bg-emerald-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${photosAfterCount}</span>` : ''}</div>`;
+                    afterPhotoHtml = `<div class="relative inline-block"><img src="${iss.photoAfter}" loading="lazy" decoding="async" onclick="openDefectComparisonModal('${iss.id}')" title="คลิกดูเปรียบเทียบรูปก่อน-หลัง" class="w-10 h-10 object-cover rounded-lg mx-auto cursor-pointer border-2 border-emerald-200 hover:scale-110 transition shadow-sm">${photosAfterCount > 1 ? `<span class="absolute -bottom-1 -right-1 bg-emerald-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${photosAfterCount}</span>` : ''}</div>`;
                 }
 
                 let resolvedDateText = iss.resolvedDate ? `<span class="font-bold text-emerald-600">${iss.resolvedDate}</span>` : '<span class="text-slate-400 text-[11px]">-</span>';
@@ -7485,7 +7485,7 @@
             const renderThumbs = (container, photos, targetImgId) => {
                 if (!container) return;
                 container.innerHTML = photos.length > 1 ? photos.map(url => `
-                    <img src="${url}" onclick="document.getElementById('${targetImgId}').src='${url}'" class="w-full h-10 object-cover rounded border border-slate-200 cursor-pointer hover:opacity-80">
+                    <img src="${url}" loading="lazy" decoding="async" onclick="document.getElementById('${targetImgId}').src='${url}'" class="w-full h-10 object-cover rounded border border-slate-200 cursor-pointer hover:opacity-80">
                 `).join('') : '';
             };
             renderThumbs(thumbsBefore, photosBefore, 'defect-compare-img-before');
@@ -7621,7 +7621,7 @@
                                 ` : ''}
                                 ${photos.length > 0 ? `
                                     <div class="grid grid-cols-3 gap-1 pt-1 print-grid-3">
-                                        ${photos.map(pUrl => `<img src="${pUrl}" class="w-full h-16 object-cover rounded-lg border border-slate-200">`).join('')}
+                                        ${photos.map(pUrl => `<img src="${pUrl}" loading="lazy" decoding="async" class="w-full h-16 object-cover rounded-lg border border-slate-200">`).join('')}
                                     </div>
                                 ` : ''}
                             </div>
@@ -8806,7 +8806,7 @@
             const photos = which === 'before' ? _issuePhotosBefore : _issuePhotosAfter;
             container.innerHTML = photos.map((url, idx) => `
                 <div class="relative">
-                    <img src="${url}" class="w-full h-14 object-cover rounded-lg border border-slate-200">
+                    <img src="${url}" loading="lazy" decoding="async" class="w-full h-14 object-cover rounded-lg border border-slate-200">
                     <button type="button" onclick="removeIssuePhoto('${which}', ${idx})" class="absolute -top-1.5 -right-1.5 bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow">×</button>
                 </div>
             `).join('');
