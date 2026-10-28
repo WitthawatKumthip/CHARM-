@@ -1670,6 +1670,20 @@
                     <p id="migrate-status" class="text-[10px] text-blue-700 font-semibold text-center"></p>
                 </div>
 
+                <!-- สร้างรูปย่อให้รูปเก่า -->
+                <div class="bg-sky-50 border border-sky-200 rounded-xl p-3 space-y-2">
+                    <div class="font-bold text-sky-900 text-[11px] flex items-center space-x-1">
+                        <i class="fa-solid fa-compress"></i>
+                        <span>สร้างรูปย่อให้รูปเก่า (ลดการใช้ข้อมูล Storage)</span>
+                    </div>
+                    <p class="text-[10px] text-sky-800 leading-relaxed">รูปที่อัปโหลดใหม่จะมีรูปย่อให้อัตโนมัติ ปุ่มนี้สร้างรูปย่อให้รูปเก่าทั้งหมดที่ยังไม่มี ทำให้หน้ารูปภาพโหลดเบาลงประมาณ 90% ใช้ข้อมูลครั้งเดียวตอนสร้าง กดซ้ำได้ ระบบข้ามรูปที่มีรูปย่อแล้ว</p>
+                    <button id="btn-backfill-thumbs" onclick="backfillThumbnails()" class="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white text-[11px] font-semibold px-3 py-2 rounded-xl shadow-sm flex items-center justify-center space-x-1.5">
+                        <i class="fa-solid fa-images"></i>
+                        <span>สร้างรูปย่อให้รูปเก่า</span>
+                    </button>
+                    <p id="backfill-thumbs-status" class="text-[10px] text-sky-700 font-semibold text-center"></p>
+                </div>
+
                 <!-- ย้ายจากโครงสร้างเดิม (แถวเดียว) ไปตารางจริง -->
                 <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 space-y-2">
                     <div class="font-bold text-violet-900 text-[11px] flex items-center space-x-1">
@@ -2630,6 +2644,72 @@
             return typeof str === 'string' && str.startsWith('data:image');
         }
 
+        // ===================================================================
+        // รูปย่อ (thumbnail) — ลดข้อมูลที่ส่งออกจาก Storage (Cached Egress)
+        // รูปเต็มอยู่ที่ <folder>/<file> รูปย่อ 400px อยู่ที่ <folder>/thumbs/<file> (ชื่อไฟล์เดียวกัน)
+        // รูปเก่าที่ยังไม่มีรูปย่อจะ fallback ไปโหลดรูปเต็มเอง (ดู thumbFallback)
+        // ===================================================================
+        const THUMB_FOLDERS = ['sequences', 'defects'];
+        const THUMB_MAX_PX = 400;
+        const THUMB_QUALITY = 0.7;
+
+        function thumbUrlFor(url) {
+            if (typeof url !== 'string') return url;
+            const marker = `/storage/v1/object/public/${getStorageBucket()}/`;
+            const i = url.indexOf(marker);
+            if (i < 0) return url;
+            const base = url.slice(0, i + marker.length);
+            const path = url.slice(i + marker.length).split('?')[0];
+            const parts = path.split('/');
+            if (parts.length !== 2 || !THUMB_FOLDERS.includes(parts[0])) return url;
+            return `${base}${parts[0]}/thumbs/${parts[1]}`;
+        }
+
+        // onerror ของรูปย่อ: ถ้ายังไม่มีรูปย่อ ให้โหลดรูปเต็มแทน (ครั้งเดียว)
+        function thumbFallback(el) {
+            const full = el && el.dataset ? el.dataset.full : '';
+            el.onerror = null;
+            if (full && el.src !== full) el.src = full;
+        }
+
+        // ย่อรูป (dataURL / blob URL / URL) เป็น Blob JPEG ขนาดเล็ก — คืน null ถ้าทำไม่ได้
+        function makeThumbBlob(src, maxPx = THUMB_MAX_PX, quality = THUMB_QUALITY) {
+            return new Promise(resolve => {
+                const img = new Image();
+                img.onload = () => {
+                    const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+                    const w = Math.max(1, Math.round(img.width * scale));
+                    const h = Math.max(1, Math.round(img.height * scale));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w;
+                    canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    canvas.toBlob(b => resolve(b), 'image/jpeg', quality);
+                };
+                img.onerror = () => resolve(null);
+                img.src = src;
+            });
+        }
+
+        // สร้างและอัปโหลดรูปย่อของไฟล์ที่อยู่ที่ fullPath (เช่น sequences/123-abc.jpg) — ไม่ throw ถ้าล้มเหลว
+        async function uploadThumbnail(client, bucket, fullPath, src) {
+            try {
+                const parts = fullPath.split('/');
+                if (parts.length !== 2 || !THUMB_FOLDERS.includes(parts[0])) return false;
+                const blob = await makeThumbBlob(src);
+                if (!blob) return false;
+                const { error } = await client.storage.from(bucket).upload(`${parts[0]}/thumbs/${parts[1]}`, blob, {
+                    contentType: 'image/jpeg',
+                    cacheControl: '31536000',
+                    upsert: true
+                });
+                return !error;
+            } catch (e) {
+                console.warn('Thumbnail upload failed:', e);
+                return false;
+            }
+        }
+
         // อัปโหลดรูป (dataURL) ขึ้น Supabase Storage แล้วคืนค่า Public URL
         // ถ้ายังไม่ได้ตั้งค่า Cloud หรืออัปโหลดไม่สำเร็จ -> คืน dataURL เดิม (ทำงานต่อได้แบบ Local)
         async function uploadImageToCloud(dataUrl, folder = 'general') {
@@ -2653,6 +2733,8 @@
                     upsert: false
                 });
                 if (error) throw error;
+
+                await uploadThumbnail(client, bucket, path, dataUrl);
 
                 const { data } = client.storage.from(bucket).getPublicUrl(path);
                 if (data && data.publicUrl) return data.publicUrl;
@@ -2815,6 +2897,103 @@
 
             showNotification(`ย้ายรูปขึ้น Cloud เรียบร้อย ${jobs.length - failed} รูป`, failed ? 'amber' : 'emerald');
             updateStorageUsageDisplay();
+        }
+
+        // สร้างรูปย่อให้รูปเก่าที่อัปโหลดไว้ก่อนหน้านี้ (รูปใหม่ได้รูปย่อตอนอัปโหลดอยู่แล้ว)
+        // ดาวน์โหลดรูปเต็มแต่ละรูปครั้งเดียว แล้วอัปโหลดรูปย่อ ~30 KB ไว้ที่ <folder>/thumbs/
+        async function backfillThumbnails() {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่สร้างรูปย่อได้', 'rose');
+                return;
+            }
+            const client = getSupabaseClient();
+            if (!client) {
+                showNotification('กรุณาตั้งค่าและบันทึก Supabase URL / Anon Key ก่อน', 'rose');
+                return;
+            }
+
+            const bucket = getStorageBucket();
+            const btn = document.getElementById('btn-backfill-thumbs');
+            const statusEl = document.getElementById('backfill-thumbs-status');
+            const setStatus = t => { if (statusEl) statusEl.textContent = t; };
+            if (btn) btn.disabled = true;
+
+            try {
+                // รวบรวม URL รูปทั้งหมดที่ควรมีรูปย่อ
+                const urls = new Set();
+                const add = u => { if (typeof u === 'string' && thumbUrlFor(u) !== u) urls.add(u); };
+                sequenceRecords.forEach(r => {
+                    if (Array.isArray(r.photos)) r.photos.forEach(add);
+                    add(r.photo);
+                });
+                issuesData.forEach(i => {
+                    if (Array.isArray(i.photosBefore)) i.photosBefore.forEach(add);
+                    if (Array.isArray(i.photosAfter)) i.photosAfter.forEach(add);
+                    add(i.photoBefore);
+                    add(i.photoAfter);
+                });
+
+                if (urls.size === 0) {
+                    setStatus('ไม่พบรูปที่ต้องสร้างรูปย่อ');
+                    return;
+                }
+
+                // ดูว่าโฟลเดอร์ thumbs มีไฟล์อะไรอยู่แล้ว จะได้ข้าม
+                setStatus('กำลังตรวจรูปย่อที่มีอยู่แล้ว...');
+                const existing = new Set();
+                for (const folder of THUMB_FOLDERS) {
+                    for (let offset = 0; ; offset += 1000) {
+                        const { data, error } = await client.storage.from(bucket).list(`${folder}/thumbs`, { limit: 1000, offset });
+                        if (error) throw error;
+                        (data || []).forEach(f => existing.add(`${folder}/${f.name}`));
+                        if (!data || data.length < 1000) break;
+                    }
+                }
+
+                const marker = `/storage/v1/object/public/${bucket}/`;
+                const todo = [...urls].filter(u => {
+                    const path = u.slice(u.indexOf(marker) + marker.length).split('?')[0];
+                    return !existing.has(path);
+                });
+
+                if (todo.length === 0) {
+                    setStatus(`ครบแล้ว — ทุกรูป (${urls.size} รูป) มีรูปย่อแล้ว`);
+                    showNotification('ทุกรูปมีรูปย่อครบแล้ว');
+                    return;
+                }
+
+                let done = 0, failed = 0;
+                const batchSize = 3;
+                for (let i = 0; i < todo.length; i += batchSize) {
+                    await Promise.all(todo.slice(i, i + batchSize).map(async u => {
+                        let ok = false;
+                        try {
+                            const res = await fetch(u);
+                            if (res.ok) {
+                                const objUrl = URL.createObjectURL(await res.blob());
+                                const path = u.slice(u.indexOf(marker) + marker.length).split('?')[0];
+                                ok = await uploadThumbnail(client, bucket, path, objUrl);
+                                URL.revokeObjectURL(objUrl);
+                            }
+                        } catch (e) {
+                            console.warn('Backfill thumbnail failed:', u, e);
+                        }
+                        if (!ok) failed++;
+                        done++;
+                    }));
+                    setStatus(`กำลังสร้างรูปย่อ ${done}/${todo.length} รูป...`);
+                }
+
+                setStatus(`สร้างรูปย่อสำเร็จ ${todo.length - failed}/${todo.length} รูป` + (failed ? ` (ล้มเหลว ${failed} รูป — กดอีกครั้งเพื่อลองใหม่)` : ''));
+                showNotification(`สร้างรูปย่อเรียบร้อย ${todo.length - failed} รูป`, failed ? 'amber' : 'emerald');
+                refreshAllViews();
+            } catch (err) {
+                console.error('Backfill thumbnails error:', err);
+                setStatus('เกิดข้อผิดพลาด: ' + (err && err.message ? err.message : err));
+                showNotification('สร้างรูปย่อไม่สำเร็จ', 'rose');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
         }
 
         // คำนวณขนาดข้อมูลที่เก็บอยู่ในเครื่อง
@@ -6990,7 +7169,7 @@
                             <div class="space-y-1">
                                 <span class="text-[11px] font-semibold text-slate-600">หลักฐานรูปถ่ายหน้างาน (${photos.length} รูป):</span>
                                 <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                                    ${photos.map(pUrl => `<img src="${pUrl}" loading="lazy" decoding="async" onclick="openPhotoViewModal('${pUrl}', '${r.seqName}')" class="w-full h-24 object-cover rounded-xl cursor-pointer hover:opacity-90 border border-slate-200">`).join('')}
+                                    ${photos.map(pUrl => `<img src="${thumbUrlFor(pUrl)}" data-full="${pUrl}" onerror="thumbFallback(this)" loading="lazy" decoding="async" onclick="openPhotoViewModal('${pUrl}', '${r.seqName}')" class="w-full h-24 object-cover rounded-xl cursor-pointer hover:opacity-90 border border-slate-200">`).join('')}
                                 </div>
                             </div>
                         ` : ''}
@@ -7094,7 +7273,7 @@
             }
             container.innerHTML = _editPendingPhotos.map((url, idx) => `
                 <div class="relative">
-                    <img src="${url}" loading="lazy" decoding="async" class="w-full h-16 object-cover rounded-lg border border-slate-200">
+                    <img src="${thumbUrlFor(url)}" data-full="${url}" onerror="thumbFallback(this)" loading="lazy" decoding="async" class="w-full h-16 object-cover rounded-lg border border-slate-200">
                     <button type="button" onclick="removeEditPendingPhoto(${idx})" class="absolute -top-1.5 -right-1.5 bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow">×</button>
                 </div>
             `).join('');
@@ -7359,7 +7538,7 @@
                                 const subTaskText = r.subTask ? ` [${r.subTask}]` : '';
                                 html += `
                                     <div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden group hover:shadow-md transition">
-                                        <img src="${pUrl}" loading="lazy" decoding="async" onclick="openPhotoViewModal('${pUrl}', 'Seq ${r.seqIndex}${subTaskText}: ${r.seqName}')" class="w-full h-28 object-cover cursor-pointer group-hover:scale-105 transition duration-300">
+                                        <img src="${thumbUrlFor(pUrl)}" data-full="${pUrl}" onerror="thumbFallback(this)" loading="lazy" decoding="async" onclick="openPhotoViewModal('${pUrl}', 'Seq ${r.seqIndex}${subTaskText}: ${r.seqName}')" class="w-full h-28 object-cover cursor-pointer group-hover:scale-105 transition duration-300">
                                         <div class="p-2 space-y-0.5">
                                             <div class="font-bold text-[11px] text-blue-600 truncate">Seq ${r.seqIndex}${subTaskText}</div>
                                             <div class="text-[10px] text-slate-400 flex justify-between items-center pt-0.5">
@@ -7415,12 +7594,12 @@
                 const beforePhotoSrc = iss.photoBefore || iss.photo;
                 let beforePhotoHtml = '<span class="text-slate-300 text-[10px] italic">ไม่มีรูป</span>';
                 if (beforePhotoSrc) {
-                    beforePhotoHtml = `<div class="relative inline-block"><img src="${beforePhotoSrc}" loading="lazy" decoding="async" onclick="openDefectComparisonModal('${iss.id}')" title="คลิกดูเปรียบเทียบรูปก่อน-หลัง" class="w-10 h-10 object-cover rounded-lg mx-auto cursor-pointer border-2 border-rose-200 hover:scale-110 transition shadow-sm">${photosBeforeCount > 1 ? `<span class="absolute -bottom-1 -right-1 bg-rose-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${photosBeforeCount}</span>` : ''}</div>`;
+                    beforePhotoHtml = `<div class="relative inline-block"><img src="${thumbUrlFor(beforePhotoSrc)}" data-full="${beforePhotoSrc}" onerror="thumbFallback(this)" loading="lazy" decoding="async" onclick="openDefectComparisonModal('${iss.id}')" title="คลิกดูเปรียบเทียบรูปก่อน-หลัง" class="w-10 h-10 object-cover rounded-lg mx-auto cursor-pointer border-2 border-rose-200 hover:scale-110 transition shadow-sm">${photosBeforeCount > 1 ? `<span class="absolute -bottom-1 -right-1 bg-rose-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${photosBeforeCount}</span>` : ''}</div>`;
                 }
 
                 let afterPhotoHtml = '<span class="text-slate-300 text-[10px] italic">รอแก้ไข</span>';
                 if (iss.photoAfter) {
-                    afterPhotoHtml = `<div class="relative inline-block"><img src="${iss.photoAfter}" loading="lazy" decoding="async" onclick="openDefectComparisonModal('${iss.id}')" title="คลิกดูเปรียบเทียบรูปก่อน-หลัง" class="w-10 h-10 object-cover rounded-lg mx-auto cursor-pointer border-2 border-emerald-200 hover:scale-110 transition shadow-sm">${photosAfterCount > 1 ? `<span class="absolute -bottom-1 -right-1 bg-emerald-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${photosAfterCount}</span>` : ''}</div>`;
+                    afterPhotoHtml = `<div class="relative inline-block"><img src="${thumbUrlFor(iss.photoAfter)}" data-full="${iss.photoAfter}" onerror="thumbFallback(this)" loading="lazy" decoding="async" onclick="openDefectComparisonModal('${iss.id}')" title="คลิกดูเปรียบเทียบรูปก่อน-หลัง" class="w-10 h-10 object-cover rounded-lg mx-auto cursor-pointer border-2 border-emerald-200 hover:scale-110 transition shadow-sm">${photosAfterCount > 1 ? `<span class="absolute -bottom-1 -right-1 bg-emerald-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${photosAfterCount}</span>` : ''}</div>`;
                 }
 
                 let resolvedDateText = iss.resolvedDate ? `<span class="font-bold text-emerald-600">${iss.resolvedDate}</span>` : '<span class="text-slate-400 text-[11px]">-</span>';
@@ -7485,7 +7664,7 @@
             const renderThumbs = (container, photos, targetImgId) => {
                 if (!container) return;
                 container.innerHTML = photos.length > 1 ? photos.map(url => `
-                    <img src="${url}" loading="lazy" decoding="async" onclick="document.getElementById('${targetImgId}').src='${url}'" class="w-full h-10 object-cover rounded border border-slate-200 cursor-pointer hover:opacity-80">
+                    <img src="${thumbUrlFor(url)}" data-full="${url}" onerror="thumbFallback(this)" loading="lazy" decoding="async" onclick="document.getElementById('${targetImgId}').src='${url}'" class="w-full h-10 object-cover rounded border border-slate-200 cursor-pointer hover:opacity-80">
                 `).join('') : '';
             };
             renderThumbs(thumbsBefore, photosBefore, 'defect-compare-img-before');
@@ -7621,7 +7800,7 @@
                                 ` : ''}
                                 ${photos.length > 0 ? `
                                     <div class="grid grid-cols-3 gap-1 pt-1 print-grid-3">
-                                        ${photos.map(pUrl => `<img src="${pUrl}" loading="lazy" decoding="async" class="w-full h-16 object-cover rounded-lg border border-slate-200">`).join('')}
+                                        ${photos.map(pUrl => `<img src="${thumbUrlFor(pUrl)}" data-full="${pUrl}" onerror="thumbFallback(this)" loading="lazy" decoding="async" class="w-full h-16 object-cover rounded-lg border border-slate-200">`).join('')}
                                     </div>
                                 ` : ''}
                             </div>
@@ -8806,7 +8985,7 @@
             const photos = which === 'before' ? _issuePhotosBefore : _issuePhotosAfter;
             container.innerHTML = photos.map((url, idx) => `
                 <div class="relative">
-                    <img src="${url}" loading="lazy" decoding="async" class="w-full h-14 object-cover rounded-lg border border-slate-200">
+                    <img src="${thumbUrlFor(url)}" data-full="${url}" onerror="thumbFallback(this)" loading="lazy" decoding="async" class="w-full h-14 object-cover rounded-lg border border-slate-200">
                     <button type="button" onclick="removeIssuePhoto('${which}', ${idx})" class="absolute -top-1.5 -right-1.5 bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow">×</button>
                 </div>
             `).join('');
