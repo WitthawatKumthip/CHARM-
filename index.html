@@ -1287,8 +1287,21 @@
             </div>
 
             <div id="login-escape-box" class="hidden"></div>
+
+            <!-- เปิดจากไฟล์ Backup (ใช้ตอน Cloud ถูกล็อก/ล่ม) -->
+            <div class="pt-3 border-t border-slate-100 space-y-1.5">
+                <input type="file" id="backup-file-open-input" accept=".json" class="hidden" onchange="openBackupFileMode(this)">
+                <button type="button" onclick="document.getElementById('backup-file-open-input').click()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 rounded-xl text-[11px] transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <span>เปิดจากไฟล์ Backup (ใช้ตอน Cloud ใช้ไม่ได้)</span>
+                </button>
+                <p class="text-[10px] text-slate-400 leading-relaxed">เลือกไฟล์ .json ที่ดึงสำรองไว้ แสดงข้อมูล ณ ตอนที่ดึงออก แก้ไขได้ในเครื่อง และส่งขึ้น Cloud ให้เมื่อกลับมาล็อกอินปกติ</p>
+            </div>
         </div>
     </div>
+
+    <!-- แถบแจ้งโหมดสำรอง (Cloud ต่อไม่ได้ / เปิดจากไฟล์ Backup) -->
+    <div id="cloud-offline-banner" class="hidden no-print fixed bottom-3 left-1/2 -translate-x-1/2 z-[90] max-w-[94vw] bg-amber-500 text-white text-[11px] font-semibold px-4 py-2 rounded-full shadow-lg text-center"></div>
 
     <!-- Export / Import Backup Data Modal (ADMIN ONLY) -->
     <div id="backup-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
@@ -1317,6 +1330,18 @@
                         <span>ดาวน์โหลดข้อมูลดิบเป็น Excel (.xlsx)</span>
                     </button>
                     <p class="text-[10px] text-slate-400 leading-relaxed">ไฟล์ Excel นี้ไว้เปิดดู/กรอง/วิเคราะห์เอง (แยกเป็นชีทตามหมวดข้อมูล) — ถ้าต้องการกู้คืนระบบให้ใช้ไฟล์ .json ด้านบนแทน</p>
+                    <p id="backup-last-info" class="text-[10px] font-semibold text-cyan-700"></p>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">ไฟล์ .json ใหม่เก็บข้อมูลครบทุกหมวด เปิดกลับมาใช้ได้จากหน้าเข้าสู่ระบบ ปุ่ม "เปิดจากไฟล์ Backup" (โหมดสำรอง) แม้ Cloud ใช้ไม่ได้</p>
+                </div>
+
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <div class="font-bold text-xs text-slate-700">1.1 ดาวน์โหลดรูปทั้งหมดเก็บในเครื่อง</div>
+                    <button id="btn-download-photos" onclick="downloadAllPhotosToFolder()" class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white text-xs font-semibold py-2 rounded-xl transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-folder-arrow-down"></i>
+                        <span>เลือกโฟลเดอร์แล้วดาวน์โหลดรูปทั้งหมด</span>
+                    </button>
+                    <p id="photos-backup-status" class="text-[10px] font-semibold text-indigo-700"></p>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">ใช้ Chrome/Edge บนคอมพิวเตอร์ กดซ้ำได้ ระบบข้ามรูปที่ดาวน์โหลดไว้แล้ว (รูปไม่ได้อยู่ในไฟล์ .json และยังไม่แสดงในโหมดสำรอง)</p>
                 </div>
 
                 <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
@@ -3044,20 +3069,118 @@
         let _syncQueued = false;
         let _lastSelfWriteAt = 0;
 
+        // แฮช 53 บิต (cyrb53) — snapshot เก็บเป็นแฮชแทนข้อความเต็ม เพื่อเก็บลงเครื่องได้เล็ก
+        function hashStr(str) {
+            let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+            for (let i = 0; i < str.length; i++) {
+                const ch = str.charCodeAt(i);
+                h1 = Math.imul(h1 ^ ch, 2654435761);
+                h2 = Math.imul(h2 ^ ch, 1597334677);
+            }
+            h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+            h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+            return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+        }
+
         function snapshotFromList(cfg, list) {
             const m = new Map();
             (list || []).forEach(item => {
-                if (item && item.id) m.set(item.id, JSON.stringify(cfg.toRow(item)));
+                if (item && item.id) m.set(item.id, hashStr(JSON.stringify(cfg.toRow(item))));
             });
             return m;
         }
 
-        function rebuildSnapshotFromCurrentState() {
+        function rebuildSnapshotFromCurrentState(savedAtIso) {
             _cloudSnapshot = {};
             Object.entries(CLOUD_TABLES).forEach(([key, cfg]) => {
                 _cloudSnapshot[key] = snapshotFromList(cfg, cfg.get());
             });
-            _cloudSnapshot._settings = JSON.stringify(currentSettingsPayload());
+            _cloudSnapshot._settings = hashStr(JSON.stringify(currentSettingsPayload()));
+            persistBaseline(savedAtIso);
+        }
+
+        // ===================================================================
+        // BASELINE — จำ "สถานะล่าสุดที่ตรงกับ Cloud" ไว้ในเครื่อง (รอดการปิด/เปิดแอปใหม่)
+        // ทำให้รู้เสมอว่าแถวไหนถูกแก้ในเครื่องแต่ยังไม่ได้ส่งขึ้น Cloud
+        // แล้วส่งเฉพาะส่วนนั้นก่อนดึงข้อมูลใหม่ — การแก้ไขตอน Cloud ล่มจึงไม่ถูกทับ
+        // ===================================================================
+        const BASELINE_KEY = 'bt_cloud_baseline';
+        let _baselineSavedAt = null;
+
+        function persistBaseline(savedAtIso) {
+            try {
+                const tables = {};
+                Object.keys(CLOUD_TABLES).forEach(k => { tables[k] = [...(_cloudSnapshot[k] || new Map()).entries()]; });
+                _baselineSavedAt = savedAtIso || new Date().toISOString();
+                localStorage.setItem(BASELINE_KEY, JSON.stringify({
+                    v: 1, savedAt: _baselineSavedAt, tables, settings: _cloudSnapshot._settings
+                }));
+            } catch (e) {
+                console.warn('บันทึก baseline ลงเครื่องไม่สำเร็จ:', e);
+            }
+        }
+
+        // สถานะโหมดสำรอง: _cloudOffline = ต่อ Cloud ไม่ได้ (แสดงข้อมูลในเครื่อง)
+        // _offlineFileMode = เปิดจากไฟล์ Backup (ไม่ซิงค์กับ Cloud จนกว่าจะออกจากโหมดนี้แล้วล็อกอิน Cloud)
+        let _cloudOffline = false;
+        let _offlineFileMode = false;
+        try { _offlineFileMode = localStorage.getItem('bt_offline_file_mode') === '1'; } catch (e) { /* ใช้ค่าเริ่มต้น */ }
+
+        function setCloudOffline(on) {
+            _cloudOffline = !!on;
+            updateOfflineBanner();
+        }
+
+        function updateOfflineBanner() {
+            const el = document.getElementById('cloud-offline-banner');
+            if (!el) return;
+            if (!_cloudOffline && !_offlineFileMode) {
+                el.classList.add('hidden');
+                return;
+            }
+            const pending = pendingChangeCount();
+            const when = _baselineSavedAt
+                ? new Date(_baselineSavedAt).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                : 'ไม่ทราบเวลา';
+            const head = _offlineFileMode
+                ? '<i class="fa-solid fa-folder-open mr-1"></i> โหมดสำรอง (ข้อมูลจากไฟล์ Backup)'
+                : '<i class="fa-solid fa-triangle-exclamation mr-1"></i> ต่อ Cloud ไม่ได้ — แสดงข้อมูลในเครื่อง';
+            const exitBtn = _offlineFileMode
+                ? ' <button onclick="exitOfflineFileMode()" class="ml-2 underline font-bold">ออกจากโหมดสำรอง</button>'
+                : '';
+            el.innerHTML = `${head} · ข้อมูล ณ ${when} · แก้ไขได้ ค้างส่งขึ้น Cloud ${pending} รายการ${exitBtn}`;
+            el.classList.remove('hidden');
+        }
+
+        // อ่าน baseline ที่เก็บไว้ -> _cloudSnapshot (คืน true ถ้ามี)
+        function loadBaselineFromStorage() {
+            try {
+                const raw = localStorage.getItem(BASELINE_KEY);
+                if (!raw) return false;
+                const b = JSON.parse(raw);
+                if (!b || b.v !== 1 || !b.tables) return false;
+                const snap = {};
+                Object.keys(CLOUD_TABLES).forEach(k => { snap[k] = new Map(b.tables[k] || []); });
+                snap._settings = b.settings;
+                _cloudSnapshot = snap;
+                _baselineSavedAt = b.savedAt || null;
+                return true;
+            } catch (e) {
+                console.warn('อ่าน baseline จากเครื่องไม่สำเร็จ:', e);
+                return false;
+            }
+        }
+
+        // จำนวนรายการที่แก้ในเครื่องแล้วยังไม่ถึง Cloud (0 ถ้าไม่มี baseline ให้เทียบ)
+        function pendingChangeCount() {
+            if (!_cloudSnapshot) return 0;
+            let n = 0;
+            Object.entries(CLOUD_TABLES).forEach(([key, cfg]) => {
+                const { upserts, deletes } = computeTableDiff(cfg, key);
+                n += upserts.length + deletes.length;
+            });
+            if (_cloudSnapshot._settings !== hashStr(JSON.stringify(currentSettingsPayload()))) n++;
+            return n;
         }
 
         function currentSettingsPayload() {
@@ -3079,9 +3202,9 @@
                 if (!item || !item.id) return;
                 currentIds.add(item.id);
                 const row = cfg.toRow(item);
-                const json = JSON.stringify(row);
+                const h = hashStr(JSON.stringify(row));
                 // ยังไม่เคยมี snapshot = ส่งขึ้นทั้งหมด (ครั้งแรก)
-                if (!prev || prev.get(item.id) !== json) upserts.push(row);
+                if (!prev || prev.get(item.id) !== h) upserts.push(row);
             });
 
             // ลบเฉพาะแถวที่เคยมีใน snapshot แล้วหายไป — ถ้ายังไม่มี snapshot จะไม่ลบอะไรเลย (ปลอดภัย)
@@ -3096,6 +3219,7 @@
         async function syncDiffToSupabase() {
             const client = getSupabaseClient();
             if (!client) return false;
+            if (_offlineFileMode) return false;                   // โหมดสำรองจากไฟล์ — เก็บในเครื่องก่อน ยังไม่ส่งขึ้น Cloud
             if (!currentUser) return false;                       // RLS ต้องล็อกอินก่อน
             if (currentUser.role === 'VIEWER') return false;      // VIEWER อ่านอย่างเดียว
 
@@ -3123,8 +3247,8 @@
                 }
 
                 // master data (sequence / วัสดุ / งานย่อย) เก็บเป็น key-value
-                const settingsJson = JSON.stringify(currentSettingsPayload());
-                if (!_cloudSnapshot || _cloudSnapshot._settings !== settingsJson) {
+                const settingsHash = hashStr(JSON.stringify(currentSettingsPayload()));
+                if (!_cloudSnapshot || _cloudSnapshot._settings !== settingsHash) {
                     const rows = Object.entries(currentSettingsPayload())
                         .map(([k, v]) => ({ key: k, value: v, updated_at: new Date().toISOString() }));
                     const { error } = await client.from('app_settings').upsert(rows, { onConflict: 'key' });
@@ -3147,7 +3271,7 @@
 
         // เรียกจาก saveDataToDatabase() — หน่วงรวมหลายการแก้ไขติด ๆ กันเป็นครั้งเดียว
         function syncLocalDataToSupabase() {
-            if (!getSupabaseClient() || !currentUser) return Promise.resolve(false);
+            if (!getSupabaseClient() || !currentUser || _offlineFileMode) return Promise.resolve(false);
 
             if (_syncInFlight) { _syncQueued = true; return Promise.resolve(true); }
             if (_syncTimer) clearTimeout(_syncTimer);
@@ -3169,6 +3293,23 @@
         async function loadDataFromSupabase() {
             const client = getSupabaseClient();
             if (!client) return false;
+            if (_offlineFileMode) return false;   // โหมดสำรองจากไฟล์ — ไม่ดึงทับข้อมูลในไฟล์
+
+            // ส่งงานที่แก้ค้างอยู่ในเครื่อง (ตอน Cloud ล่ม/ออฟไลน์) ขึ้นก่อน แล้วค่อยดึงข้อมูลใหม่
+            // ถ้าส่งไม่สำเร็จ จะไม่ดึงทับ เพื่อไม่ให้งานที่แก้ไว้หาย
+            if (_cloudSnapshot && currentUser && currentUser.role !== 'VIEWER' && currentUser.source !== 'local') {
+                const pending = pendingChangeCount();
+                if (pending > 0) {
+                    _syncInFlight = true;
+                    let pushed = false;
+                    try { pushed = await syncDiffToSupabase(); } finally { _syncInFlight = false; }
+                    if (!pushed) {
+                        setCloudOffline(true);
+                        return false;
+                    }
+                    showNotification(`ส่งงานที่ค้างในเครื่อง ${pending} รายการขึ้น Cloud เรียบร้อยแล้ว`, 'emerald');
+                }
+            }
 
             try {
                 const keys = Object.keys(CLOUD_TABLES);
@@ -3207,10 +3348,12 @@
                 rebuildSnapshotFromCurrentState();
                 lastCloudSyncAt = new Date();
                 updateCloudSyncBadge('ok');
+                setCloudOffline(false);
                 return true;
             } catch (err) {
                 console.error('Supabase pull error:', err);
                 updateCloudSyncBadge('error');
+                setCloudOffline(true);
                 return false;
             }
         }
@@ -3253,6 +3396,7 @@
             const client = getSupabaseClient();
             if (!client || !currentUser) return;
             if (_realtimeChannel) return;
+            if (_offlineFileMode) return;
             if (typeof client.channel !== 'function') return;   // client เวอร์ชันเก่าไม่รองรับ Realtime
 
             try {
@@ -3606,6 +3750,7 @@
 
                 // TRIGGER BACKGROUND CLOUD SYNC
                 syncLocalDataToSupabase();
+                updateOfflineBanner();
             } catch (e) {
                 console.error("Failed to save to localStorage:", e);
                 if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
@@ -3622,6 +3767,7 @@
                 return;
             }
             openModal('backup-modal');
+            updateBackupInfo();
         }
 
         function exportDataJSON() {
@@ -3630,7 +3776,29 @@
                 return;
             }
 
+            const exportedAt = new Date().toISOString();
+
+            // ข้อมูลทุกตารางตามที่แอปถืออยู่ (เก็บครบทุกฟิลด์ ไม่แปลงรูปแบบ)
+            const tables = {};
+            Object.entries(CLOUD_TABLES).forEach(([k, cfg]) => { tables[k] = cfg.get() || []; });
+
+            // baseline = สถานะที่ตรงกับ Cloud ณ ตอนนี้ ใช้บอกว่าตอนเปิดไฟล์ในโหมดสำรอง แถวไหนถูกแก้ภายหลัง
+            const baseline = _cloudSnapshot ? {
+                savedAt: _baselineSavedAt,
+                tables: Object.fromEntries(Object.keys(CLOUD_TABLES).map(k => [k, [...(_cloudSnapshot[k] || new Map()).entries()]])),
+                settings: _cloudSnapshot._settings
+            } : null;
+
             const fullBackup = {
+                // รูปแบบใหม่ (ใช้กับ "เปิดจากไฟล์ Backup" ในหน้าเข้าสู่ระบบ)
+                format: 'buildtrack-backup',
+                version: 2,
+                exportedAt,
+                exportedBy: currentUser ? currentUser.name : '',
+                tables,
+                settings: currentSettingsPayload(),
+                baseline,
+                // คีย์เดิม (เพื่อให้ไฟล์เก่า/ตัวนำเข้าเดิมยังใช้ได้)
                 usersDatabase,
                 masterSequences,
                 masterMaterials,
@@ -3641,18 +3809,207 @@
                 procurementsData,
                 resourcesData,
                 actionPlansData,
-                exportDate: new Date().toISOString()
+                exportDate: exportedAt
             };
 
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullBackup, null, 2));
+            const stamp = exportedAt.slice(0, 16).replace('T', '_').replace(':', '');
+            const blob = new Blob([JSON.stringify(fullBackup)], { type: 'application/json' });
+            const objUrl = URL.createObjectURL(blob);
             const dlAnchorElem = document.createElement('a');
-            dlAnchorElem.setAttribute("href", dataStr);
-            dlAnchorElem.setAttribute("download", `BuildTrack_Backup_${new Date().toISOString().split('T')[0]}.json`);
+            dlAnchorElem.setAttribute('href', objUrl);
+            dlAnchorElem.setAttribute('download', `BuildTrack_Backup_${stamp}.json`);
             document.body.appendChild(dlAnchorElem);
             dlAnchorElem.click();
             dlAnchorElem.remove();
+            setTimeout(() => URL.revokeObjectURL(objUrl), 10000);
 
+            try { localStorage.setItem('bt_last_backup_at', exportedAt); } catch (e) { /* ไม่เป็นไร */ }
+            updateBackupInfo();
             showNotification('ดาวน์โหลดไฟล์สำรองข้อมูลเรียบร้อยแล้ว');
+        }
+
+        function updateBackupInfo() {
+            const el = document.getElementById('backup-last-info');
+            if (!el) return;
+            const at = localStorage.getItem('bt_last_backup_at');
+            el.textContent = at
+                ? 'ดึงข้อมูลสำรองล่าสุด: ' + new Date(at).toLocaleString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                : 'ยังไม่เคยดึงข้อมูลสำรองจากเครื่องนี้';
+        }
+
+        // ===================================================================
+        // โหมดสำรอง — เปิดข้อมูลจากไฟล์ Backup (ใช้ได้แม้ Cloud ถูกล็อก)
+        // แสดงข้อมูลตามที่ดึงออกครั้งล่าสุด แก้ไขได้ในเครื่อง
+        // แล้วเมื่อ Cloud กลับมา ล็อกอินปกติ ระบบจะส่งเฉพาะรายการที่แก้ภายหลังขึ้น Cloud ต่อเอง
+        // ===================================================================
+        function openBackupFileMode(input) {
+            const file = input && input.files && input.files[0];
+            if (!file) return;
+            const errEl = document.getElementById('login-error-msg');
+            const showErr = msg => { if (errEl) { errEl.textContent = msg; errEl.classList.remove('hidden'); } };
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    let text = reader.result;
+                    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+                    const data = JSON.parse(text);
+
+                    if (!data || data.format !== 'buildtrack-backup' || !data.tables) {
+                        showErr('ไฟล์นี้เป็นรุ่นเก่า เปิดในโหมดสำรองไม่ได้ — ให้เข้าระบบแล้วกดสำรองข้อมูลใหม่ (ไฟล์ใหม่จึงจะใช้ได้)');
+                        return;
+                    }
+
+                    const pending = pendingChangeCount();
+                    const exportedLabel = data.exportedAt ? new Date(data.exportedAt).toLocaleString('th-TH') : 'ไม่ทราบ';
+                    let msg = `เปิดข้อมูลจากไฟล์ Backup (ข้อมูล ณ ${exportedLabel})?\nข้อมูลในเครื่องนี้จะถูกแทนที่ด้วยข้อมูลในไฟล์`;
+                    if (pending > 0) msg += `\n\n⚠️ ตอนนี้ในเครื่องนี้มีงานที่แก้แล้วยังไม่ได้ส่งขึ้น Cloud ${pending} รายการ จะหายไป`;
+                    if (!confirm(msg)) return;
+
+                    Object.entries(CLOUD_TABLES).forEach(([k, cfg]) => {
+                        cfg.set(Array.isArray(data.tables[k]) ? data.tables[k] : []);
+                    });
+                    const st = data.settings || {};
+                    if (Array.isArray(st.master_seq) && st.master_seq.length) masterSequences = st.master_seq;
+                    if (Array.isArray(st.master_mat) && st.master_mat.length) masterMaterials = st.master_mat;
+                    if (st.master_subtasks && typeof st.master_subtasks === 'object') masterSubTasks = st.master_subtasks;
+                    if (Array.isArray(data.usersDatabase) && data.usersDatabase.length) usersDatabase = data.usersDatabase;
+
+                    stripEmbeddedBase64Photos();
+                    writeLocalStorageOnly();
+
+                    // baseline: ใช้ของไฟล์ (ถ้ามี) เพื่อให้รู้ว่าอะไรยังไม่ถึง Cloud ตอนที่ดึงไฟล์ออก
+                    // ถ้าไม่มี (ไฟล์ที่ดึงตอนยังไม่ได้ต่อ Cloud) ถือว่าข้อมูลในไฟล์ = สถานะล่าสุด
+                    const b = data.baseline;
+                    if (b && b.tables) {
+                        const snap = {};
+                        Object.keys(CLOUD_TABLES).forEach(k => { snap[k] = new Map(b.tables[k] || []); });
+                        snap._settings = b.settings;
+                        _cloudSnapshot = snap;
+                        persistBaseline(b.savedAt || data.exportedAt);
+                    } else {
+                        rebuildSnapshotFromCurrentState(data.exportedAt);
+                    }
+
+                    _offlineFileMode = true;
+                    try { localStorage.setItem('bt_offline_file_mode', '1'); } catch (e) { /* ไม่เป็นไร */ }
+
+                    currentUser = { username: 'backup-file', email: '', name: 'โหมดสำรอง (ไฟล์ Backup)', role: 'ADMIN', source: 'local' };
+                    localStorage.setItem('bt_current_user', JSON.stringify(currentUser));
+                    if (errEl) errEl.classList.add('hidden');
+                    closeModal('login-modal');
+                    updateUserDisplay();
+                    applyUserPermissions();
+                    refreshAllViews();
+                    updateOfflineBanner();
+                    showNotification('เปิดข้อมูลจากไฟล์ Backup แล้ว — แก้ไขได้ในเครื่อง จะส่งขึ้น Cloud เมื่อกลับมาล็อกอินปกติ', 'amber');
+                } catch (err) {
+                    console.error('openBackupFileMode error:', err);
+                    showErr('อ่านไฟล์ Backup ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
+                } finally {
+                    input.value = '';
+                }
+            };
+            reader.onerror = () => { showErr('อ่านไฟล์ไม่สำเร็จ'); input.value = ''; };
+            reader.readAsText(file);
+        }
+
+        // ออกจากโหมดสำรอง -> กลับหน้าเข้าสู่ระบบ (ล็อกอิน Cloud ตามปกติ ระบบจะส่งงานที่ค้างขึ้นก่อนแล้วค่อยดึงข้อมูลใหม่)
+        function exitOfflineFileMode() {
+            const pending = pendingChangeCount();
+            const msg = pending > 0
+                ? `ออกจากโหมดสำรอง?\nมีงานที่แก้ในเครื่องแล้วค้างส่ง ${pending} รายการ ข้อมูลยังอยู่ในเครื่อง และจะถูกส่งขึ้น Cloud ตอนล็อกอินปกติ (ต้องล็อกอินด้วยบัญชี Cloud)`
+                : 'ออกจากโหมดสำรองและกลับไปล็อกอินปกติ?';
+            if (!confirm(msg)) return;
+            _offlineFileMode = false;
+            try { localStorage.removeItem('bt_offline_file_mode'); } catch (e) { /* ไม่เป็นไร */ }
+            logoutUser();
+            updateOfflineBanner();
+        }
+
+        // ===================================================================
+        // ดาวน์โหลดรูปทั้งหมดเก็บไว้ในโฟลเดอร์บนเครื่อง (ไม่ซ้ำกับที่มีแล้ว กดซ้ำเพื่ออัปเดตได้)
+        // ===================================================================
+        function collectStoragePhotoUrls() {
+            const marker = `/storage/v1/object/public/${getStorageBucket()}/`;
+            const urls = new Set();
+            const walk = v => {
+                if (typeof v === 'string') {
+                    if (v.includes(marker) && !v.includes('/thumbs/')) urls.add(v.split('?')[0]);
+                } else if (Array.isArray(v)) {
+                    v.forEach(walk);
+                } else if (v && typeof v === 'object') {
+                    Object.values(v).forEach(walk);
+                }
+            };
+            Object.values(CLOUD_TABLES).forEach(cfg => walk(cfg.get()));
+            return { urls: [...urls], marker };
+        }
+
+        async function downloadAllPhotosToFolder() {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่ดาวน์โหลดรูปได้', 'rose');
+                return;
+            }
+            if (typeof window.showDirectoryPicker !== 'function') {
+                showNotification('เบราว์เซอร์นี้ไม่รองรับการเลือกโฟลเดอร์ — ใช้ Chrome หรือ Edge บนคอมพิวเตอร์', 'rose');
+                return;
+            }
+            const statusEl = document.getElementById('photos-backup-status');
+            const btn = document.getElementById('btn-download-photos');
+            const setStatus = t => { if (statusEl) statusEl.textContent = t; };
+
+            let root;
+            try {
+                root = await window.showDirectoryPicker({ mode: 'readwrite' });
+            } catch (e) {
+                return;   // ผู้ใช้ยกเลิกการเลือกโฟลเดอร์
+            }
+
+            const { urls, marker } = collectStoragePhotoUrls();
+            if (urls.length === 0) { setStatus('ไม่พบรูปที่ต้องดาวน์โหลด'); return; }
+            if (btn) btn.disabled = true;
+
+            let done = 0, skipped = 0, failed = 0;
+            const exists = async (dir, name) => {
+                try { await dir.getFileHandle(name); return true; } catch (e) { return false; }
+            };
+
+            try {
+                const queue = urls.slice();
+                const worker = async () => {
+                    while (queue.length) {
+                        const u = queue.shift();
+                        try {
+                            const parts = u.slice(u.indexOf(marker) + marker.length).split('/').map(decodeURIComponent);
+                            let dir = root;
+                            for (let i = 0; i < parts.length - 1; i++) dir = await dir.getDirectoryHandle(parts[i], { create: true });
+                            const name = parts[parts.length - 1];
+                            if (await exists(dir, name)) {
+                                skipped++;
+                            } else {
+                                const res = await fetch(u);
+                                if (!res.ok) throw new Error('HTTP ' + res.status);
+                                const fh = await dir.getFileHandle(name, { create: true });
+                                const w = await fh.createWritable();
+                                await w.write(await res.blob());
+                                await w.close();
+                            }
+                        } catch (e) {
+                            console.warn('ดาวน์โหลดรูปไม่สำเร็จ:', u, e);
+                            failed++;
+                        }
+                        done++;
+                        setStatus(`กำลังดาวน์โหลด ${done}/${urls.length} รูป (ข้ามที่มีแล้ว ${skipped}, ล้มเหลว ${failed})...`);
+                    }
+                };
+                await Promise.all([worker(), worker(), worker()]);
+
+                setStatus(`เสร็จแล้ว: ทั้งหมด ${urls.length} รูป · ดาวน์โหลดใหม่ ${urls.length - skipped - failed} · มีอยู่แล้ว ${skipped}` + (failed ? ` · ล้มเหลว ${failed} (กดอีกครั้งเพื่อลองใหม่)` : ''));
+                showNotification('ดาวน์โหลดรูปเก็บในเครื่องเรียบร้อย', failed ? 'amber' : 'emerald');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
         }
 
         // ส่งออกข้อมูลดิบทั้งหมดเป็น Excel หลายชีท (คนละแบบกับสำรอง .json — อันนี้ไว้เปิดดู/กรอง/วิเคราะห์เองได้ ไม่ใช่ไว้กู้คืนระบบ)
@@ -3968,6 +4325,7 @@
             localStorage.removeItem('bt_sp_key');
             localStorage.removeItem('bt_sp_bucket');
             localStorage.removeItem('bt_current_user');
+            localStorage.removeItem(BASELINE_KEY);
             _spClient = null;
             _spClientKey = '';
             _forceLocalLogin = false;
@@ -4242,7 +4600,9 @@
                 try { await client.auth.signOut(); } catch (e) { console.error('signOut error:', e); }
             }
             localStorage.removeItem('bt_current_user');
+            // คงสถานะ "ส่งขึ้น Cloud ถึงไหนแล้ว" ไว้ตาม baseline ที่เก็บในเครื่อง เพื่อไม่ให้งานที่ค้างส่งถูกดึงทับตอนล็อกอินครั้งต่อไป
             _cloudSnapshot = null;
+            loadBaselineFromStorage();
             currentUser = null;
             updateUserDisplay();
             applyUserPermissions();
@@ -9736,6 +10096,8 @@
 
             // 1) โหลดข้อมูลในเครื่องก่อน เพื่อให้เปิดใช้งานได้ทันทีแม้เน็ตช้า
             loadDataFromDatabase();
+            loadBaselineFromStorage();   // จำได้ว่าข้อมูลในเครื่องส่งขึ้น Cloud ถึงไหนแล้ว
+            updateOfflineBanner();
             checkCloudConnectionOnLoad();
             updateLoginModeUI();
 
