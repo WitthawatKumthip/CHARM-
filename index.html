@@ -3699,6 +3699,20 @@
         // ===================================================================
         // ดึงข้อมูลจากตารางจริงทั้งหมด (ขนานกัน)
         // ===================================================================
+        // ดึงทุกแถวของตารางเป็นหน้าละ 1,000 แถว (เซิร์ฟเวอร์จำกัดผลลัพธ์ต่อคำขอ ถ้าไม่แบ่งหน้า ตารางที่เกิน 1,000 แถวจะถูกตัดเงียบๆ)
+        async function fetchAllRows(client, table) {
+            const pageSize = 1000;
+            let all = [];
+            for (let from = 0; ; from += pageSize) {
+                const { data, error } = await client.from(table).select('*')
+                    .order('id', { ascending: true }).range(from, from + pageSize - 1);
+                if (error) return { data: null, error };
+                all = all.concat(data || []);
+                if (!data || data.length < pageSize) break;
+            }
+            return { data: all, error: null };
+        }
+
         // opts.discardLocal = ทิ้งงานที่ค้างในเครื่อง แล้วใช้ข้อมูลจาก Cloud ทั้งหมด (ใช้กับปุ่มดึงข้อมูลจาก Cloud แบบกดเอง)
         async function loadDataFromSupabase(opts) {
             const client = getSupabaseClient();
@@ -3725,9 +3739,7 @@
 
             try {
                 const keys = Object.keys(CLOUD_TABLES);
-                const queries = keys.map(k =>
-                    client.from(CLOUD_TABLES[k].table).select('*').limit(5000)
-                );
+                const queries = keys.map(k => fetchAllRows(client, CLOUD_TABLES[k].table));
                 queries.push(client.from('app_settings').select('*'));
 
                 const results = await Promise.all(queries);
