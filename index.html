@@ -774,7 +774,7 @@
                         <div>
                             <div class="flex justify-between items-center mb-1">
                                 <label class="block font-semibold text-slate-700">6. เลือกไฟล์รูปถ่ายหลักฐานหน้างาน *</label>
-                                <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200">ย่อรูป 1200px อัตโนมัติ</span>
+                                <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200">ย่อรูป 1600px อัตโนมัติ</span>
                             </div>
                             <input type="file" id="record-photo-file" accept="image/*" multiple onchange="validatePhotoSelection(this)" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-slate-200 rounded-xl">
                             <p id="record-photo-count-msg" class="text-[10px] text-slate-400 mt-1">* ระบบบีบอัดภาพให้อัตโนมัติ ไม่หนักเครื่อง เลือกได้สูงสุด 20 รูป</p>
@@ -1303,6 +1303,9 @@
     <!-- แถบแจ้งโหมดสำรอง (Cloud ต่อไม่ได้ / เปิดจากไฟล์ Backup) -->
     <div id="cloud-offline-banner" class="hidden no-print fixed bottom-3 left-1/2 -translate-x-1/2 z-[90] max-w-[94vw] bg-amber-500 text-white text-[11px] font-semibold px-4 py-2 rounded-full shadow-lg text-center"></div>
 
+    <!-- แถบเตือนพื้นที่ Storage ใกล้เต็ม (ADMIN) -->
+    <div id="storage-alert-banner" class="hidden"></div>
+
     <!-- Export / Import Backup Data Modal (ADMIN ONLY) -->
     <div id="backup-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
@@ -1342,6 +1345,17 @@
                     </button>
                     <p id="photos-backup-status" class="text-[10px] font-semibold text-indigo-700"></p>
                     <p class="text-[10px] text-slate-400 leading-relaxed">ใช้ Chrome/Edge บนคอมพิวเตอร์ กดซ้ำได้ ระบบข้ามรูปที่ดาวน์โหลดไว้แล้ว (รูปไม่ได้อยู่ในไฟล์ .json และยังไม่แสดงในโหมดสำรอง)</p>
+                </div>
+
+                <div class="p-3 bg-rose-50 rounded-xl border border-rose-200 space-y-2">
+                    <div class="font-bold text-xs text-rose-800">1.2 ลดรูปให้เหลือ Sequence ละ 1 รูป (ลบถาวร)</div>
+                    <p id="storage-meter-info" class="text-[10px] font-semibold text-slate-600">กำลังตรวจพื้นที่...</p>
+                    <button id="btn-reduce-photos" onclick="reducePhotosPerSequence()" class="w-full bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 text-white text-xs font-semibold py-2 rounded-xl transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-trash-can"></i>
+                        <span>ลบรูปส่วนเกิน (เก็บ Sequence ละ 1 รูป)</span>
+                    </button>
+                    <p id="reduce-photos-status" class="text-[10px] font-semibold text-rose-700"></p>
+                    <p class="text-[10px] text-rose-700/80 leading-relaxed">ทำหลังข้อ 1.1 เท่านั้น ระบบให้เลือกโฟลเดอร์สำรองรูป และลบเฉพาะรูปที่มีสำเนาในโฟลเดอร์นั้น ไม่แตะ Sequence ที่รออนุมัติ/กำลังทำ รูป Defect และผังโครงการ สถานะสีเขียวคงเดิม</p>
                 </div>
 
                 <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
@@ -2674,6 +2688,9 @@
         // รูปเต็มอยู่ที่ <folder>/<file> รูปย่อ 400px อยู่ที่ <folder>/thumbs/<file> (ชื่อไฟล์เดียวกัน)
         // รูปเก่าที่ยังไม่มีรูปย่อจะ fallback ไปโหลดรูปเต็มเอง (ดู thumbFallback)
         // ===================================================================
+        // ขนาดรูปเต็มที่อัปโหลดใหม่ (ปริ้นรูปเล็ก-กลางในรายงานชัด ~200 dpi) ประมาณ 400-700 KB ต่อรูป
+        const UPLOAD_MAX_PX = 1600;
+        const UPLOAD_QUALITY = 0.82;
         const THUMB_FOLDERS = ['sequences', 'defects'];
         const THUMB_MAX_PX = 400;
         const THUMB_QUALITY = 0.7;
@@ -2806,7 +2823,7 @@
         }
 
         async function processImageForSave(file, folder = 'general') {
-            const dataUrl = await compressImageFile(file, 1200, 1200, 0.75);
+            const dataUrl = await compressImageFile(file, UPLOAD_MAX_PX, UPLOAD_MAX_PX, UPLOAD_QUALITY);
             return await uploadImageToCloud(dataUrl, folder);
         }
 
@@ -2821,6 +2838,11 @@
                 const urls = await Promise.all(batch.map(f => processImageForSave(f, folder)));
                 results.push(...urls);
                 if (onProgress) onProgress(results.length, list.length);
+            }
+            // อัปโหลดขึ้น Cloud ไม่สำเร็จ = รูปยังเป็น base64 ซึ่งระบบจะลบทิ้งเองตอนเปิดแอปใหม่ (กัน localStorage เต็ม) — เตือนให้ชัด
+            const failed = results.filter(isDataUrlImage).length;
+            if (failed > 0) {
+                showNotification(`อัปโหลดรูปขึ้น Cloud ไม่สำเร็จ ${failed} รูป — รูปเหล่านี้จะหายเมื่อปิด/เปิดแอปใหม่ ให้ต่อ Cloud ให้ได้ก่อนแล้วอัปโหลดรูปใหม่`, 'rose');
             }
             return results;
         }
@@ -3021,9 +3043,350 @@
             }
         }
 
+        // ===================================================================
+        // ลดรูปให้เหลือ Sequence ละ 1 รูป (ลบรูปส่วนเกินออกจาก Storage ถาวร)
+        // ความปลอดภัย: ลบเฉพาะรูปที่มีสำเนาอยู่ในโฟลเดอร์สำรองบนเครื่องจริง, ไม่แตะ Sequence ที่ยังรออนุมัติ/กำลังทำ,
+        // ไม่แตะรูป Defect/ผังโครงการ, ไม่ลบรายการบันทึกหรือสถานะ (สีเขียวคงเดิม), ดึงไฟล์ข้อมูลสำรองให้อัตโนมัติก่อนลบ
+        // ===================================================================
+        function parseStoragePath(url) {
+            if (typeof url !== 'string') return null;
+            const marker = `/storage/v1/object/public/${getStorageBucket()}/`;
+            const i = url.indexOf(marker);
+            if (i < 0) return null;
+            let path;
+            try { path = decodeURIComponent(url.slice(i + marker.length).split('?')[0]); } catch (e) { return null; }
+            const parts = path.split('/');
+            return parts.length === 2 ? { folder: parts[0], file: parts[1], path } : null;
+        }
+
+        function recordPhotoList(r) {
+            return Array.isArray(r.photos) ? r.photos : (r.photo ? [r.photo] : []);
+        }
+
+        // วางแผน: Sequence ไหนมีรูปเกิน 1 รูป -> เก็บรูปแรกของรายการล่าสุดที่อนุมัติแล้ว ที่เหลือเข้ารายการลบ
+        function planSequencePhotoReduction() {
+            const groups = new Map();
+            sequenceRecords.forEach(r => {
+                const k = `${r.projectId}|${r.unitId}|${r.seqIndex}`;
+                if (!groups.has(k)) groups.set(k, []);
+                groups.get(k).push(r);
+            });
+
+            const toDelete = new Map();   // url -> { folder, file, path }
+            let groupsAffected = 0;
+            groups.forEach(recs => {
+                // ยังมีงานรออนุมัติ/กำลังทำใน Sequence นี้ = รูปยังเป็นหลักฐานให้ PM ห้ามแตะ
+                if (recs.some(r => r.approvalStatus === 'pending_approval' || r.status === 'in_progress')) return;
+                const approved = recs.filter(r => r.approvalStatus === 'approved' && r.status === 'completed');
+                if (approved.length === 0) return;
+
+                const urls = new Set();
+                recs.forEach(r => recordPhotoList(r).forEach(u => {
+                    const p = parseStoragePath(u);
+                    if (p && p.folder === 'sequences') urls.add(u);
+                }));
+                if (urls.size <= 1) return;
+
+                const newestFirst = approved.slice().sort((a, b) => String(b.recordDate || '').localeCompare(String(a.recordDate || '')));
+                let keep = null;
+                for (const r of newestFirst) {
+                    const u = recordPhotoList(r).find(x => { const p = parseStoragePath(x); return p && p.folder === 'sequences'; });
+                    if (u) { keep = u; break; }
+                }
+                if (!keep) return;
+
+                groupsAffected++;
+                urls.forEach(u => { if (u !== keep) toDelete.set(u, parseStoragePath(u)); });
+            });
+
+            return { toDelete: [...toDelete.entries()].map(([url, p]) => ({ url, ...p })), groupsAffected };
+        }
+
+        async function reducePhotosPerSequence() {
+            if (!currentUser || currentUser.role !== 'ADMIN') {
+                showNotification('เฉพาะ ADMIN เท่านั้นที่ลดรูปได้', 'rose');
+                return;
+            }
+            const client = getSupabaseClient();
+            if (!client || _offlineFileMode || _cloudOffline) {
+                showNotification('ต้องเชื่อมต่อ Cloud ปกติ (ไม่ใช่โหมดสำรอง) ถึงจะลบรูปได้', 'rose');
+                return;
+            }
+            if (typeof window.showDirectoryPicker !== 'function') {
+                showNotification('เบราว์เซอร์นี้ไม่รองรับการเลือกโฟลเดอร์ — ใช้ Chrome หรือ Edge บนคอมพิวเตอร์', 'rose');
+                return;
+            }
+
+            const statusEl = document.getElementById('reduce-photos-status');
+            const btn = document.getElementById('btn-reduce-photos');
+            const setStatus = t => { if (statusEl) statusEl.textContent = t; };
+
+            // ต้องเรียกตัวเลือกโฟลเดอร์ทันทีที่กดปุ่ม (เบราว์เซอร์ยอมให้เปิดเฉพาะช่วงสั้นๆ หลังคลิก)
+            setStatus('เลือกโฟลเดอร์ที่ดาวน์โหลดรูปสำรองไว้ (โฟลเดอร์ที่มี "sequences" อยู่ข้างใน) — ระบบจะลบเฉพาะรูปที่มีสำเนาในโฟลเดอร์นั้นจริง');
+            let root;
+            try {
+                root = await window.showDirectoryPicker({ mode: 'read' });
+            } catch (e) {
+                if (e && e.name !== 'AbortError') {
+                    console.error('showDirectoryPicker error:', e);
+                    setStatus('เปิดตัวเลือกโฟลเดอร์ไม่ได้: ' + (e.message || e) + ' — กดปุ่มอีกครั้ง');
+                } else {
+                    setStatus('');
+                }
+                return;
+            }
+            let seqDir;
+            try {
+                seqDir = await root.getDirectoryHandle('sequences');
+            } catch (e) {
+                showNotification('ไม่พบโฟลเดอร์ "sequences" ในโฟลเดอร์ที่เลือก — ยังไม่ลบอะไร', 'rose');
+                setStatus('');
+                return;
+            }
+
+            if (btn) btn.disabled = true;
+            try {
+                // ต้องไม่มีงานค้างส่ง และใช้ข้อมูลล่าสุดจาก Cloud เท่านั้น (กันเหมาว่า Sequence ไหนจบแล้วทั้งที่เพื่อนร่วมทีมเพิ่งส่งงานใหม่)
+                setStatus('กำลังซิงค์ข้อมูลล่าสุดจาก Cloud ก่อนคำนวณ...');
+                if (pendingChangeCount() > 0) await syncLocalDataToSupabase();
+                if (pendingChangeCount() > 0 || !(await loadDataFromSupabase())) {
+                    setStatus('ซิงค์ข้อมูลกับ Cloud ไม่สำเร็จ — ยังไม่ลบอะไร ลองใหม่เมื่อเชื่อมต่อปกติ');
+                    return;
+                }
+                refreshAllViews();
+
+                const plan = planSequencePhotoReduction();
+                if (plan.toDelete.length === 0) {
+                    setStatus('ไม่มีรูปส่วนเกิน — ทุก Sequence ที่อนุมัติแล้วมีรูปไม่เกิน 1 รูปอยู่แล้ว');
+                    return;
+                }
+
+                // ตรวจว่ามีสำเนาในเครื่องจริง และขนาดไฟล์ตรงกับไฟล์บน Cloud (เทียบ Content-Length ด้วยคำขอ HEAD ไม่โหลดตัวรูป)
+                const safe = [];
+                let missing = 0, bytes = 0, checked = 0;
+                const queue = plan.toDelete.slice();
+                const worker = async () => {
+                    while (queue.length) {
+                        const it = queue.shift();
+                        try {
+                            const f = await (await seqDir.getFileHandle(it.file)).getFile();
+                            const head = await fetch(it.url, { method: 'HEAD' });
+                            const remoteLen = parseInt(head.headers.get('content-length') || '', 10);
+                            if (f.size > 0 && head.ok && remoteLen === f.size) {
+                                it.size = f.size; bytes += f.size; safe.push(it);
+                            } else {
+                                missing++;
+                            }
+                        } catch (e) {
+                            missing++;
+                        }
+                        checked++;
+                        if (checked % 25 === 0) setStatus(`กำลังตรวจสำเนาในเครื่อง ${checked}/${plan.toDelete.length}...`);
+                    }
+                };
+                await Promise.all([worker(), worker(), worker(), worker()]);
+
+                if (safe.length === 0) {
+                    setStatus('ไม่พบสำเนาของรูปส่วนเกินในโฟลเดอร์ที่เลือก — ยังไม่ลบอะไร');
+                    return;
+                }
+
+                const mb = Math.round(bytes / 1048576);
+                const msg = `จะลบรูปถาวรออกจาก Supabase ${safe.length} รูป (ประมาณ ${mb} MB)\n`
+                    + `ใน ${plan.groupsAffected} Sequence — เก็บไว้ Sequence ละ 1 รูป (รูปแรกของรายการล่าสุดที่อนุมัติแล้ว)\n`
+                    + (missing > 0 ? `\nข้าม ${missing} รูปที่ไม่มีสำเนาในโฟลเดอร์ หรือขนาดไฟล์ไม่ตรงกับบน Cloud (ยังไม่ลบ)\n` : '')
+                    + `\nไม่แตะ: Sequence ที่รออนุมัติ/กำลังทำ, รูป Defect, ผังโครงการ, สถานะสีเขียว\n`
+                    + `ลบแล้วกู้คืนในระบบไม่ได้ (มีสำเนาในโฟลเดอร์ของคุณ)\n\nยืนยันหรือไม่?`;
+                if (!confirm(msg)) { setStatus('ยกเลิก — ยังไม่ลบอะไร'); return; }
+                const typed = prompt('พิมพ์คำว่า  ลบ  เพื่อยืนยันการลบถาวร');
+                if (typed === null || typed.trim() !== 'ลบ') { setStatus('ยกเลิก — ไม่ได้พิมพ์ยืนยัน ยังไม่ลบอะไร'); return; }
+
+                // ดึงไฟล์ข้อมูลสำรองล่าสุดให้อัตโนมัติก่อนลบ
+                exportDataJSON();
+                await new Promise(r => setTimeout(r, 1000));
+
+                const storage = client.storage.from(getStorageBucket());
+                let removed = 0, failed = 0, freed = 0, stopReason = '';
+                for (let i = 0; i < safe.length; i += 50) {
+                    const batch = safe.slice(i, i + 50);
+                    const paths = batch.flatMap(it => [it.path, `${it.folder}/thumbs/${it.file}`]);
+                    const { data, error } = await storage.remove(paths);
+                    if (error) {
+                        console.error('Storage remove error:', error);
+                        failed += batch.length;
+                        if (removed === 0) {
+                            stopReason = 'ลบไม่สำเร็จ: ' + (error.message || error);
+                            break;
+                        }
+                        continue;
+                    }
+                    // Storage คืนเฉพาะไฟล์ที่ลบได้จริง (ถ้าไม่มีสิทธิ์จะคืนว่างโดยไม่ error)
+                    const removedFiles = new Set((data || [])
+                        .map(o => String(o.name || ''))
+                        .filter(n => !n.includes('/thumbs/'))
+                        .map(n => n.split('/').pop()));
+                    const okItems = batch.filter(it => removedFiles.has(it.file));
+                    if (okItems.length === 0 && removed === 0) {
+                        stopReason = 'ลบไม่ได้ — Storage ไม่อนุญาตให้ลบไฟล์ (ต้องเพิ่มสิทธิ์ลบไฟล์ใน Supabase ก่อน) ยังไม่มีอะไรถูกลบ';
+                        failed += batch.length;
+                        break;
+                    }
+                    removed += okItems.length;
+                    failed += batch.length - okItems.length;
+                    freed += okItems.reduce((s, it) => s + (it.size || 0), 0);
+
+                    // ตัดลิงก์รูปที่ลบแล้วออกจากบันทึกงานทันที (กันค้างเป็นรูปเสียถ้าปิดหน้าต่างกลางทาง)
+                    const okUrls = new Set(okItems.map(it => it.url));
+                    sequenceRecords.forEach(r => {
+                        if (Array.isArray(r.photos)) {
+                            const before = r.photos.length;
+                            r.photos = r.photos.filter(u => !okUrls.has(u));
+                            if (r.photos.length !== before) r.photo = r.photos.length > 0 ? r.photos[0] : null;
+                        } else if (r.photo && okUrls.has(r.photo)) {
+                            r.photo = null;
+                        }
+                    });
+                    saveDataToDatabase();
+                    setStatus(`กำลังลบ ${removed}/${safe.length} รูป...`);
+                }
+
+                await syncLocalDataToSupabase();   // ส่งการตัดลิงก์ขึ้น Cloud ให้เสร็จ
+                refreshAllViews();
+                if (stopReason && removed === 0) {
+                    setStatus(stopReason);
+                    showNotification('ลบรูปไม่สำเร็จ — ยังไม่มีรูปถูกลบ', 'rose');
+                    return;
+                }
+                setStatus(`ลบแล้ว ${removed} รูป (ประมาณ ${Math.round(freed / 1048576)} MB)` + (failed ? ` · ลบไม่ได้ ${failed} รูป` : '') + (missing ? ` · ข้ามเพราะไม่มีสำเนา/ขนาดไม่ตรง ${missing} รูป` : ''));
+                showNotification(`ลดรูปเรียบร้อย ลบ ${removed} รูป`, failed ? 'amber' : 'emerald');
+                checkStorageQuota(true);
+            } catch (err) {
+                console.error('reducePhotosPerSequence error:', err);
+                setStatus('เกิดข้อผิดพลาด: ' + (err && err.message ? err.message : err));
+                showNotification('ลดรูปไม่สำเร็จ — ตรวจสอบสถานะในหน้าต่าง', 'rose');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        // ===================================================================
+        // เฝ้าระวังพื้นที่ Storage — เตือนเมื่อใช้ไป 80% (ADMIN)
+        // วัดจากขนาดไฟล์จริงใน Bucket รูป เทียบกับโควตาแพ็กเกจ (ฟรี = 1 GB)
+        // ===================================================================
+        const STORAGE_QUOTA_BYTES_DEFAULT = 1024 * 1024 * 1024;
+        const STORAGE_WARN_RATIO = 0.8;
+        const STORAGE_DANGER_RATIO = 0.95;
+
+        function getStorageQuotaBytes() {
+            const v = parseFloat(localStorage.getItem('bt_storage_quota_gb') || '');
+            return v > 0 ? v * 1024 * 1024 * 1024 : STORAGE_QUOTA_BYTES_DEFAULT;
+        }
+
+        // รวมขนาดไฟล์ทุกโฟลเดอร์ใน Bucket — คืน null ถ้าวัดไม่ได้
+        async function measureStorageUsage() {
+            const client = getSupabaseClient();
+            if (!client) return null;
+            const storage = client.storage.from(getStorageBucket());
+            let total = 0, count = 0;
+
+            const walk = async (prefix, depth) => {
+                for (let offset = 0; ; offset += 1000) {
+                    const { data, error } = await storage.list(prefix, { limit: 1000, offset });
+                    if (error) throw error;
+                    const rows = data || [];
+                    for (const f of rows) {
+                        if (f.id) {
+                            total += (f.metadata && typeof f.metadata.size === 'number') ? f.metadata.size : 0;
+                            count++;
+                        } else if (depth < 4) {
+                            await walk(prefix ? `${prefix}/${f.name}` : f.name, depth + 1);
+                        }
+                    }
+                    if (rows.length < 1000) break;
+                }
+            };
+
+            try {
+                await walk('', 0);
+            } catch (e) {
+                console.warn('วัดพื้นที่ Storage ไม่สำเร็จ:', e);
+                return null;
+            }
+            // ไม่พบไฟล์เลยแต่ในข้อมูลมีลิงก์รูป = น่าจะอ่านรายการไฟล์ไม่ได้ (สิทธิ์) ไม่ใช่ว่าว่างจริง
+            if (count === 0 && collectStoragePhotoUrls().urls.length > 0) return null;
+            return { total, count };
+        }
+
+        function fmtBytes(b) {
+            return b >= 1073741824 ? (b / 1073741824).toFixed(2) + ' GB' : Math.round(b / 1048576) + ' MB';
+        }
+
+        function updateStorageMeterUI(usage) {
+            const el = document.getElementById('storage-meter-info');
+            if (!el) return;
+            if (!usage) { el.textContent = 'วัดพื้นที่ Storage ไม่ได้ (อ่านรายการไฟล์ไม่ได้)'; return; }
+            const quota = getStorageQuotaBytes();
+            const pct = Math.round(usage.total / quota * 100);
+            const cls = pct >= 95 ? 'text-rose-600' : pct >= 80 ? 'text-amber-600' : 'text-emerald-600';
+            el.innerHTML = `พื้นที่เก็บรูปที่ใช้: <b class="${cls}">${fmtBytes(usage.total)} / ${fmtBytes(quota)} (${pct}%)</b> · ${usage.count.toLocaleString()} ไฟล์ <button onclick="setStorageQuotaGB()" class="underline text-slate-500 ml-1">ตั้งโควตา</button>`;
+        }
+
+        // ตั้งโควตา Storage ของแพ็กเกจ (GB) — ฟรี = 1, Pro = 100 (กันแจ้งเตือนผิดหลังอัปเกรดแพ็กเกจ)
+        function setStorageQuotaGB() {
+            const cur = (getStorageQuotaBytes() / 1073741824);
+            const v = prompt('โควตา Storage ของแพ็กเกจปัจจุบัน (GB)\nฟรี = 1 · Pro = 100', String(cur));
+            if (v === null) return;
+            const n = parseFloat(v);
+            if (!(n > 0)) { showNotification('ใส่ตัวเลข GB ที่มากกว่า 0', 'rose'); return; }
+            try { localStorage.setItem('bt_storage_quota_gb', String(n)); localStorage.removeItem('bt_storage_alert_dismissed'); } catch (e) { /* ไม่เป็นไร */ }
+            checkStorageQuota(false);
+            showNotification(`ตั้งโควตาเป็น ${n} GB แล้ว (แจ้งเตือน LINE ตอนเช้ายังใช้ 1 GB — ต้องแก้ค่าในฟังก์ชัน Edge ด้วยถ้าอัปเกรด)`, 'amber');
+        }
+
+        function showStorageAlert(usage) {
+            const el = document.getElementById('storage-alert-banner');
+            if (!el) return;
+            const quota = getStorageQuotaBytes();
+            const ratio = usage ? usage.total / quota : 0;
+            let dismissed = 0;
+            try { dismissed = parseInt(localStorage.getItem('bt_storage_alert_dismissed') || '0', 10); } catch (e) { /* ไม่เป็นไร */ }
+            if (!usage || ratio < STORAGE_WARN_RATIO || Date.now() - dismissed < 24 * 3600 * 1000) {
+                el.classList.add('hidden');
+                return;
+            }
+            const danger = ratio >= STORAGE_DANGER_RATIO;
+            el.className = `no-print fixed top-3 left-1/2 -translate-x-1/2 z-[90] max-w-[94vw] ${danger ? 'bg-rose-600' : 'bg-amber-500'} text-white text-[11px] font-semibold px-4 py-2 rounded-2xl shadow-lg text-center`;
+            el.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> พื้นที่เก็บรูปใช้ไปแล้ว ${Math.round(ratio * 100)}% (${fmtBytes(usage.total)} / ${fmtBytes(quota)}) — ${danger ? 'ใกล้เต็มมาก ระบบอาจค้างได้ ' : ''}ลดรูปหรืออัปเกรดแพ็กเกจ <button onclick="dismissStorageAlert()" class="ml-2 underline font-bold">ซ่อน 24 ชม.</button>`;
+        }
+
+        function dismissStorageAlert() {
+            try { localStorage.setItem('bt_storage_alert_dismissed', String(Date.now())); } catch (e) { /* ไม่เป็นไร */ }
+            const el = document.getElementById('storage-alert-banner');
+            if (el) el.classList.add('hidden');
+        }
+
+        // เช็กพื้นที่ — ปกติวันละ 2 ครั้งต่อเครื่อง (force = เช็กทันที)
+        async function checkStorageQuota(force) {
+            if (!currentUser || currentUser.role !== 'ADMIN' || _offlineFileMode || _cloudOffline) return;
+            if (!getSupabaseClient()) return;
+            let last = null;
+            try { last = JSON.parse(localStorage.getItem('bt_storage_check') || 'null'); } catch (e) { last = null; }
+            if (!force && last && Date.now() - last.at < 12 * 3600 * 1000) {
+                updateStorageMeterUI(last.usage);
+                showStorageAlert(last.usage);
+                return;
+            }
+            const usage = await measureStorageUsage();
+            if (usage) {
+                try { localStorage.setItem('bt_storage_check', JSON.stringify({ at: Date.now(), usage })); } catch (e) { /* ไม่เป็นไร */ }
+            }
+            updateStorageMeterUI(usage);
+            showStorageAlert(usage);
+        }
+
         // คำนวณขนาดข้อมูลที่เก็บอยู่ในเครื่อง
         function getLocalDataSizeKB() {
-            const keys = ['bt_users_db','bt_master_seq','bt_master_mat','bt_master_subtasks','bt_projects','bt_seq_records','bt_issues','bt_procurements'];
+            const keys = ['bt_users_db','bt_master_seq','bt_master_mat','bt_master_subtasks','bt_projects','bt_seq_records','bt_issues','bt_procurements','bt_material_specs','bt_fame_notes','bt_cp_resources','bt_cp_action_plans','bt_cloud_baseline'];
             let bytes = 0;
             keys.forEach(k => { const v = localStorage.getItem(k); if (v) bytes += v.length; });
             return Math.round(bytes / 1024);
@@ -3090,14 +3453,23 @@
             return m;
         }
 
-        function rebuildSnapshotFromCurrentState(savedAtIso) {
-            _cloudSnapshot = {};
+        function buildSnapshotFromCurrentState() {
+            const snap = {};
             Object.entries(CLOUD_TABLES).forEach(([key, cfg]) => {
-                _cloudSnapshot[key] = snapshotFromList(cfg, cfg.get());
+                snap[key] = snapshotFromList(cfg, cfg.get());
             });
-            _cloudSnapshot._settings = hashStr(JSON.stringify(currentSettingsPayload()));
+            snap._settings = hashStr(JSON.stringify(currentSettingsPayload()));
+            return snap;
+        }
+
+        function rebuildSnapshotFromCurrentState(savedAtIso) {
+            _cloudSnapshot = buildSnapshotFromCurrentState();
             persistBaseline(savedAtIso);
         }
+
+        let _pullRetryTimer = null;
+        let _lastPushError = '';   // ข้อความ error ล่าสุดตอนส่งขึ้น Cloud (แสดงในแถบโหมดสำรอง)
+        let _localEditSeq = 0;     // เพิ่มทุกครั้งที่มีการบันทึกในเครื่อง — ใช้กันการดึงข้อมูลทับงานที่เพิ่งแก้ระหว่างดึง
 
         // ===================================================================
         // BASELINE — จำ "สถานะล่าสุดที่ตรงกับ Cloud" ไว้ในเครื่อง (รอดการปิด/เปิดแอปใหม่)
@@ -3148,7 +3520,10 @@
             const exitBtn = _offlineFileMode
                 ? ' <button onclick="exitOfflineFileMode()" class="ml-2 underline font-bold">ออกจากโหมดสำรอง</button>'
                 : '';
-            el.innerHTML = `${head} · ข้อมูล ณ ${when} · แก้ไขได้ ค้างส่งขึ้น Cloud ${pending} รายการ${exitBtn}`;
+            const errTxt = (!_offlineFileMode && _lastPushError)
+                ? ` · ส่งไม่สำเร็จ: ${String(_lastPushError).replace(/[<>&"']/g, '').slice(0, 80)}`
+                : '';
+            el.innerHTML = `${head} · ข้อมูล ณ ${when} · แก้ไขได้ ค้างส่งขึ้น Cloud ${pending} รายการ${errTxt}${exitBtn}`;
             el.classList.remove('hidden');
         }
 
@@ -3216,7 +3591,8 @@
         }
 
         // เขียนขึ้น Cloud จริง — ส่งเฉพาะส่วนที่ต่าง
-        async function syncDiffToSupabase() {
+        // opts.guardDeletes = ถ้าข้อมูลในเครื่อง "หาย" เทียบกับ Cloud มากผิดปกติ ให้ถามก่อนลบบน Cloud (ใช้ตอนส่งงานค้างก่อนดึงข้อมูล)
+        async function syncDiffToSupabase(opts) {
             const client = getSupabaseClient();
             if (!client) return false;
             if (_offlineFileMode) return false;                   // โหมดสำรองจากไฟล์ — เก็บในเครื่องก่อน ยังไม่ส่งขึ้น Cloud
@@ -3226,8 +3602,37 @@
             let changed = 0;
 
             try {
+                // คำนวณส่วนต่าง + snapshot ของ "ตอนนี้" ในจังหวะเดียว (ไม่มี await คั่น)
+                // ถ้ามีการแก้ไขระหว่างที่กำลังส่ง จะไม่ถูกนับว่าส่งแล้ว — รอบถัดไปจะส่งให้เอง
+                const diffs = {};
+                Object.entries(CLOUD_TABLES).forEach(([key, cfg]) => { diffs[key] = computeTableDiff(cfg, key); });
+                const newSnap = buildSnapshotFromCurrentState();
+                const settingsChanged = !_cloudSnapshot || _cloudSnapshot._settings !== newSnap._settings;
+                const settingsPayload = settingsChanged ? JSON.parse(JSON.stringify(currentSettingsPayload())) : null;
+
+                if (opts && opts.guardDeletes && _cloudSnapshot) {
+                    const suspicious = [];
+                    Object.entries(diffs).forEach(([key, d]) => {
+                        const base = _cloudSnapshot[key] ? _cloudSnapshot[key].size : 0;
+                        const localCount = (CLOUD_TABLES[key].get() || []).length;
+                        if (d.deletes.length > 0 && (d.deletes.length >= 20 || (base >= 10 && d.deletes.length > base * 0.5) || (localCount === 0 && base > 0))) {
+                            suspicious.push({ key, n: d.deletes.length, base });
+                        }
+                    });
+                    if (suspicious.length > 0) {
+                        const detail = suspicious.map(s => `• ${CLOUD_TABLES[s.key].table}: จะลบ ${s.n} จาก ${s.base} แถว`).join('\n');
+                        const ok = confirm(`ตรวจพบว่าข้อมูลในเครื่องนี้ "หายไป" เทียบกับ Cloud จำนวนมาก:\n${detail}\n\nกด OK = ลบแถวเหล่านี้บน Cloud ด้วย (เฉพาะถ้าคุณตั้งใจลบจริง)\nกด Cancel = ไม่ลบ และดึงข้อมูลจาก Cloud กลับมาแทน (ปลอดภัย)`);
+                        if (!ok) {
+                            suspicious.forEach(s => {
+                                diffs[s.key].deletes.forEach(id => newSnap[s.key].set(id, _cloudSnapshot[s.key].get(id)));
+                                diffs[s.key].deletes = [];
+                            });
+                        }
+                    }
+                }
+
                 for (const [key, cfg] of Object.entries(CLOUD_TABLES)) {
-                    const { upserts, deletes } = computeTableDiff(cfg, key);
+                    const { upserts, deletes } = diffs[key];
 
                     if (upserts.length > 0) {
                         // แบ่งส่งทีละ 100 แถว กันคำขอใหญ่เกินไปบนเน็ตหน้างาน
@@ -3239,30 +3644,34 @@
                         changed += upserts.length;
                     }
 
-                    if (deletes.length > 0) {
-                        const { error } = await client.from(cfg.table).delete().in('id', deletes);
+                    // ลบทีละ 100 id กันคำขอยาวเกินขีดจำกัดของ URL
+                    for (let i = 0; i < deletes.length; i += 100) {
+                        const { error } = await client.from(cfg.table).delete().in('id', deletes.slice(i, i + 100));
                         if (error) throw error;
-                        changed += deletes.length;
+                        changed += Math.min(100, deletes.length - i);
                     }
                 }
 
                 // master data (sequence / วัสดุ / งานย่อย) เก็บเป็น key-value
-                const settingsHash = hashStr(JSON.stringify(currentSettingsPayload()));
-                if (!_cloudSnapshot || _cloudSnapshot._settings !== settingsHash) {
-                    const rows = Object.entries(currentSettingsPayload())
+                if (settingsChanged) {
+                    const rows = Object.entries(settingsPayload)
                         .map(([k, v]) => ({ key: k, value: v, updated_at: new Date().toISOString() }));
                     const { error } = await client.from('app_settings').upsert(rows, { onConflict: 'key' });
                     if (error) throw error;
                     changed += rows.length;
                 }
 
-                rebuildSnapshotFromCurrentState();
+                _cloudSnapshot = newSnap;
+                persistBaseline();
+                _lastPushError = '';
                 _lastSelfWriteAt = Date.now();
                 lastCloudSyncAt = new Date();
                 updateCloudSyncBadge(changed > 0 ? 'ok' : 'idle');
+                if (_cloudOffline) setCloudOffline(false); else updateOfflineBanner();
                 return true;
             } catch (err) {
                 console.error('Supabase diff sync error:', err);
+                _lastPushError = (err && (err.message || err.code)) ? String(err.message || err.code) : 'ไม่ทราบสาเหตุ';
                 // ไม่อัปเดต snapshot -> ครั้งหน้าจะลองส่งส่วนที่ค้างใหม่เองอัตโนมัติ
                 updateCloudSyncBadge('error');
                 return false;
@@ -3290,19 +3699,22 @@
         // ===================================================================
         // ดึงข้อมูลจากตารางจริงทั้งหมด (ขนานกัน)
         // ===================================================================
-        async function loadDataFromSupabase() {
+        // opts.discardLocal = ทิ้งงานที่ค้างในเครื่อง แล้วใช้ข้อมูลจาก Cloud ทั้งหมด (ใช้กับปุ่มดึงข้อมูลจาก Cloud แบบกดเอง)
+        async function loadDataFromSupabase(opts) {
             const client = getSupabaseClient();
             if (!client) return false;
             if (_offlineFileMode) return false;   // โหมดสำรองจากไฟล์ — ไม่ดึงทับข้อมูลในไฟล์
+            const discardLocal = !!(opts && opts.discardLocal);
+            const editSeqAtStart = _localEditSeq;
 
             // ส่งงานที่แก้ค้างอยู่ในเครื่อง (ตอน Cloud ล่ม/ออฟไลน์) ขึ้นก่อน แล้วค่อยดึงข้อมูลใหม่
             // ถ้าส่งไม่สำเร็จ จะไม่ดึงทับ เพื่อไม่ให้งานที่แก้ไว้หาย
-            if (_cloudSnapshot && currentUser && currentUser.role !== 'VIEWER' && currentUser.source !== 'local') {
+            if (!discardLocal && _cloudSnapshot && currentUser && currentUser.role !== 'VIEWER' && currentUser.source !== 'local') {
                 const pending = pendingChangeCount();
                 if (pending > 0) {
                     _syncInFlight = true;
                     let pushed = false;
-                    try { pushed = await syncDiffToSupabase(); } finally { _syncInFlight = false; }
+                    try { pushed = await syncDiffToSupabase({ guardDeletes: true }); } finally { _syncInFlight = false; }
                     if (!pushed) {
                         setCloudOffline(true);
                         return false;
@@ -3329,6 +3741,18 @@
 
                 const firstError = results.find(r => r.error);
                 if (firstError) throw firstError.error;
+
+                // มีการบันทึกงานในเครื่องระหว่างที่กำลังดึง -> ห้ามเอาข้อมูลที่ดึงมาทับ ส่งงานนั้นขึ้นก่อนแล้วดึงใหม่
+                if (!discardLocal && _localEditSeq !== editSeqAtStart) {
+                    syncLocalDataToSupabase();
+                    if (!_pullRetryTimer) {
+                        _pullRetryTimer = setTimeout(async () => {
+                            _pullRetryTimer = null;
+                            if (await loadDataFromSupabase()) refreshAllViews();
+                        }, 4000);
+                    }
+                    return false;
+                }
 
                 keys.forEach((k, idx) => {
                     const cfg = CLOUD_TABLES[k];
@@ -3656,6 +4080,9 @@
                 stripEmbeddedBase64Photos();
             } catch (err) {
                 console.error("Error loading localStorage data:", err);
+                // ข้อมูลในเครื่องอ่านไม่ได้ -> ใช้ข้อมูลตัวอย่างแทน ห้ามเทียบกับ baseline เดิม (ไม่งั้นจะนับว่าผู้ใช้ลบทุกแถวแล้วไปลบบน Cloud)
+                try { localStorage.removeItem('bt_cloud_baseline'); } catch (e2) { /* ไม่เป็นไร */ }
+                _cloudSnapshot = null;
                 usersDatabase = defaultUsers;
                 masterSequences = defaultMasterSequences;
                 masterMaterials = defaultMasterMaterials;
@@ -3738,6 +4165,7 @@
         }
 
         function saveDataToDatabase() {
+            _localEditSeq++;
             try {
                 writeLocalStorageOnly();
 
@@ -3768,6 +4196,7 @@
             }
             openModal('backup-modal');
             updateBackupInfo();
+            checkStorageQuota(true);
         }
 
         function exportDataJSON() {
@@ -3905,6 +4334,8 @@
                     showNotification('เปิดข้อมูลจากไฟล์ Backup แล้ว — แก้ไขได้ในเครื่อง จะส่งขึ้น Cloud เมื่อกลับมาล็อกอินปกติ', 'amber');
                 } catch (err) {
                     console.error('openBackupFileMode error:', err);
+                    // คืนข้อมูลในหน่วยความจำกลับตามที่เก็บในเครื่อง (กันค้างครึ่งๆ กลางๆ ระหว่างข้อมูลในไฟล์กับ baseline เดิม)
+                    try { loadDataFromDatabase(); loadBaselineFromStorage(); } catch (e2) { /* ไม่เป็นไร */ }
                     showErr('อ่านไฟล์ Backup ไม่สำเร็จ: ' + (err && err.message ? err.message : err));
                 } finally {
                     input.value = '';
@@ -4393,9 +4824,19 @@
                 if (!error && data) {
                     name = data.full_name || name;
                     role = (data.role || 'VIEWER').toUpperCase();
+                    try { localStorage.setItem('bt_profile_cache', JSON.stringify({ id: authUser.id, name, role })); } catch (e) { /* ไม่เป็นไร */ }
+                } else {
+                    // อ่านไม่ได้ (เช่น เปิดแอปตอนไม่มีเน็ต) — ใช้สิทธิ์ล่าสุดที่เคยอ่านได้ของบัญชีเดียวกัน แทนการลดเป็น VIEWER ทันที
+                    // (เป็นแค่การแสดงผลในเครื่อง สิทธิ์จริงบน Cloud ตรวจโดย RLS ฝั่งเซิร์ฟเวอร์เสมอ)
+                    const cached = JSON.parse(localStorage.getItem('bt_profile_cache') || 'null');
+                    if (cached && cached.id === authUser.id) { name = cached.name || name; role = cached.role || role; }
                 }
             } catch (e) {
-                console.warn('อ่าน profile ไม่สำเร็จ ใช้สิทธิ์ VIEWER ชั่วคราว:', e);
+                console.warn('อ่าน profile ไม่สำเร็จ ใช้สิทธิ์ล่าสุดที่จำไว้ (ถ้ามี):', e);
+                try {
+                    const cached = JSON.parse(localStorage.getItem('bt_profile_cache') || 'null');
+                    if (cached && cached.id === authUser.id) { name = cached.name || name; role = cached.role || role; }
+                } catch (e2) { /* ใช้ VIEWER */ }
             }
             return { username: authUser.email, email: authUser.email, name, role, authId: authUser.id, source: 'cloud' };
         }
@@ -4559,6 +5000,7 @@
                     const pulled = await loadDataFromSupabase();
                     if (pulled) refreshAllViews();
                     subscribeRealtimeUpdates();
+                    checkStorageQuota(false);
                 } catch (err) {
                     console.error('Supabase login error:', err);
                     const msg = (err && err.message || '').toLowerCase();
@@ -4600,6 +5042,9 @@
                 try { await client.auth.signOut(); } catch (e) { console.error('signOut error:', e); }
             }
             localStorage.removeItem('bt_current_user');
+            // ออกจากระบบ = ออกจากโหมดสำรองจากไฟล์ด้วย (ไม่งั้นล็อกอิน Cloud รอบหน้าจะไม่ซิงค์โดยไม่รู้ตัว)
+            _offlineFileMode = false;
+            try { localStorage.removeItem('bt_offline_file_mode'); } catch (e) { /* ไม่เป็นไร */ }
             // คงสถานะ "ส่งขึ้น Cloud ถึงไหนแล้ว" ไว้ตาม baseline ที่เก็บในเครื่อง เพื่อไม่ให้งานที่ค้างส่งถูกดึงทับตอนล็อกอินครั้งต่อไป
             _cloudSnapshot = null;
             loadBaselineFromStorage();
@@ -8160,7 +8605,7 @@
                                 ` : ''}
                                 ${photos.length > 0 ? `
                                     <div class="grid grid-cols-3 gap-1 pt-1 print-grid-3">
-                                        ${photos.map(pUrl => `<img src="${thumbUrlFor(pUrl)}" data-full="${pUrl}" onerror="thumbFallback(this)" class="w-full h-16 object-cover rounded-lg border border-slate-200">`).join('')}
+                                        ${photos.map(pUrl => `<img src="${pUrl}" class="w-full h-16 object-cover rounded-lg border border-slate-200">`).join('')}
                                     </div>
                                 ` : ''}
                             </div>
@@ -9775,9 +10220,12 @@
                 showNotification('เฉพาะ ADMIN เท่านั้นที่ดึงข้อมูลจาก Cloud ได้', 'rose');
                 return;
             }
-            if (!confirm('ข้อมูลในเครื่องนี้จะถูกแทนที่ด้วยข้อมูลล่าสุดจาก Cloud ยืนยันหรือไม่?')) return;
+            const pending = pendingChangeCount();
+            const warn = pending > 0 ? `\n\n⚠️ มีงานที่แก้ในเครื่องนี้ยังไม่ได้ส่งขึ้น Cloud ${pending} รายการ งานเหล่านั้นจะหายไป` : '';
+            if (!confirm('ข้อมูลในเครื่องนี้จะถูกแทนที่ด้วยข้อมูลล่าสุดจาก Cloud ยืนยันหรือไม่?' + warn)) return;
 
-            const ok = await loadDataFromSupabase();
+            // ทิ้งงานที่ค้างในเครื่อง แล้วใช้ข้อมูลจาก Cloud ทั้งหมด (ไม่ส่งงานค้างขึ้นก่อน)
+            const ok = await loadDataFromSupabase({ discardLocal: true });
             if (ok) {
                 refreshAllViews();
                 updateStorageUsageDisplay();
@@ -10114,11 +10562,17 @@
                         showNotification('ดึงข้อมูลล่าสุดจาก Cloud เรียบร้อยแล้ว');
                     }
                     subscribeRealtimeUpdates();
+                    checkStorageQuota(false);
 
                     // ส่งงานที่ค้างตอนออฟไลน์ขึ้น Cloud เมื่อเน็ตกลับมา
                     window.addEventListener('online', () => {
                         showNotification('เชื่อมต่ออินเทอร์เน็ตได้แล้ว — กำลังส่งข้อมูลที่ค้างขึ้น Cloud', 'amber');
-                        syncLocalDataToSupabase();
+                        if (_cloudOffline) {
+                            // ตอนเปิดแอปต่อ Cloud ไม่ได้ -> ส่งงานค้างแล้วดึงข้อมูลล่าสุดใหม่
+                            loadDataFromSupabase().then(ok => { if (ok) refreshAllViews(); });
+                        } else {
+                            syncLocalDataToSupabase();
+                        }
                     });
                 }
             } else {

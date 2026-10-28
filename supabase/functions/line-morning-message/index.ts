@@ -157,6 +157,35 @@ async function getGroupMemberCount(token: string, groupId: string): Promise<numb
   }
 }
 
+// ---- เฝ้าระวังพื้นที่ Storage: เตือนในข้อความเช้าเมื่อใช้เกิน 80% ของโควตา (ฟรี = 1 GB — ถ้าอัปเกรดแพ็กเกจแล้วให้แก้ค่านี้) ----
+const STORAGE_BUCKET = "buildtrack-photos";
+const STORAGE_QUOTA_BYTES = 1024 * 1024 * 1024;
+const STORAGE_WARN_RATIO = 0.8;
+
+// รวมขนาดไฟล์ทุกโฟลเดอร์ใน bucket — วัดไม่ได้ให้คืน null (ห้ามทำให้ข้อความเช้าล้ม)
+async function getStorageUsageBytes(supabase: ReturnType<typeof createClient>): Promise<number | null> {
+  try {
+    let total = 0;
+    const walk = async (prefix: string, depth: number): Promise<void> => {
+      for (let offset = 0; ; offset += 1000) {
+        const { data, error } = await supabase.storage.from(STORAGE_BUCKET).list(prefix, { limit: 1000, offset });
+        if (error) throw error;
+        const rows = data ?? [];
+        for (const f of rows) {
+          if (f.id) total += (f.metadata as { size?: number } | null)?.size ?? 0;
+          else if (depth < 4) await walk(prefix ? `${prefix}/${f.name}` : f.name, depth + 1);
+        }
+        if (rows.length < 1000) break;
+      }
+    };
+    await walk("", 0);
+    return total;
+  } catch (e) {
+    console.error("วัดพื้นที่ Storage ไม่สำเร็จ:", e);
+    return null;
+  }
+}
+
 Deno.serve(async (_req) => {
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -426,6 +455,21 @@ Deno.serve(async (_req) => {
         });
       }
     }
+  }
+
+  const storageUsed = await getStorageUsageBytes(supabase);
+  if (storageUsed !== null && storageUsed >= STORAGE_QUOTA_BYTES * STORAGE_WARN_RATIO) {
+    const pct = Math.round((storageUsed / STORAGE_QUOTA_BYTES) * 100);
+    bodyContents.push({ type: "separator", margin: "md" });
+    bodyContents.push({
+      type: "text",
+      text: `⚠️ พื้นที่เก็บรูปใช้ไปแล้ว ${pct}% (${(storageUsed / 1073741824).toFixed(2)} / ${(STORAGE_QUOTA_BYTES / 1073741824).toFixed(0)} GB) — ใกล้เต็ม ให้ผู้ดูแลลดรูปหรืออัปเกรดแพ็กเกจ เพื่อกันระบบค้าง`,
+      size: "12px",
+      color: "#b45309",
+      weight: "bold",
+      margin: "md",
+      wrap: true,
+    });
   }
 
   if (isSaturday) {
