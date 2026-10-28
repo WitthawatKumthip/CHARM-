@@ -7954,12 +7954,12 @@
                 const beforePhotoSrc = iss.photoBefore || iss.photo;
                 let beforePhotoHtml = '<span class="text-slate-300 text-[10px] italic">ไม่มีรูป</span>';
                 if (beforePhotoSrc) {
-                    beforePhotoHtml = `<div class="relative inline-block"><img src="${thumbUrlFor(beforePhotoSrc)}" data-full="${beforePhotoSrc}" onerror="thumbFallback(this)" loading="lazy" decoding="async" onclick="openDefectComparisonModal('${iss.id}')" title="คลิกดูเปรียบเทียบรูปก่อน-หลัง" class="w-10 h-10 object-cover rounded-lg mx-auto cursor-pointer border-2 border-rose-200 hover:scale-110 transition shadow-sm">${photosBeforeCount > 1 ? `<span class="absolute -bottom-1 -right-1 bg-rose-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${photosBeforeCount}</span>` : ''}</div>`;
+                    beforePhotoHtml = `<div class="relative inline-block"><img src="${thumbUrlFor(beforePhotoSrc)}" data-full="${beforePhotoSrc}" onerror="thumbFallback(this)" onclick="openDefectComparisonModal('${iss.id}')" title="คลิกดูเปรียบเทียบรูปก่อน-หลัง" class="w-10 h-10 object-cover rounded-lg mx-auto cursor-pointer border-2 border-rose-200 hover:scale-110 transition shadow-sm">${photosBeforeCount > 1 ? `<span class="absolute -bottom-1 -right-1 bg-rose-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${photosBeforeCount}</span>` : ''}</div>`;
                 }
 
                 let afterPhotoHtml = '<span class="text-slate-300 text-[10px] italic">รอแก้ไข</span>';
                 if (iss.photoAfter) {
-                    afterPhotoHtml = `<div class="relative inline-block"><img src="${thumbUrlFor(iss.photoAfter)}" data-full="${iss.photoAfter}" onerror="thumbFallback(this)" loading="lazy" decoding="async" onclick="openDefectComparisonModal('${iss.id}')" title="คลิกดูเปรียบเทียบรูปก่อน-หลัง" class="w-10 h-10 object-cover rounded-lg mx-auto cursor-pointer border-2 border-emerald-200 hover:scale-110 transition shadow-sm">${photosAfterCount > 1 ? `<span class="absolute -bottom-1 -right-1 bg-emerald-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${photosAfterCount}</span>` : ''}</div>`;
+                    afterPhotoHtml = `<div class="relative inline-block"><img src="${thumbUrlFor(iss.photoAfter)}" data-full="${iss.photoAfter}" onerror="thumbFallback(this)" onclick="openDefectComparisonModal('${iss.id}')" title="คลิกดูเปรียบเทียบรูปก่อน-หลัง" class="w-10 h-10 object-cover rounded-lg mx-auto cursor-pointer border-2 border-emerald-200 hover:scale-110 transition shadow-sm">${photosAfterCount > 1 ? `<span class="absolute -bottom-1 -right-1 bg-emerald-600 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${photosAfterCount}</span>` : ''}</div>`;
                 }
 
                 let resolvedDateText = iss.resolvedDate ? `<span class="font-bold text-emerald-600">${iss.resolvedDate}</span>` : '<span class="text-slate-400 text-[11px]">-</span>';
@@ -8160,7 +8160,7 @@
                                 ` : ''}
                                 ${photos.length > 0 ? `
                                     <div class="grid grid-cols-3 gap-1 pt-1 print-grid-3">
-                                        ${photos.map(pUrl => `<img src="${thumbUrlFor(pUrl)}" data-full="${pUrl}" onerror="thumbFallback(this)" loading="lazy" decoding="async" class="w-full h-16 object-cover rounded-lg border border-slate-200">`).join('')}
+                                        ${photos.map(pUrl => `<img src="${thumbUrlFor(pUrl)}" data-full="${pUrl}" onerror="thumbFallback(this)" class="w-full h-16 object-cover rounded-lg border border-slate-200">`).join('')}
                                     </div>
                                 ` : ''}
                             </div>
